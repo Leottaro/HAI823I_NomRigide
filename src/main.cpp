@@ -1,13 +1,12 @@
 // GLEW
 #include <GL/glew.h>
 
-// GLFW
-#include <GLFW/glfw3.h>
-
 // GLM
 #include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-using namespace glm;
+#include <glm/ext.hpp>
+
+// GLFW
+#include <GLFW/glfw3.h>
 
 // EIGEN
 #include <Eigen/Dense>
@@ -20,19 +19,136 @@ using namespace glm;
 #include <iostream>
 #include "ShaderProgram.hpp"
 #include "Camera.hpp"
+#include "Mesh.hpp"
 using namespace std;
 
 // Settings // TODO: SINGLETON
-const GLuint WIDTH = 800, HEIGHT = 600;
+GLuint window_width = 800, window_height = 600;
+glm::vec2 cursor_pos = glm::vec2(0, 0);
+glm::vec2 cursor_vel = glm::vec2(0, 0);
+glm::vec2 scroll = glm::vec2(0, 0);
+int polygon_mode = GL_FILL;
 GLFWwindow *window;
 
 // TODO : SCENE
-const vec3 target_pos(0.);
+const glm::vec3 target_pos(0.);
+
+void framebuffer_size_callback(GLFWwindow *window, int width, int height);
+void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods);
+void cursor_pos_callback(GLFWwindow *window, double xpos, double ypos);
+void scroll_callback(GLFWwindow *window, double xoffset, double yoffset);
+
+void initWindow();
+void initOpenGL();
+void globalInit();
+
+int main(void) {
+    globalInit();
+
+    ShaderProgram shader = ShaderProgram("ressources/shaders/vertex_shader.glsl", "ressources/shaders/fragment_shader.glsl");
+    shader.link();
+
+    // INIT SCENE
+    // init camera
+    Camera camera(target_pos, 3., glm::vec2(-M_PI_4 * 0.5, 0.));
+    // init meshes
+    vector<Mesh> meshes(2);
+    meshes[0].setSimpleTerrain(32, 32, glm::vec2(0., .1));
+    meshes[0].setTranslation(glm::vec3(-0.5));
+    meshes[0].setScaleXZ(3.);
+    meshes[1].loadOFF("ressources/models/rhino2.off");
+
+    for (Mesh &mesh : meshes) {
+        mesh.init();
+    }
+
+    // TODO: init textures
+    // TODO: setup lights
+
+    // timings
+    float deltaTime = 0.0f;
+    float lastFrame = 0.0f;
+    glfwSwapInterval(1); // VSync - avoid having 3000 fps
+    do {
+        float currentFrame = glfwGetTime();
+        deltaTime = currentFrame - lastFrame;
+        lastFrame = currentFrame;
+        ImGui_ImplGlfwGL3_NewFrame(); // Imgui update
+
+        // OBJECTS UPDATE
+        camera.update(deltaTime, window, glm::vec3(0.), cursor_vel, scroll);
+
+        meshes[1].setTranslation(glm::vec3(0., 0., -1.));
+        meshes[1].setRotation(glm::vec3(0., currentFrame * 2. * M_PI, 0.));
+
+        // RENDER
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear the screen
+        shader.use();                                       // Use program
+
+        // Update uniforms
+        glm::mat4 projection = camera.getProjectionMatrix();
+        glm::mat4 view = camera.getViewMatrix();
+        shader.set("projection", projection);
+
+        // Render Meshes
+        for (Mesh &mesh : meshes) {
+            glm::mat4 model = mesh.computeTransformationMatrix();
+            glm::mat4 model_view = view * model;
+            glm::mat4 normal_mat = glm::transpose(glm::inverse(model_view));
+            shader.set("model_view", model_view);
+            shader.set("normal_mat", normal_mat);
+            mesh.render();
+        }
+
+        glfwSwapBuffers(window);
+        glfwPollEvents();
+    } while (glfwWindowShouldClose(window) == GLFW_FALSE);
+
+    shader.~ShaderProgram();
+    for (Mesh &mesh : meshes) {
+        mesh.clear();
+    }
+
+    glfwTerminate();
+
+    return 0;
+}
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
-    // make sure the viewport matches the new window dimensions; note that width and
-    // height will be significantly larger than specified on retina displays.
+    // cout << "window : " << width << ", " << width << endl;
+    width = window_width;
+    height = window_height;
     glViewport(0, 0, width, height);
+}
+
+void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
+    // cout << "key:" << key << " scancode:" << scancode << " action:" << action << " mods:" << mods << endl;
+    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
+        glfwSetWindowShouldClose(window, GLFW_TRUE);
+    } else if ((key == GLFW_KEY_W || key == GLFW_KEY_Z) && action == GLFW_PRESS) {
+        if (polygon_mode == GL_FILL) {
+            polygon_mode = GL_LINE;
+        } else if (polygon_mode == GL_LINE) {
+            polygon_mode = GL_POINT;
+        } else if (polygon_mode == GL_POINT) {
+            polygon_mode = GL_FILL;
+        }
+        glPolygonMode(GL_FRONT_AND_BACK, polygon_mode);
+    }
+}
+
+void cursor_pos_callback(GLFWwindow *window, double xpos, double ypos) {
+    // cout << "cursor_pos: (" << xpos << ", " << ypos << ")" << endl;
+    cursor_vel.x = xpos - cursor_pos.x;
+    cursor_vel.y = ypos - cursor_pos.y;
+    cursor_pos.x = xpos;
+    cursor_pos.y = ypos;
+}
+
+void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
+    // cout << "scroll: (" << xoffset << ", " << yoffset << ")" << endl;
+    scroll.x = xoffset;
+    scroll.y = yoffset;
 }
 
 void initWindow() {
@@ -43,23 +159,24 @@ void initWindow() {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_SCALE_FRAMEBUFFER, GL_FALSE); // https://discourse.glfw.org/t/resizing-window-results-in-wrong-aspect-ratio/1268
 
-    window = glfwCreateWindow(WIDTH, HEIGHT, "ImGui OpenGL3 example", NULL, NULL);
+    window = glfwCreateWindow(window_width, window_height, "ImGui OpenGL3 example", NULL, NULL);
     if (!window) {
         glfwTerminate();
         exit(EXIT_FAILURE);
     }
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glfwSetKeyCallback(window, key_callback);
+    glfwSetCursorPosCallback(window, cursor_pos_callback);
+    glfwSetScrollCallback(window, scroll_callback);
 }
 
-void windowSetup() {
+void initOpenGL() {
     glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE); // Ensure we can capture the escape key being pressed below
-    // glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // Hide the mouse and enable unlimited mouvement
-    glfwPollEvents();                     // Set the mouse at the center of the screen
-    glClearColor(0.1f, 0.1f, 0.3f, 0.0f); // Dark blue background
-    glEnable(GL_DEPTH_TEST);              // Enable depth test
-    glDepthFunc(GL_LESS);                 // Accept fragment if it closer to the camera than the former one
-    // glEnable(GL_CULL_FACE);               // Cull triangles which normal is not towards the camera
+    glClearColor(0.1f, 0.1f, 0.3f, 0.0f);                // Dark blue background
+    glEnable(GL_DEPTH_TEST);                             // Enable depth test
+    glDepthFunc(GL_LESS);                                // Accept fragment if it closer to the camera than the former one
+    glEnable(GL_CULL_FACE);                              // Cull triangles which normal is not towards the camera
 }
 
 void globalInit() {
@@ -77,89 +194,7 @@ void globalInit() {
     }
 
     // INITIALIZE IMGUI
-    ImGui_ImplGlfwGL3_Init(window, true);
+    ImGui_ImplGlfwGL3_Init(window, false);
 
-    windowSetup();
-}
-
-int main(void) {
-    globalInit();
-
-    GLuint VAO;
-    glGenVertexArrays(1, &VAO);
-    glBindVertexArray(VAO);
-    ShaderProgram shader = ShaderProgram("ressources/shaders/vertex_shader.glsl", "ressources/shaders/fragment_shader.glsl");
-    glBindFragDataLocation(shader.id(), 0, "outColor");
-    shader.link();
-
-    // INIT OBJECTS
-    GLfloat const vertices[] = {
-        0.0f, 0.5f,
-        0.5f, -0.5f,
-        -0.5f, -0.5f};
-    GLuint const elements[] = {
-        0, 1, 2};
-
-    // INIT CAMERA
-    Camera camera(10., target_pos);
-
-    // INIT OBJECTS
-    GLuint VBO;
-    glGenBuffers(1, &VBO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-    GLuint EBO;
-    glGenBuffers(1, &EBO);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(elements), elements, GL_STATIC_DRAW);
-
-    GLint PositionAttribute = glGetAttribLocation(shader.id(), "position");
-    glEnableVertexAttribArray(PositionAttribute);
-
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glVertexAttribPointer(PositionAttribute, 2, GL_FLOAT, GL_FALSE, 0, 0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-    // timings
-    float deltaTime = 0.0f;
-    float lastFrame = 0.0f;
-
-    glfwSwapInterval(1); // VSync - avoid having 3000 fps
-    do {
-        float currentFrame = glfwGetTime();
-        deltaTime = currentFrame - lastFrame;
-        lastFrame = currentFrame;
-
-        // input
-
-        ImGui_ImplGlfwGL3_NewFrame(); // Imgui update
-
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear the screen
-        shader.use();                                       // Use program
-
-        // OBJECTS UPDATE
-        camera.update(deltaTime, window, target_pos);
-
-        // Update uniforms
-        shader.set("view", camera.getViewMatrix());
-        shader.set("projection", camera.getProjectionMatrix());
-
-        // Draw objects
-        glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
-
-        glfwSwapBuffers(window);
-        glfwPollEvents();
-    } while (glfwGetKey(window, GLFW_KEY_ESCAPE) != GLFW_PRESS &&
-             glfwWindowShouldClose(window) == 0);
-
-    shader.~ShaderProgram();
-    glDeleteBuffers(1, &EBO);
-    glDeleteBuffers(1, &VBO);
-    glDeleteVertexArrays(1, &VAO);
-
-    glfwTerminate();
-
-    return 0;
+    initOpenGL();
 }

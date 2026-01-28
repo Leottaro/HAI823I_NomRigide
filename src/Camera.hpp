@@ -16,20 +16,22 @@ private:
     // Camera parameters
     glm::vec3 m_position;
     glm::vec3 m_target;
-    glm::vec3 m_up;
-    float m_fovy;
-    float m_speed;
+    glm::vec2 m_angles; // (pitch, yaw)
+    float m_distance;
+
+    float m_fovy = M_PI_4;
+    float m_speed = 0.04;
 
     glm::mat4 m_view;
     glm::mat4 m_projection;
 
-    void updateVP(float _aspect_ratio);
+    void clipAngles();
+    void updateMatrix(float _aspect_ratio);
 
 public:
-    Camera(glm::vec3 _position, glm::vec3 _target, glm::vec3 _up, float _fovy = M_PI / 4., float _speed = 2.5) : m_position(_position), m_target(_target), m_up(_up), m_fovy(_fovy), m_speed(_speed) {}
-    Camera(float distance, glm::vec3 _target, float _fov = M_PI / 4., float _speed = 2.5) : m_position(_target + glm::vec3(0., 0., distance)), m_target(_target), m_up(glm::vec3(0., 1., 0.)), m_fovy(_fov), m_speed(_speed) {}
+    Camera(glm::vec3 _target, float _distance, glm::vec2 _angles = glm::vec2(0.), float _fovy = M_PI_4, float _speed = 0.4);
 
-    void update(float _deltaTime, GLFWwindow *_window, glm::vec3 _target_position);
+    void update(float _deltaTime, GLFWwindow *_window, glm::vec3 _target_position, glm::vec2 _cursor_vel, glm::vec2 _scroll);
 
     glm::mat4 getViewMatrix() const { return m_view; }
     glm::mat4 getProjectionMatrix() const { return m_projection; }
