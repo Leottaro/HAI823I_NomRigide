@@ -13,7 +13,8 @@
 
 // IMGUI
 #include <imgui.h>
-#include <imgui_impl_glfw_gl3.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
 
 // USUAL INCLUDES
 #include <iostream>
@@ -22,16 +23,13 @@
 #include "Mesh.hpp"
 using namespace std;
 
-// Settings // TODO: SINGLETON
+// TODO: SINGLETON
 GLuint window_width = 800, window_height = 600;
 glm::vec2 cursor_pos = glm::vec2(0, 0);
 glm::vec2 cursor_vel = glm::vec2(0, 0);
 glm::vec2 scroll = glm::vec2(0, 0);
 int polygon_mode = GL_FILL;
 GLFWwindow *window;
-
-// TODO : SCENE
-const glm::vec3 target_pos(0.);
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods);
@@ -48,15 +46,18 @@ int main(void) {
     ShaderProgram shader = ShaderProgram("ressources/shaders/vertex_shader.glsl", "ressources/shaders/fragment_shader.glsl");
     shader.link();
 
-    // INIT SCENE
-    // init camera
-    Camera camera(target_pos, 3., glm::vec2(-M_PI_4 * 0.5, 0.));
+    // TODO: SCENE
     // init meshes
     vector<Mesh> meshes(2);
     meshes[0].setSimpleTerrain(32, 32, glm::vec2(0., .1));
     meshes[0].setTranslation(glm::vec3(-0.5));
     meshes[0].setScaleXZ(3.);
     meshes[1].loadOFF("ressources/models/rhino2.off");
+    // init camera
+    glm::vec3 center;
+    float radius;
+    meshes[1].computeBoundingSphere(center, radius);
+    Camera camera(center, 3., glm::vec2(-M_PI_4 * 0.5, 0.));
 
     for (Mesh &mesh : meshes) {
         mesh.init();
@@ -70,16 +71,23 @@ int main(void) {
     float lastFrame = 0.0f;
     glfwSwapInterval(1); // VSync - avoid having 3000 fps
     do {
+        glfwSwapBuffers(window);
+        glfwPollEvents();
+
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
-        ImGui_ImplGlfwGL3_NewFrame(); // Imgui update
+
+        // Imgui
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
 
         // OBJECTS UPDATE
-        camera.update(deltaTime, window, glm::vec3(0.), cursor_vel, scroll);
-
         meshes[1].setTranslation(glm::vec3(0., 0., -1.));
-        meshes[1].setRotation(glm::vec3(0., currentFrame * 2. * M_PI, 0.));
+        meshes[1].setRotation(glm::vec3(0., currentFrame * 2. * M_PI * 0.1, 0.));
+        glm::vec4 cam_center = meshes[1].computeTransformationMatrix() * glm::vec4(center, 1.0);
+        camera.update(window, deltaTime, glm::vec3(cam_center.x, cam_center.y, cam_center.z) / cam_center.w, cursor_vel, scroll); // TODO: imgui cam settings
 
         // RENDER
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear the screen
@@ -100,8 +108,13 @@ int main(void) {
             mesh.render();
         }
 
-        glfwSwapBuffers(window);
-        glfwPollEvents();
+        // ImGui Render
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+        // Reset some controls
+        scroll = glm::vec2(0.);
+        cursor_vel = glm::vec2(0.);
     } while (glfwWindowShouldClose(window) == GLFW_FALSE);
 
     shader.~ShaderProgram();
@@ -193,8 +206,19 @@ void globalInit() {
         exit(EXIT_FAILURE);
     }
 
+    // Setup Dear ImGui context
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO &io = ImGui::GetIO();
+    // io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
+    // io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;  // Enable Gamepad Controls
+    // io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;     // IF using Docking Branch
+    ImGui::StyleColorsDark();
+    ImGui_ImplGlfw_InitForOpenGL(window, true); // Second param install_callback=true will install GLFW callbacks and chain to existing ones.
+    ImGui_ImplOpenGL3_Init();
+
     // INITIALIZE IMGUI
-    ImGui_ImplGlfwGL3_Init(window, false);
+    // ImGui_ImplGlfwGL3_Init(window, false);
 
     initOpenGL();
 }

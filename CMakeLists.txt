@@ -17,6 +17,14 @@ add_executable(${APP_TARGET}
     src/ShaderProgram.cpp
     src/Camera.cpp
     src/Mesh.cpp
+
+    external/imgui/imgui.cpp
+    external/imgui/imgui_demo.cpp
+    external/imgui/imgui_draw.cpp
+    external/imgui/imgui_impl_glfw.cpp
+    external/imgui/imgui_impl_opengl3.cpp
+    external/imgui/imgui_tables.cpp
+    external/imgui/imgui_widgets.cpp
 )
 
 # opengl
@@ -30,9 +38,7 @@ include_directories(${GLEW_INCLUDE_DIRS})
 target_link_libraries(${APP_TARGET} GLEW)
 
 # imgui
-add_subdirectory(external/imgui)
 include_directories(external/imgui)
-target_link_libraries(${APP_TARGET} imgui)
 
 # glfw
 find_package(glfw3 REQUIRED)

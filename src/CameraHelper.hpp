@@ -12,12 +12,12 @@ const glm::vec3 VEC_RIGHT = glm::vec3(1.f, 0.f, 0.f);
 
 class CameraHelper {
 public:
-    static float clipAngle2PI(float _angle);
+    static float clipAnglePI(float _angle);
     static glm::vec3 EulerToEuclidian(const glm::vec2 &ThetaPhiR);
     static glm::vec2 EuclidianToEuler(const glm::vec3 &xyz);
 };
 
-float CameraHelper::clipAngle2PI(float _angle) {
+float CameraHelper::clipAnglePI(float _angle) {
     while (_angle < -M_PI)
         _angle += 2. * M_PI;
     while (_angle > M_PI)
