@@ -31,13 +31,6 @@ glm::vec2 scroll = glm::vec2(0, 0);
 int polygon_mode = GL_FILL;
 GLFWwindow *window;
 
-void framebuffer_size_callback(GLFWwindow *window, int width, int height);
-void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods);
-void cursor_pos_callback(GLFWwindow *window, double xpos, double ypos);
-void scroll_callback(GLFWwindow *window, double xoffset, double yoffset);
-
-void initWindow();
-void initOpenGL();
 void globalInit();
 
 int main(void) {
@@ -87,7 +80,7 @@ int main(void) {
         meshes[1].setTranslation(glm::vec3(0., 0., -1.));
         meshes[1].setRotation(glm::vec3(0., currentFrame * 2. * M_PI * 0.1, 0.));
         glm::vec4 cam_center = meshes[1].computeTransformationMatrix() * glm::vec4(center, 1.0);
-        camera.update(window, deltaTime, glm::vec3(cam_center.x, cam_center.y, cam_center.z) / cam_center.w, cursor_vel, scroll); // TODO: imgui cam settings
+        camera.update(window, deltaTime, glm::vec3(cam_center.x, cam_center.y, cam_center.z) / cam_center.w, cursor_vel, scroll);
 
         // RENDER
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear the screen
@@ -128,9 +121,9 @@ int main(void) {
 }
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
-    // cout << "window : " << width << ", " << width << endl;
-    width = window_width;
-    height = window_height;
+    // cout << "framebuffer size: " << width << ", " << height << endl;
+    window_width = width;
+    window_height = height;
     glViewport(0, 0, width, height);
 }
 
@@ -150,12 +143,19 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
     }
 }
 
+void mouse_button_callback(GLFWwindow *window, int button, int action, int mods) {
+    // cout << "mouse button:" << button << " action:" << action << " mods:" << mods << endl;
+    if (button == GLFW_MOUSE_BUTTON_LEFT) {
+        glfwSetInputMode(window, GLFW_CURSOR, action == GLFW_PRESS ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
+    }
+}
+
 void cursor_pos_callback(GLFWwindow *window, double xpos, double ypos) {
-    // cout << "cursor_pos: (" << xpos << ", " << ypos << ")" << endl;
     cursor_vel.x = xpos - cursor_pos.x;
     cursor_vel.y = ypos - cursor_pos.y;
     cursor_pos.x = xpos;
     cursor_pos.y = ypos;
+    // cout << "cursor_pos: (" << cursor_pos.x << ", " << cursor_pos.y << ")\tcursor_vel: (" << cursor_vel.x << ", " << cursor_vel.y << ")" << endl;
 }
 
 void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
@@ -170,7 +170,7 @@ void initWindow() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // To make MacOS happy; should not be needed
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_SCALE_FRAMEBUFFER, GL_FALSE); // https://discourse.glfw.org/t/resizing-window-results-in-wrong-aspect-ratio/1268
+    glfwWindowHint(GLFW_SCALE_FRAMEBUFFER, GL_FALSE); // https://discourse.glfw.org/t/resizing-window-results-in-wrong-aspect-ratio/1268s
 
     window = glfwCreateWindow(window_width, window_height, "ImGui OpenGL3 example", NULL, NULL);
     if (!window) {
@@ -180,8 +180,12 @@ void initWindow() {
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSetKeyCallback(window, key_callback);
+    glfwSetMouseButtonCallback(window, mouse_button_callback);
     glfwSetCursorPosCallback(window, cursor_pos_callback);
     glfwSetScrollCallback(window, scroll_callback);
+
+    if (glfwRawMouseMotionSupported())
+        glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
 }
 
 void initOpenGL() {
@@ -193,6 +197,8 @@ void initOpenGL() {
 }
 
 void globalInit() {
+    glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
+
     // INITIALIZE GLFW
     if (!glfwInit())
         exit(EXIT_FAILURE);

@@ -33,17 +33,22 @@ target_link_libraries(${APP_TARGET} OpenGL)
 # glew
 add_subdirectory(external/glew/build/cmake)
 include_directories(external/glew/include)
-target_link_libraries(${APP_TARGET} GLEW)
+target_link_libraries(${APP_TARGET} glew)
 
 # glfw
 add_subdirectory(external/glfw)
-include_directories(${GLFW_INCLUDE_DIRS})
-target_link_libraries(${APP_TARGET} glfw3)
+include_directories(external/glfw/include)
+target_link_libraries(${APP_TARGET} glfw)
 
 # imgui
 add_subdirectory(external/imgui)
 include_directories(external/imgui)
 target_link_libraries(${APP_TARGET} imgui)
+
+# glm
+add_subdirectory(external/glm)
+include_directories(external/glm)
+target_link_libraries(${APP_TARGET} glm)
 
 # eigen
 add_subdirectory(external/eigen)
