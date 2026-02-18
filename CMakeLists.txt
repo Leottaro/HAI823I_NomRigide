@@ -18,11 +18,16 @@ add_executable(${APP_TARGET}
     src/ShaderProgram.cpp
     src/ShaderProgram.hpp
 
+    src/Transformation.hpp
+
     src/Camera.cpp
     src/Camera.hpp
 
     src/Mesh.cpp
     src/Mesh.hpp
+
+    src/DynamicObject.hpp
+    src/DynamicObject.cpp
 )
 
 # opengl

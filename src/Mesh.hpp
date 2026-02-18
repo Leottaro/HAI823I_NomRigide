@@ -12,17 +12,19 @@
 #include <vector>
 
 class Mesh {
-private:
-    std::vector<glm::vec3> m_vertices = std::vector<glm::vec3>();
-    std::vector<glm::vec3> m_normals = std::vector<glm::vec3>();
-    std::vector<glm::vec2> m_uvs = std::vector<glm::vec2>();
-    std::vector<glm::uvec3> m_triangles = std::vector<glm::uvec3>();
+protected:
+    std::vector<glm::vec3> m_positions;
 
-    GLuint m_VAO = 0;
-    GLuint m_vertices_VBO = 0;
-    GLuint m_normals_VBO = 0;
-    GLuint m_uvs_VBO = 0;
-    GLuint m_triangles_EBO = 0;
+private:
+    std::vector<glm::vec3> m_normals;
+    std::vector<glm::vec2> m_uvs;
+    std::vector<glm::uvec3> m_triangles;
+
+    GLuint m_VAO;
+    GLuint m_positions_VBO;
+    GLuint m_normals_VBO;
+    GLuint m_uvs_VBO;
+    GLuint m_triangles_EBO;
 
     void centerAndScaleToUnit();
 
@@ -40,8 +42,8 @@ public:
     void setCubeSphere(size_t _n);                                                        // Create a CubeSphere of center (0,0,0) and radius 1
 
     // GETTERS
-    inline const std::vector<glm::vec3> &vertexPositions() const { return m_vertices; }
-    inline std::vector<glm::vec3> &vertexPositions() { return m_vertices; }
+    inline const std::vector<glm::vec3> &vertexPositions() const { return m_positions; }
+    inline std::vector<glm::vec3> &vertexPositions() { return m_positions; }
     inline const std::vector<glm::vec3> &vertexNormals() const { return m_normals; }
     inline std::vector<glm::vec3> &vertexNormals() { return m_normals; }
     inline const std::vector<glm::vec2> &vertexTexCoords() const { return m_uvs; }
