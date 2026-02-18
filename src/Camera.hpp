@@ -4,14 +4,14 @@
 // GLM
 #include <glm/glm.hpp>
 #include <glm/ext.hpp>
+#include "Transformation.hpp"
 
 // USUAL INCLUDES
 
 class Camera {
 private:
     // Camera parameters
-    glm::vec3 m_position;
-    glm::vec2 m_angles; // (pitch, yaw)
+    Transformation m_transformation;
     float m_desired_distance;
 
     float m_fovy;
@@ -23,7 +23,6 @@ private:
 
     float m_aspect_ratio;
 
-    void clipAngles();
     void updateMatrix();
 
 public:

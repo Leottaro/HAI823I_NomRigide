@@ -1,5 +1,5 @@
 cd build
-if make; then
+if make -j; then
     cd ..
     ./build/hai823i_nomrigide
 else

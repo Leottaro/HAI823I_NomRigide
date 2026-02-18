@@ -42,10 +42,11 @@ int main(void) {
     // TODO: SCENE
     // init meshes
     vector<Mesh> meshes(2);
-    meshes[0].setSimpleTerrain(32, 32, glm::vec2(0., .1));
-    meshes[0].setTranslation(glm::vec3(-0.5));
-    meshes[0].setScaleXZ(3.);
+    meshes[0].setCubeSphere(20);
+    // meshes[0].setTranslation(glm::vec3(-0.5));
+    // meshes[0].setScaleXZ(3.);
     meshes[1].loadOFF("ressources/models/rhino2.off");
+    Transformation rhino_transfo;
     // init camera
     glm::vec3 center;
     float radius;
@@ -77,9 +78,10 @@ int main(void) {
         ImGui::NewFrame();
 
         // OBJECTS UPDATE
-        meshes[1].setTranslation(glm::vec3(0., 0., -1.));
-        meshes[1].setRotation(glm::vec3(0., currentFrame * 2. * M_PI * 0.1, 0.));
-        glm::vec4 cam_center = meshes[1].computeTransformationMatrix() * glm::vec4(center, 1.0);
+        rhino_transfo.setTranslation(glm::vec3(0., 0., -1.5));
+        rhino_transfo.setEulerAngles(glm::vec3(0., currentFrame * 2. * M_PI * 0.1, 0.));
+        rhino_transfo.updateRotation();
+        glm::vec4 cam_center = rhino_transfo.computeTransformationMatrix() * glm::vec4(center, 1.0);
         camera.update(window, deltaTime, glm::vec3(cam_center.x, cam_center.y, cam_center.z) / cam_center.w, cursor_vel, scroll);
 
         // RENDER
@@ -92,13 +94,13 @@ int main(void) {
         shader.set("projection", projection);
 
         // Render Meshes
-        for (Mesh &mesh : meshes) {
-            glm::mat4 model = mesh.computeTransformationMatrix();
+        for (int i = 0; i < meshes.size(); i++) {
+            glm::mat4 model = i == 0 ? glm::mat4(1.) : rhino_transfo.computeTransformationMatrix();
             glm::mat4 model_view = view * model;
             glm::mat4 normal_mat = glm::transpose(glm::inverse(model_view));
             shader.set("model_view", model_view);
             shader.set("normal_mat", normal_mat);
-            mesh.render();
+            meshes[i].render();
         }
 
         // ImGui Render
