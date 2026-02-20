@@ -83,11 +83,9 @@ void Mesh::setSingleTriangle() {
         glm::vec3(0., 0., 0.),
         glm::vec3(1., 0., 0.),
         glm::vec3(0., 1., 0.),
-        glm::vec3(1., 1., 0.),
     };
     m_triangles = {
         glm::uvec3(0, 1, 2),
-        glm::uvec3(2, 1, 3),
     };
     recomputePerVertexNormals();
     recomputePerVertexTextureCoordinates();

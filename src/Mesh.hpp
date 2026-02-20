@@ -57,6 +57,7 @@ public:
     void recomputePerVertexNormals(bool angleBased = false);
     void recomputePerVertexTextureCoordinates();
 
+    // OpenGL interface
     void init();
     void render();
     void clear();

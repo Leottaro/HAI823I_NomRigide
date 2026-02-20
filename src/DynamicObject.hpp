@@ -9,10 +9,10 @@ enum ConstraintType {
     INEQUALITY_CONSTRAINT,
 };
 
-class DynamicObject : Mesh {
+class DynamicObject {
     // Verticies
-    // std::vector<glm::vec3> m_positions;  // xi: in Mesh
     int N;                               // number of vertices
+    std::vector<glm::vec3> m_positions;  // xi
     std::vector<glm::vec3> m_velocities; // vi
     std::vector<float> m_masses;         // mi
 
@@ -24,9 +24,40 @@ class DynamicObject : Mesh {
     std::vector<float> m_stiffnesses;                                              // kj: Strength in [0;1]
     std::vector<ConstraintType> m_types;                                           // Either Equality (=0) or Inequality (>=0)
 
+    // Calculate
+    glm::vec3 gradientC(int ci, std::vector<glm::vec3> &input, int pj) const;
+
     // "3.5. Damping" of ./articles/Position_Based_Dynamics.pdf
-    void dampVelocities(float k_damping = 1.f); // k_damping = 1. -> rigid body
+    static void dampVelocities(
+        std::vector<glm::vec3> &positions,
+        std::vector<glm::vec3> &velocities,
+        const std::vector<float> &weights,
+        float k_damping = 1.f); // k_damping = 1. -> rigid body
+
+    void fillMissingVertexInfos() {
+        m_velocities.resize(N);
+        m_masses.resize(N);
+    }
+
 public:
     // "3.1. Algorithm Overview" of ./articles/Position_Based_Dynamics.pdf
     void update(float _delta_time);
+
+    void addVertex(const glm::vec3 &_position, const glm::vec3 &_velocity, float _mass);
+    void addConstraint(
+        uint _cardinality,
+        const std::function<float(const std::vector<glm::vec3> &)> &_function,
+        const std::vector<uint> &_indices,
+        float _stiffness,
+        const ConstraintType &_type);
+
+    // OpenGL interface
+private:
+    GLuint m_VAO;
+    GLuint m_positions_VBO;
+
+public:
+    void init();
+    void render();
+    void clear();
 };

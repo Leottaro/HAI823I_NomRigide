@@ -1,4 +1,36 @@
 #include "DynamicObject.hpp"
+#include <glm/matrix.hpp>
+
+float length2(const glm::vec3 &vec) {
+    return vec.x * vec.x + vec.y * vec.y + vec.z * vec.z;
+}
+
+glm::vec3 DynamicObject::gradientC(int ci, std::vector<glm::vec3> &input, int pj) const {
+    glm::vec3 g(0);
+
+    // original value
+    float C0 = m_functions[ci](input);
+
+    // x
+    input[pj].x += 0.0001f;
+    float Cx = m_functions[ci](input);
+    input[pj].x -= 0.0001f;
+
+    // y
+    input[pj].y += 0.0001f;
+    float Cy = m_functions[ci](input);
+    input[pj].y -= 0.0001f;
+
+    // z
+    input[pj].z += 0.0001f;
+    float Cz = m_functions[ci](input);
+    input[pj].z -= 0.0001f;
+
+    g.x = (Cx - C0) / 0.0001f;
+    g.y = (Cy - C0) / 0.0001f;
+    g.z = (Cz - C0) / 0.0001f;
+    return g;
+}
 
 /*
 READ "3.5. Damping" of ./articles/Position_Based_Dynamics.pdf
@@ -12,7 +44,12 @@ READ "3.5. Damping" of ./articles/Position_Based_Dynamics.pdf
 (8) vi ← vi + kdamping ∆vi
 (9) endfor
 */
-void DynamicObject::dampVelocities(float k_damping) { // k_damping = 1. -> rigid body
+void DynamicObject::dampVelocities(
+    std::vector<glm::vec3> &positions,
+    std::vector<glm::vec3> &velocities,
+    const std::vector<float> &masses,
+    float k_damping) {
+    int N = positions.size();
     // (1) to (5)
     float total_mass = 0.f;
     glm::vec3 xcm = glm::vec3(0.); // (1) : global linear velocity
@@ -20,24 +57,26 @@ void DynamicObject::dampVelocities(float k_damping) { // k_damping = 1. -> rigid
     glm::vec3 L = glm::vec3(0.);   // (3)
     glm::mat3 I = glm::mat3(0.);   // (4)
     for (int i = 0; i < N; i++) {
-        xcm += m_positions[i] * m_masses[i];  // (1)
-        vcm += m_velocities[i] * m_masses[i]; // (2)
+        xcm += positions[i] * masses[i];  // (1)
+        vcm += velocities[i] * masses[i]; // (2)
         // (3)
-        glm::vec3 ri = m_positions[i] - xcm;
-        L += glm::cross(ri, (m_masses[i] * m_velocities[i]));
+        glm::vec3 ri = positions[i] - xcm;
+        L += glm::cross(ri, (masses[i] * velocities[i]));
         // (4)
         glm::mat3 r_tilde_i = glm::mat3(0, -ri.z, ri.y, ri.z, 0, -ri.x, -ri.y, ri.x, 0);
-        I += r_tilde_i * glm::transpose(r_tilde_i) * m_masses[i];
+        // glm::mat3 r_tilde_i_T = glm::mat3(0, ri.z, -ri.y, -ri.z, 0, ri.x, ri.y, -ri.x, 0);
+        I += r_tilde_i * glm::transpose(r_tilde_i) * masses[i];
     }
     xcm /= total_mass;                     // (2)
     vcm /= total_mass;                     // (3)
     glm::vec3 omega = glm::inverse(I) * L; // (5): angular velocity
 
-    for (int i = 0; i < N; i++) { // (6)
-        glm::vec3 ri = m_positions[i] - xcm;
-        glm::vec3 dvi = vcm + glm::cross(omega, ri) - m_velocities[i]; // (7)
-        m_velocities[i] += k_damping * dvi;                            // (8)
-    } // (9)
+    // (6)-(9)
+    for (int i = 0; i < N; i++) {
+        glm::vec3 ri = positions[i] - xcm;
+        glm::vec3 dvi = vcm + glm::cross(omega, ri) - velocities[i]; // (7)
+        velocities[i] += k_damping * dvi;                            // (8)
+    }
 }
 
 /*
@@ -62,30 +101,116 @@ READ "3.1. Algorithm Overview" of ./articles/Position_Based_Dynamics.pdf
 */
 void DynamicObject::update(float _delta_time) {
     // (1)-(3) : Initialize the state variables
-    std::vector<glm::vec3> positions(N);
-    std::vector<glm::vec3> velocities(N);
-    std::vector<float> weights(N);
+    std::vector<glm::vec3> positions(N);  // x_i
+    std::vector<glm::vec3> velocities(N); // v_i
+    std::vector<float> weights(N);        // w_i
     for (int i = 0; i < N; i++) {
         positions[i] = m_positions[i];
         velocities[i] = m_velocities[i];
         weights[i] = 1.f / m_masses[i];
     }
 
-    std::vector<glm::vec3> new_positions(N);
-    while (1) { // (4)
+    std::vector<glm::vec3> new_positions(N); // p_i
+    // (4)-(17)
+    while (1) {
         // (5) external forces (gravity, etc...) (for now, just gravity)
         for (int i = 0; i < N; i++)
             velocities[i] += _delta_time * 9.807f;
-        dampVelocities(1.f); // TODO: (6) damp les velocities ou les m_velocities ????
+        DynamicObject::dampVelocities(positions, velocities, m_masses, 1.f); // TODO: (6) damp les velocities ou les m_velocities ????
         // (7)
         for (int i = 0; i < N; i++)
-            new_positions[i] = m_positions[i] + _delta_time * m_velocities[i];
-        // TODO: (8) Collisions ???
-        // TODO: (9)-(12) Solver (Eigen ???)
-        for (int i = 0; i < N; i++) { // (12)
-            velocities[i] = (new_positions[i] - velocities[i]) / _delta_time;
-            positions[i] = new_positions[i];
-        } // (15)
+            new_positions[i] = positions[i] + _delta_time * velocities[i];
+        // TODO: (8) Generate collision constraints
+        // (9)-(11)
+        for (int ci = 0; ci < M; ci++) {
+            // gather function input (and total weight)
+            std::vector<glm::vec3> affected_points(m_cardinalities[ci]);
+            float total_weigths = 0.f;
+            for (int pj = 0; pj < m_cardinalities[ci]; pj++) {
+                affected_points[pj] = new_positions[m_indices[ci][pj]];
+                total_weigths += weights[pj];
+            }
+
+            float function_value = m_functions[ci](affected_points);
+            if (m_types[ci] == INEQUALITY_CONSTRAINT && function_value >= 0.f) {
+                // The constraint is already satisfied so we don't project it
+                continue;
+            }
+
+            // Determine S
+            std::vector<glm::vec3> gradients(m_cardinalities[ci]);
+            float denominator = 0.f;
+            for (int pj = 0; pj < m_cardinalities[ci]; pj++) {
+                gradients[pj] = gradientC(ci, affected_points, pj);
+                denominator += length2(gradients[pj]);
+            }
+            float s = function_value / denominator;
+
+            // add the deltas
+            for (int pj = 0; pj < m_cardinalities[ci]; pj++) {
+                glm::vec3 delta_pj = -s * gradients[pj] * float(m_cardinalities[ci]) * weights[pj] / total_weigths;
+                new_positions[pj] += delta_pj * (1 - m_stiffnesses[ci]);
+            }
+        }
+        // (12)-(15)
+        for (int i = 0; i < N; i++) {
+            velocities[i] = (new_positions[i] - velocities[i]) / _delta_time; // (13)
+            positions[i] = new_positions[i];                                  // (14)
+        }
         // TODO: (16) Velocity update
-    } // (17)
+    }
+}
+
+void DynamicObject::addVertex(const glm::vec3 &_position, const glm::vec3 &_velocity, float _mass) {
+    N++;
+    m_positions.push_back(_position);
+    m_velocities.push_back(_velocity);
+    m_masses.push_back(_mass);
+}
+
+void DynamicObject::addConstraint(
+    uint _cardinality,
+    const std::function<float(const std::vector<glm::vec3> &)> &_function,
+    const std::vector<uint> &_indices,
+    float _stiffness,
+    const ConstraintType &_type) {
+    M++;
+    m_cardinalities.push_back(_cardinality);
+    m_functions.push_back(_function);
+    m_indices.push_back(_indices);
+    m_stiffnesses.push_back(_stiffness);
+    m_types.push_back(_type);
+}
+
+// OpenGL interface
+
+void DynamicObject::init() {
+    glGenVertexArrays(1, &m_VAO);
+    glBindVertexArray(m_VAO);
+
+    glGenBuffers(1, &m_positions_VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_positions_VBO);
+    glBufferData(GL_ARRAY_BUFFER, m_positions.size() * sizeof(glm::vec3), m_positions.data(), GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, m_positions_VBO);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+    glBindVertexArray(0);
+}
+
+void DynamicObject::render() {
+    glBindVertexArray(m_VAO); // Activate the VAO storing geometry data
+    glDrawArrays(GL_LINES, 0, m_positions.size());
+}
+
+void DynamicObject::clear() {
+    m_positions.clear();
+    if (m_VAO) {
+        glDeleteVertexArrays(1, &m_VAO);
+        m_VAO = 0;
+    }
+    if (m_positions_VBO) {
+        glDeleteBuffers(1, &m_positions_VBO);
+        m_positions_VBO = 0;
+    }
 }

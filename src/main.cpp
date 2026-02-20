@@ -21,6 +21,7 @@
 #include "ShaderProgram.hpp"
 #include "Camera.hpp"
 #include "Mesh.hpp"
+#include "DynamicObject.hpp"
 using namespace std;
 
 // TODO: SINGLETON
@@ -41,17 +42,23 @@ int main(void) {
 
     // TODO: SCENE
     // init meshes
-    vector<Mesh> meshes(2);
-    meshes[0].setCubeSphere(20);
+    vector<Mesh> meshes(0);
+    // meshes[0].setCubeSphere(20);
     // meshes[0].setTranslation(glm::vec3(-0.5));
     // meshes[0].setScaleXZ(3.);
-    meshes[1].loadOFF("ressources/models/rhino2.off");
-    Transformation rhino_transfo;
+    // meshes[1].loadOFF("ressources/models/rhino2.off");
+    // Transformation rhino_transfo;
     // init camera
-    glm::vec3 center;
-    float radius;
-    meshes[1].computeBoundingSphere(center, radius);
-    Camera camera(center, 3., glm::vec2(-M_PI_4 * 0.5, 0.));
+    // glm::vec3 center;
+    // float radius;
+    // meshes[1].computeBoundingSphere(center, radius);
+    Camera camera(glm::vec3(), 3., glm::vec2(-M_PI_4 * 0.5, 0.));
+
+    DynamicObject pendule;
+    pendule.addVertex(glm::vec3(0.), glm::vec3(0.), 1.);
+    pendule.addVertex(glm::vec3(0., 1., 0.), glm::vec3(0.), 1.);
+    pendule.addConstraint(1, [](const std::vector<glm::vec3> &_points) { return glm::length(_points[0]); }, {0}, 1., EQUALITY_CONSTRAINT);
+    pendule.addConstraint(2, [](const std::vector<glm::vec3> &_points) { return glm::distance(_points[0], _points[1]) - 1.f; }, {0, 1}, 1., EQUALITY_CONSTRAINT);
 
     for (Mesh &mesh : meshes) {
         mesh.init();
@@ -78,11 +85,12 @@ int main(void) {
         ImGui::NewFrame();
 
         // OBJECTS UPDATE
-        rhino_transfo.setTranslation(glm::vec3(0., 0., -1.5));
-        rhino_transfo.setEulerAngles(glm::vec3(0., currentFrame * 2. * M_PI * 0.1, 0.));
-        rhino_transfo.updateRotation();
-        glm::vec4 cam_center = rhino_transfo.computeTransformationMatrix() * glm::vec4(center, 1.0);
-        camera.update(window, deltaTime, glm::vec3(cam_center.x, cam_center.y, cam_center.z) / cam_center.w, cursor_vel, scroll);
+        // rhino_transfo.setTranslation(glm::vec3(0., 0., -1.5));
+        // rhino_transfo.setEulerAngles(glm::vec3(0., currentFrame * 2. * M_PI * 0.1, 0.));
+        // rhino_transfo.updateRotation();
+        // glm::vec4 cam_center = rhino_transfo.computeTransformationMatrix() * glm::vec4(center, 1.0);
+        camera.update(window, deltaTime, glm::vec3(0.), cursor_vel, scroll);
+        pendule.update(deltaTime);
 
         // RENDER
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear the screen
@@ -95,13 +103,15 @@ int main(void) {
 
         // Render Meshes
         for (int i = 0; i < meshes.size(); i++) {
-            glm::mat4 model = i == 0 ? glm::mat4(1.) : rhino_transfo.computeTransformationMatrix();
+            glm::mat4 model = glm::mat4(1.);
             glm::mat4 model_view = view * model;
             glm::mat4 normal_mat = glm::transpose(glm::inverse(model_view));
             shader.set("model_view", model_view);
             shader.set("normal_mat", normal_mat);
             meshes[i].render();
         }
+        pendule.init();
+        pendule.render();
 
         // ImGui Render
         ImGui::Render();
