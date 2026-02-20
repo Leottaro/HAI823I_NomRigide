@@ -55,12 +55,25 @@ int main(void) {
     // glm::vec3 center;
     // float radius;
     // meshes[1].computeBoundingSphere(center, radius);
-    Camera camera(glm::vec3(), 3., glm::vec2(-M_PI_4 * 0.5, 0.));
+    Camera camera(glm::vec3(), 5., glm::vec2(-M_PI_4 * 0.5, 0.));
 
-    DynamicObject pendule;
-    pendule.addVertex(glm::vec3(0.), glm::vec3(0.), 1.f, true);
-    pendule.addVertex(glm::vec3(0.1, 1., 0.), glm::vec3(0.), 1.f, false);
-    pendule.addDistanceConstraint(1.f, {0, 1}, 1.f, EQUALITY_CONSTRAINT);
+    DynamicObject triangle;
+    triangle.addVertex(glm::vec3(0.), glm::vec3(0.), 1.f, true);
+    triangle.addVertex(glm::vec3(-1., 1., -1.), glm::vec3(0.), 1.f, false);
+    triangle.addVertex(glm::vec3(-1., 1., 1.), glm::vec3(0.), 1.f, false);
+    triangle.addVertex(glm::vec3(1., 1., -1.), glm::vec3(0.), 1.f, false);
+    triangle.addVertex(glm::vec3(1., 1., 1.), glm::vec3(0.), 1.f, false);
+
+    // ROOT
+    triangle.addDistanceConstraint(1.f, {0, 1}, 1.f, EQUALITY_CONSTRAINT);
+    triangle.addDistanceConstraint(1.f, {0, 2}, 1.f, EQUALITY_CONSTRAINT);
+    triangle.addDistanceConstraint(1.f, {0, 3}, 1.f, EQUALITY_CONSTRAINT);
+    triangle.addDistanceConstraint(1.f, {0, 4}, 1.f, EQUALITY_CONSTRAINT);
+
+    // SQUARE
+    triangle.addDistanceConstraint(1.f, {1, 2}, 3.f, EQUALITY_CONSTRAINT);
+    triangle.addDistanceConstraint(1.f, {2, 3}, 3.f, EQUALITY_CONSTRAINT);
+    triangle.addDistanceConstraint(1.f, {3, 4}, 3.f, EQUALITY_CONSTRAINT);
 
     // for (Mesh &mesh : meshes) {
     //     mesh.init();
@@ -96,7 +109,7 @@ int main(void) {
         // glm::vec4 cam_center = rhino_transfo.computeTransformationMatrix() * glm::vec4(center, 1.0);
         camera.update(window, deltaTime, glm::vec3(0.), cursor_vel, scroll);
         if (next_frame) {
-            pendule.update(deltaTime);
+            triangle.update(deltaTime);
             // next_frame = false;
         }
 
@@ -119,8 +132,8 @@ int main(void) {
         //     shader.set("normal_mat", normal_mat);
         //     meshes[i].render();
         // }
-        pendule.init();
-        pendule.render();
+        triangle.init();
+        triangle.render();
 
         // ImGui Render
         ImGui::Render();
@@ -135,7 +148,7 @@ int main(void) {
     // for (Mesh &mesh : meshes) {
     //     mesh.clear();
     // }
-    pendule.clear();
+    triangle.clear();
 
     glfwTerminate();
 

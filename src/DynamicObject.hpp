@@ -30,9 +30,6 @@ class DynamicObject {
     std::vector<float> m_stiffnesses;             // kj: Strength in [0;1]
     std::vector<ConstraintType> m_types;          // Either Equality (=0) or Inequality (>=0)
 
-    // Calculate
-    // glm::vec3 gradientC(uint ci, std::vector<glm::vec3> &input, uint pj) const;
-
     // "3.5. Damping" of ./articles/Position_Based_Dynamics.pdf
     void dampVelocities(float k_damping = 1.f); // k_damping = 1. -> rigid body
 

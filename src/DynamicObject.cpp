@@ -23,7 +23,8 @@ void DynamicObject::dampVelocities(float k_damping) {
     glm::vec3 xcm = glm::vec3(0.); // (1) : global linear velocity
     glm::vec3 vcm = glm::vec3(0.); // (2)
     for (uint i = 0; i < N; i++) {
-        if (m_fixed[i]) continue;
+        if (m_fixed[i])
+            continue;
         xcm += m_positions[i] * m_masses[i];  // (1)
         vcm += m_velocities[i] * m_masses[i]; // (2)
         total_mass += m_masses[i];
@@ -39,29 +40,28 @@ void DynamicObject::dampVelocities(float k_damping) {
     glm::vec3 L = glm::vec3(0.); // (3)
     glm::mat3 I = glm::mat3(0.); // (4)
     for (uint i = 0; i < N; i++) {
-        if (m_fixed[i]) continue;
+        if (m_fixed[i])
+            continue;
         glm::vec3 ri = m_positions[i] - xcm;
         // (3)
         L += glm::cross(ri, m_masses[i] * m_velocities[i]);
-        assert(L[0] == L[0] && L[1] == L[1] && L[2] == L[2]);
         // (4)
         glm::mat3 r_tilde_i = glm::mat3(0, -ri.z, ri.y, ri.z, 0, -ri.x, -ri.y, ri.x, 0);
         I += r_tilde_i * glm::transpose(r_tilde_i) * m_masses[i];
-        assert(I[0][0] == I[0][0] && I[0][1] == I[0][1] && I[0][2] == I[0][2] && I[1][0] == I[1][0] && I[1][1] == I[1][1] && I[1][2] == I[1][2] && I[2][0] == I[2][0] && I[2][1] == I[2][1] && I[2][2] == I[2][2]);
         // I += m_masses[i] * glm::mat3(ri.y * ri.y + ri.z * ri.z, -ri.x * ri.y, -ri.x * ri.z, -ri.x * ri.y, ri.x * ri.x + ri.z * ri.z, -ri.y * ri.z, -ri.x * ri.z, -ri.y * ri.z, ri.x * ri.x + ri.y * ri.y);
     }
 
     // check invertibility / degeneracy
     if (fabs(glm::determinant(I)) < 1e-8f) {
-        return;            // skip damping for degenerate cluster
+        return; // skip damping for degenerate cluster
     }
 
     glm::vec3 omega = glm::inverse(I) * L; // (5): angular velocity
-    assert(omega[0] == omega[0] && omega[1] == omega[1] && omega[2] == omega[2]);
 
     // (6)-(9)
     for (uint i = 0; i < N; i++) {
-        if (m_fixed[i]) continue;
+        if (m_fixed[i])
+            continue;
         glm::vec3 ri = m_positions[i] - xcm;
         glm::vec3 dvi = vcm + glm::cross(omega, ri) - m_velocities[i]; // (7)
         m_velocities[i] += k_damping * dvi;                            // (8)
@@ -107,8 +107,10 @@ void DynamicObject::update(float _delta_time) {
     // (9)-(11)
     std::vector<glm::vec3> affected_points;
     std::vector<glm::vec3> gradients;
-    float evolution, constraint_evolution;
+    float old_evolution, evolution, constraint_evolution;
+    old_evolution = evolution = constraint_evolution = 0.f;
     do { // TODO: while pas convergé
+        old_evolution = evolution;
         evolution = 0.f;
         for (uint ci = 0; ci < M; ci++) {
             constraint_evolution = 0.f;
@@ -117,8 +119,9 @@ void DynamicObject::update(float _delta_time) {
             affected_points.resize(m_cardinalities[ci]);
             float total_weigths = 0.f;
             for (uint pj = 0; pj < m_cardinalities[ci]; pj++) {
-                affected_points[pj] = new_positions[m_indices[ci][pj]];
-                total_weigths += m_weights[pj];
+                uint idx = m_indices[ci][pj];
+                affected_points[pj] = new_positions[idx];
+                total_weigths += m_weights[idx];
             }
 
             float function_value = m_functions[ci](affected_points);
@@ -133,24 +136,21 @@ void DynamicObject::update(float _delta_time) {
             for (uint pj = 0; pj < m_cardinalities[ci]; pj++) {
                 gradients[pj] = m_gradients[ci](affected_points, pj);
                 denominator += length2(gradients[pj]);
-                assert(denominator ==denominator);
             }
             float s = function_value / denominator;
-            assert(s==s);
 
             // add the deltas
             for (uint pj = 0; pj < m_cardinalities[ci]; pj++) {
-                glm::vec3 delta_pj = -s * (float(m_cardinalities[ci]) * m_weights[pj] / total_weigths) * gradients[pj];
-                new_positions[pj] += delta_pj; // TODO: stiffness factor
+                uint idx = m_indices[ci][pj];
+                glm::vec3 delta_pj = -s * (float(m_cardinalities[ci]) * m_weights[idx] / total_weigths) * gradients[pj];
+                new_positions[idx] += delta_pj; // TODO: stiffness factor
                 constraint_evolution += glm::length(delta_pj);
-                assert(constraint_evolution == constraint_evolution);
             }
 
             evolution += constraint_evolution / m_cardinalities[ci];
-            assert(evolution == evolution);
         }
         evolution /= float(M);
-    } while (evolution > 1e-8);
+    } while (abs(old_evolution - evolution) > 1e-7f);
 
     // (12)-(15)
     for (uint i = 0; i < N; i++) {
@@ -159,20 +159,20 @@ void DynamicObject::update(float _delta_time) {
     }
 
     // TODO: (16) Velocity update
-    std::cout << std::endl;
-    for (uint i = 0; i < N; i++) {
-        std::cout << "v" << i << ":" << std::endl
-                  << "    (" << m_positions[i].x << "," << m_positions[i].y << "," << m_positions[i].z << ")" << std::endl
-                  << "    (" << m_velocities[i].x << "," << m_velocities[i].y << "," << m_velocities[i].z << ")" << std::endl
-                  << "    " << m_masses[i] << "\t" << m_weights[i] << std::endl;
-    }
+    // std::cout << std::endl;
+    // for (uint i = 0; i < N; i++) {
+    //     std::cout << "v" << i << ":" << std::endl
+    //               << "    (" << m_positions[i].x << "," << m_positions[i].y << "," << m_positions[i].z << ")" << std::endl
+    //               << "    (" << m_velocities[i].x << "," << m_velocities[i].y << "," << m_velocities[i].z << ")" << std::endl
+    //               << "    " << m_masses[i] << "\t" << m_weights[i] << std::endl;
+    // }
 }
 
 void DynamicObject::addVertex(const glm::vec3 &_position, const glm::vec3 &_velocity, float _mass, bool _fixed) {
     N++;
     m_positions.push_back(_position);
     m_velocities.push_back(_velocity);
-    m_masses.push_back(_fixed ? 0.f : _mass);
+    m_masses.push_back(_fixed ? FLT_MAX : _mass);
     m_weights.push_back(_fixed ? 0.f : 1.f / _mass);
     m_fixed.push_back(_fixed);
 }
@@ -201,7 +201,6 @@ void DynamicObject::addDistanceConstraint(float _targeted_distance, const std::v
     });
     m_gradients.push_back([_targeted_distance](const std::vector<glm::vec3> &_p, uint _pj) {
         glm::vec3 n = (_p[0] - _p[1]) / glm::distance(_p[0], _p[1]);
-        assert(n==n);
         return _pj == 0 ? n : -n;
     });
     m_indices.push_back(_indices);
@@ -227,7 +226,9 @@ void DynamicObject::init() {
 
 void DynamicObject::render() {
     glBindVertexArray(m_VAO); // Activate the VAO storing geometry data
-    glDrawArrays(GL_LINE_STRIP, 0, m_positions.size());
+    // glDrawArrays(GL_TRIANGLE_STRIP, 0, m_positions.size());
+    // glDrawArrays(GL_LINE_STRIP, 0, m_positions.size());
+    glDrawArrays(GL_POINTS, 0, m_positions.size());
 }
 
 void DynamicObject::clear() {
