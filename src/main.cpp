@@ -59,12 +59,8 @@ int main(void) {
 
     DynamicObject pendule;
     pendule.addVertex(glm::vec3(0.), glm::vec3(0.), 1.f, true);
-    pendule.addVertex(glm::vec3(0., 1., 0.), glm::vec3(0.), 1.f, false);
-    pendule.addVertex(glm::vec3(1., 0., 0.), glm::vec3(0.), 1.f, false);
-    // pendule.addConstraint(1, [](const std::vector<glm::vec3> &_points) { return glm::length(_points[0]); }, {0}, 1., EQUALITY_CONSTRAINT);
-    pendule.addConstraint(2, [](const std::vector<glm::vec3> &_points) { return glm::distance(_points[0], _points[1]) - 1.f; }, {0, 1}, 1., EQUALITY_CONSTRAINT);
-    pendule.addConstraint(2, [](const std::vector<glm::vec3> &_points) { return glm::distance(_points[0], _points[1]) - 1.f; }, {1, 2}, 1., EQUALITY_CONSTRAINT);
-    pendule.addConstraint(2, [](const std::vector<glm::vec3> &_points) { return glm::distance(_points[0], _points[1]) - 1.f; }, {0, 2}, 1., EQUALITY_CONSTRAINT);
+    pendule.addVertex(glm::vec3(0.1, 1., 0.), glm::vec3(0.), 1.f, false);
+    pendule.addDistanceConstraint(1.f, {0, 1}, 1.f, EQUALITY_CONSTRAINT);
 
     // for (Mesh &mesh : meshes) {
     //     mesh.init();
@@ -76,8 +72,11 @@ int main(void) {
     // timings
     float deltaTime = 0.0f;
     float lastFrame = 0.0f;
+    uint frame_count = 0;
     glfwSwapInterval(1); // VSync - avoid having 3000 fps
     do {
+        frame_count++;
+
         glfwSwapBuffers(window);
         glfwPollEvents();
 
@@ -96,9 +95,9 @@ int main(void) {
         // rhino_transfo.updateRotation();
         // glm::vec4 cam_center = rhino_transfo.computeTransformationMatrix() * glm::vec4(center, 1.0);
         camera.update(window, deltaTime, glm::vec3(0.), cursor_vel, scroll);
-        if (next_frame){
+        if (next_frame) {
             pendule.update(deltaTime);
-            next_frame = false;
+            // next_frame = false;
         }
 
         // RENDER
