@@ -32,17 +32,20 @@ glm::vec2 scroll = glm::vec2(0, 0);
 int polygon_mode = GL_FILL;
 GLFWwindow *window;
 
+bool next_frame = true;
+
 void globalInit();
 
 int main(void) {
     globalInit();
 
-    ShaderProgram shader = ShaderProgram("ressources/shaders/vertex_shader.glsl", "ressources/shaders/fragment_shader.glsl");
+    // ShaderProgram shader = ShaderProgram("ressources/shaders/vertex_shader.glsl", "ressources/shaders/fragment_shader.glsl");
+    ShaderProgram shader = ShaderProgram("ressources/shaders/vertex_simple.glsl", "ressources/shaders/fragment_simple.glsl");
     shader.link();
 
     // TODO: SCENE
     // init meshes
-    vector<Mesh> meshes(0);
+    // vector<Mesh> meshes(0);
     // meshes[0].setCubeSphere(20);
     // meshes[0].setTranslation(glm::vec3(-0.5));
     // meshes[0].setScaleXZ(3.);
@@ -55,14 +58,17 @@ int main(void) {
     Camera camera(glm::vec3(), 3., glm::vec2(-M_PI_4 * 0.5, 0.));
 
     DynamicObject pendule;
-    pendule.addVertex(glm::vec3(0.), glm::vec3(0.), 1.);
-    pendule.addVertex(glm::vec3(0., 1., 0.), glm::vec3(0.), 1.);
-    pendule.addConstraint(1, [](const std::vector<glm::vec3> &_points) { return glm::length(_points[0]); }, {0}, 1., EQUALITY_CONSTRAINT);
+    pendule.addVertex(glm::vec3(0.), glm::vec3(0.), 1.f, true);
+    pendule.addVertex(glm::vec3(0., 1., 0.), glm::vec3(0.), 1.f, false);
+    pendule.addVertex(glm::vec3(1., 0., 0.), glm::vec3(0.), 1.f, false);
+    // pendule.addConstraint(1, [](const std::vector<glm::vec3> &_points) { return glm::length(_points[0]); }, {0}, 1., EQUALITY_CONSTRAINT);
     pendule.addConstraint(2, [](const std::vector<glm::vec3> &_points) { return glm::distance(_points[0], _points[1]) - 1.f; }, {0, 1}, 1., EQUALITY_CONSTRAINT);
+    pendule.addConstraint(2, [](const std::vector<glm::vec3> &_points) { return glm::distance(_points[0], _points[1]) - 1.f; }, {1, 2}, 1., EQUALITY_CONSTRAINT);
+    pendule.addConstraint(2, [](const std::vector<glm::vec3> &_points) { return glm::distance(_points[0], _points[1]) - 1.f; }, {0, 2}, 1., EQUALITY_CONSTRAINT);
 
-    for (Mesh &mesh : meshes) {
-        mesh.init();
-    }
+    // for (Mesh &mesh : meshes) {
+    //     mesh.init();
+    // }
 
     // TODO: init textures
     // TODO: setup lights
@@ -90,7 +96,10 @@ int main(void) {
         // rhino_transfo.updateRotation();
         // glm::vec4 cam_center = rhino_transfo.computeTransformationMatrix() * glm::vec4(center, 1.0);
         camera.update(window, deltaTime, glm::vec3(0.), cursor_vel, scroll);
-        pendule.update(deltaTime);
+        if (next_frame){
+            pendule.update(deltaTime);
+            next_frame = false;
+        }
 
         // RENDER
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear the screen
@@ -100,16 +109,17 @@ int main(void) {
         glm::mat4 projection = camera.getProjectionMatrix();
         glm::mat4 view = camera.getViewMatrix();
         shader.set("projection", projection);
+        shader.set("view", view);
 
         // Render Meshes
-        for (int i = 0; i < meshes.size(); i++) {
-            glm::mat4 model = glm::mat4(1.);
-            glm::mat4 model_view = view * model;
-            glm::mat4 normal_mat = glm::transpose(glm::inverse(model_view));
-            shader.set("model_view", model_view);
-            shader.set("normal_mat", normal_mat);
-            meshes[i].render();
-        }
+        // for (int i = 0; i < meshes.size(); i++) {
+        //     glm::mat4 model = glm::mat4(1.);
+        //     glm::mat4 model_view = view * model;
+        //     glm::mat4 normal_mat = glm::transpose(glm::inverse(model_view));
+        //     shader.set("model_view", model_view);
+        //     shader.set("normal_mat", normal_mat);
+        //     meshes[i].render();
+        // }
         pendule.init();
         pendule.render();
 
@@ -123,9 +133,10 @@ int main(void) {
     } while (glfwWindowShouldClose(window) == GLFW_FALSE);
 
     shader.~ShaderProgram();
-    for (Mesh &mesh : meshes) {
-        mesh.clear();
-    }
+    // for (Mesh &mesh : meshes) {
+    //     mesh.clear();
+    // }
+    pendule.clear();
 
     glfwTerminate();
 
@@ -152,6 +163,8 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
             polygon_mode = GL_FILL;
         }
         glPolygonMode(GL_FRONT_AND_BACK, polygon_mode);
+    } else if (key == GLFW_KEY_SPACE) {
+        next_frame = true;
     }
 }
 
@@ -205,7 +218,7 @@ void initOpenGL() {
     glClearColor(0.1f, 0.1f, 0.3f, 0.0f);                // Dark blue background
     glEnable(GL_DEPTH_TEST);                             // Enable depth test
     glDepthFunc(GL_LESS);                                // Accept fragment if it closer to the camera than the former one
-    glEnable(GL_CULL_FACE);                              // Cull triangles which normal is not towards the camera
+    // glEnable(GL_CULL_FACE);                              // Cull triangles which normal is not towards the camera
 }
 
 void globalInit() {

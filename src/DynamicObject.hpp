@@ -11,13 +11,15 @@ enum ConstraintType {
 
 class DynamicObject {
     // Verticies
-    int N;                               // number of vertices
+    int N = 0;                           // number of vertices
     std::vector<glm::vec3> m_positions;  // xi
     std::vector<glm::vec3> m_velocities; // vi
     std::vector<float> m_masses;         // mi
+    std::vector<float> m_weights;        // wi
+    std::vector<bool> m_fixed;           // if the vertex is fixed
 
     // Constraints
-    int M;                                                                         // number of contraints
+    int M = 0;                                                                     // number of contraints
     std::vector<uint> m_cardinalities;                                             // nj: The number of impacted vertices
     std::vector<std::function<float(const std::vector<glm::vec3> &)>> m_functions; // Cj: The constraint itself. Input's size must match the cardinality
     std::vector<std::vector<uint>> m_indices;                                      // Indices of impacted vertices
@@ -28,11 +30,7 @@ class DynamicObject {
     glm::vec3 gradientC(int ci, std::vector<glm::vec3> &input, int pj) const;
 
     // "3.5. Damping" of ./articles/Position_Based_Dynamics.pdf
-    static void dampVelocities(
-        std::vector<glm::vec3> &positions,
-        std::vector<glm::vec3> &velocities,
-        const std::vector<float> &weights,
-        float k_damping = 1.f); // k_damping = 1. -> rigid body
+    void dampVelocities(float k_damping = 1.f); // k_damping = 1. -> rigid body
 
     void fillMissingVertexInfos() {
         m_velocities.resize(N);
@@ -43,7 +41,7 @@ public:
     // "3.1. Algorithm Overview" of ./articles/Position_Based_Dynamics.pdf
     void update(float _delta_time);
 
-    void addVertex(const glm::vec3 &_position, const glm::vec3 &_velocity, float _mass);
+    void addVertex(const glm::vec3 &_position, const glm::vec3 &_velocity, float _mass, bool _fixed);
     void addConstraint(
         uint _cardinality,
         const std::function<float(const std::vector<glm::vec3> &)> &_function,
