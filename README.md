@@ -20,7 +20,12 @@ To rebuild the CMake configuration, run:
 ./cmakebuild.sh
 ```
 
-To compile and execute the project, run:
+To compile and execute the debug target, run:
 ```bash
-./compileandrun.sh
+./compileandrun.sh debug
+```
+
+To compile and execute the optimized target, run:
+```bash
+./compileandrun.sh opt
 ```

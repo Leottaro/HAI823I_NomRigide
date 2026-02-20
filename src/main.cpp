@@ -230,7 +230,7 @@ void initOpenGL() {
     glClearColor(0.1f, 0.1f, 0.3f, 0.0f);                // Dark blue background
     glEnable(GL_DEPTH_TEST);                             // Enable depth test
     glDepthFunc(GL_LESS);                                // Accept fragment if it closer to the camera than the former one
-    // glEnable(GL_CULL_FACE);                              // Cull triangles which normal is not towards the camera
+    glEnable(GL_CULL_FACE);                              // Cull triangles which normal is not towards the camera
 }
 
 void globalInit() {
@@ -249,7 +249,7 @@ void globalInit() {
         exit(EXIT_FAILURE);
     }
 
-    // Setup Dear ImGui context
+    // INITIALIZE IMGUI
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO &io = ImGui::GetIO();
@@ -259,9 +259,6 @@ void globalInit() {
     ImGui::StyleColorsDark();
     ImGui_ImplGlfw_InitForOpenGL(window, true); // Second param install_callback=true will install GLFW callbacks and chain to existing ones.
     ImGui_ImplOpenGL3_Init();
-
-    // INITIALIZE IMGUI
-    // ImGui_ImplGlfwGL3_Init(window, false);
 
     initOpenGL();
 }

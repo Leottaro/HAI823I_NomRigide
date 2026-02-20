@@ -43,6 +43,8 @@ public:
     void update(float _delta_time);
 
     void addVertex(const glm::vec3 &_position, const glm::vec3 &_velocity, float _mass, bool _fixed);
+    void setVertexFixed(uint _pj, bool _fixed);
+
     void addConstraint(
         uint _cardinality,
         const constraint_function &_function,

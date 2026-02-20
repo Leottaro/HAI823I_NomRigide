@@ -46,16 +46,15 @@ void DynamicObject::dampVelocities(float k_damping) {
         // (3)
         L += glm::cross(ri, m_masses[i] * m_velocities[i]);
         // (4)
-        glm::mat3 r_tilde_i = glm::mat3(0, -ri.z, ri.y, ri.z, 0, -ri.x, -ri.y, ri.x, 0);
-        I += r_tilde_i * glm::transpose(r_tilde_i) * m_masses[i];
-        // I += m_masses[i] * glm::mat3(ri.y * ri.y + ri.z * ri.z, -ri.x * ri.y, -ri.x * ri.z, -ri.x * ri.y, ri.x * ri.x + ri.z * ri.z, -ri.y * ri.z, -ri.x * ri.z, -ri.y * ri.z, ri.x * ri.x + ri.y * ri.y);
+        // glm::mat3 r_tilde_i = glm::mat3(0, -ri.z, ri.y, ri.z, 0, -ri.x, -ri.y, ri.x, 0);
+        // I += r_tilde_i * glm::transpose(r_tilde_i) * m_masses[i];
+        I += m_masses[i] * glm::mat3(ri.y * ri.y + ri.z * ri.z, -ri.x * ri.y, -ri.x * ri.z, -ri.x * ri.y, ri.x * ri.x + ri.z * ri.z, -ri.y * ri.z, -ri.x * ri.z, -ri.y * ri.z, ri.x * ri.x + ri.y * ri.y);
     }
 
-    // check invertibility / degeneracy
+    // check invertibility
     if (fabs(glm::determinant(I)) < 1e-8f) {
-        return; // skip damping for degenerate cluster
+        return;
     }
-
     glm::vec3 omega = glm::inverse(I) * L; // (5): angular velocity
 
     // (6)-(9)
@@ -118,10 +117,10 @@ void DynamicObject::update(float _delta_time) {
             // gather function input (and total weight)
             affected_points.resize(m_cardinalities[ci]);
             float total_weigths = 0.f;
-            for (uint pj = 0; pj < m_cardinalities[ci]; pj++) {
-                uint idx = m_indices[ci][pj];
-                affected_points[pj] = new_positions[idx];
-                total_weigths += m_weights[idx];
+            for (uint i = 0; i < m_cardinalities[ci]; i++) {
+                uint pj = m_indices[ci][i];
+                affected_points[i] = new_positions[pj];
+                total_weigths += m_weights[pj];
             }
 
             float function_value = m_functions[ci](affected_points);
@@ -133,17 +132,18 @@ void DynamicObject::update(float _delta_time) {
             // Determine S
             gradients.resize(m_cardinalities[ci]);
             float denominator = 0.f;
-            for (uint pj = 0; pj < m_cardinalities[ci]; pj++) {
-                gradients[pj] = m_gradients[ci](affected_points, pj);
-                denominator += length2(gradients[pj]);
+            for (uint i = 0; i < m_cardinalities[ci]; i++) {
+                // uint pj = m_indices[ci][i];
+                gradients[i] = m_gradients[ci](affected_points, i);
+                denominator += length2(gradients[i]);
             }
             float s = function_value / denominator;
 
             // add the deltas
-            for (uint pj = 0; pj < m_cardinalities[ci]; pj++) {
-                uint idx = m_indices[ci][pj];
-                glm::vec3 delta_pj = -s * (float(m_cardinalities[ci]) * m_weights[idx] / total_weigths) * gradients[pj];
-                new_positions[idx] += delta_pj; // TODO: stiffness factor
+            for (uint i = 0; i < m_cardinalities[ci]; i++) {
+                uint pj = m_indices[ci][i];
+                glm::vec3 delta_pj = -s * (float(m_cardinalities[ci]) * m_weights[pj] / total_weigths) * gradients[i];
+                new_positions[pj] += delta_pj; // TODO: stiffness factor
                 constraint_evolution += glm::length(delta_pj);
             }
 
@@ -172,9 +172,14 @@ void DynamicObject::addVertex(const glm::vec3 &_position, const glm::vec3 &_velo
     N++;
     m_positions.push_back(_position);
     m_velocities.push_back(_velocity);
-    m_masses.push_back(_fixed ? FLT_MAX : _mass);
+    m_masses.push_back(_mass);
     m_weights.push_back(_fixed ? 0.f : 1.f / _mass);
     m_fixed.push_back(_fixed);
+}
+
+void DynamicObject::setVertexFixed(uint _pj, bool _fixed) {
+    m_fixed[_pj] = _fixed;
+    m_weights[_pj] = _fixed ? 0.f : 1.f / m_masses[_pj];
 }
 
 void DynamicObject::addConstraint(
