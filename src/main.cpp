@@ -18,6 +18,9 @@
 
 // USUAL INCLUDES
 #include <iostream>
+#include <stdio.h>
+#include <signal.h>
+#include <execinfo.h>
 #include "ShaderProgram.hpp"
 #include "Camera.hpp"
 #include "Mesh.hpp"

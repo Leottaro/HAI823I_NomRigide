@@ -63,6 +63,9 @@ private:
     GLuint m_VAO;
     GLuint m_positions_VBO;
 
+    GLuint m_lines_EBO;
+    std::vector<glm::uvec2> m_lines;
+
 public:
     void init();
     void render();

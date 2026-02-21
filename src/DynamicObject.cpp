@@ -226,6 +226,21 @@ void DynamicObject::init() {
     glBindBuffer(GL_ARRAY_BUFFER, m_positions_VBO);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
+    m_lines.resize(0);
+    for (uint ci = 0; ci < M; ci++) {
+        uint np = m_cardinalities[ci];
+        for (uint i = 0; i < np; i++) {
+            uint pj1 = m_indices[ci][i % np];
+            uint pj2 = m_indices[ci][(i + 1) % np];
+            m_lines.push_back(glm::uvec2(pj1, pj2));
+        }
+    }
+
+    glGenBuffers(1, &m_lines_EBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_lines_EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_lines.size() * sizeof(glm::uvec2), m_lines.data(), GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
     glBindVertexArray(0);
 }
 
@@ -233,7 +248,8 @@ void DynamicObject::render() {
     glBindVertexArray(m_VAO); // Activate the VAO storing geometry data
     // glDrawArrays(GL_TRIANGLE_STRIP, 0, m_positions.size());
     // glDrawArrays(GL_LINE_STRIP, 0, m_positions.size());
-    glDrawArrays(GL_POINTS, 0, m_positions.size());
+    // glDrawArrays(GL_POINTS, 0, m_positions.size());
+    glDrawElements(GL_LINES, m_lines.size() * 2, GL_UNSIGNED_INT, 0);
 }
 
 void DynamicObject::clear() {
