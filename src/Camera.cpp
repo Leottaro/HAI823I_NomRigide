@@ -76,6 +76,7 @@ void Camera::update(GLFWwindow *_window, float _deltaTime, glm::vec3 _target_pos
                 -_deltaTime * m_rotation_speed * _cursor_vel.y,
                 -_deltaTime * m_rotation_speed * _cursor_vel.x,
                 0.f));
+            m_transformation.updateRotation();
             glm::vec3 new_front = m_transformation.getFrontVector();
             m_transformation.setTranslation(_target_position - m_desired_distance * new_front);
             updateMatrix();

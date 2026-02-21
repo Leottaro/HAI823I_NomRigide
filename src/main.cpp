@@ -58,25 +58,28 @@ int main(void) {
     // glm::vec3 center;
     // float radius;
     // meshes[1].computeBoundingSphere(center, radius);
-    Camera camera(glm::vec3(), 5., glm::vec2(-M_PI_4 * 0.5, 0.));
+    Camera camera(glm::vec3(), 8., glm::vec2(-M_PI_4 * 0.5, 0.));
 
     DynamicObject triangle;
     triangle.addVertex(glm::vec3(0.), glm::vec3(0.), 1.f, true);
-    triangle.addVertex(glm::vec3(-1., 1., -1.), glm::vec3(0.), 1.f, false);
+    triangle.addVertex(glm::vec3(-1., 1., -1.), glm::vec3(5., 0., 0.), 1.f, false);
     triangle.addVertex(glm::vec3(-1., 1., 1.), glm::vec3(0.), 1.f, false);
     triangle.addVertex(glm::vec3(1., 1., -1.), glm::vec3(0.), 1.f, false);
-    triangle.addVertex(glm::vec3(1., 1., 1.), glm::vec3(0.), 1.f, false);
+    triangle.addVertex(glm::vec3(1., 1., 1.), glm::vec3(-5., 0., 0.), 1.f, false);
 
     // ROOT
-    triangle.addDistanceConstraint(1.f, {0, 1}, 1.f, EQUALITY_CONSTRAINT);
-    triangle.addDistanceConstraint(1.f, {0, 2}, 1.f, EQUALITY_CONSTRAINT);
-    triangle.addDistanceConstraint(1.f, {0, 3}, 1.f, EQUALITY_CONSTRAINT);
-    triangle.addDistanceConstraint(1.f, {0, 4}, 1.f, EQUALITY_CONSTRAINT);
+    triangle.addDistanceConstraint(0, 1, 1.f, 2.f);
+    triangle.addDistanceConstraint(0, 2, 1.f, 2.f);
+    triangle.addDistanceConstraint(0, 3, 1.f, 2.f);
+    triangle.addDistanceConstraint(0, 4, 1.f, 2.f);
 
     // SQUARE
-    triangle.addDistanceConstraint(1.f, {1, 2}, 3.f, EQUALITY_CONSTRAINT);
-    triangle.addDistanceConstraint(1.f, {2, 3}, 3.f, EQUALITY_CONSTRAINT);
-    triangle.addDistanceConstraint(1.f, {3, 4}, 3.f, EQUALITY_CONSTRAINT);
+    triangle.addDistanceConstraint(1, 2, 1.f);
+    triangle.addDistanceConstraint(2, 4, 1.f);
+    triangle.addDistanceConstraint(4, 3, 1.f);
+    triangle.addDistanceConstraint(3, 1, 1.f);
+    triangle.addDistanceConstraint(1, 4, 1.f);
+    triangle.initRendering();
 
     // for (Mesh &mesh : meshes) {
     //     mesh.init();
@@ -88,17 +91,16 @@ int main(void) {
     // timings
     float deltaTime = 0.0f;
     float lastFrame = 0.0f;
-    uint frame_count = 0;
+    size_t frame_count = 0;
     glfwSwapInterval(1); // VSync - avoid having 3000 fps
     do {
-        frame_count++;
-
         glfwSwapBuffers(window);
         glfwPollEvents();
 
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
+        frame_count++;
 
         // Imgui
         ImGui_ImplOpenGL3_NewFrame();
@@ -113,6 +115,7 @@ int main(void) {
         camera.update(window, deltaTime, glm::vec3(0.), cursor_vel, scroll);
         if (next_frame) {
             triangle.update(deltaTime);
+            triangle.updateRenderedPositions();
             // next_frame = false;
         }
 
@@ -135,7 +138,6 @@ int main(void) {
         //     shader.set("normal_mat", normal_mat);
         //     meshes[i].render();
         // }
-        triangle.init();
         triangle.render();
 
         // ImGui Render

@@ -198,50 +198,60 @@ void DynamicObject::addConstraint(
     m_types.push_back(_type);
 }
 
-void DynamicObject::addDistanceConstraint(float _targeted_distance, const std::vector<uint> &_indices, float _stiffness, const ConstraintType &_type) {
+void DynamicObject::addDistanceConstraint(uint _p0, uint _p1, float _stiffness, float _targeted_distance) {
     M++;
     m_cardinalities.push_back(2);
+    m_indices.push_back({_p0, _p1});
+    m_stiffnesses.push_back(_stiffness);
+    m_types.push_back(EQUALITY_CONSTRAINT);
+
     m_functions.push_back([_targeted_distance](const std::vector<glm::vec3> &_p) {
         return glm::distance(_p[0], _p[1]) - _targeted_distance;
     });
     m_gradients.push_back([_targeted_distance](const std::vector<glm::vec3> &_p, uint _pj) {
-        glm::vec3 n = (_p[0] - _p[1]) / glm::distance(_p[0], _p[1]);
+        glm::vec3 n = glm::normalize(_p[0] - _p[1]);
         return _pj == 0 ? n : -n;
     });
-    m_indices.push_back(_indices);
-    m_stiffnesses.push_back(_stiffness);
-    m_types.push_back(_type);
+}
+void DynamicObject::addDistanceConstraint(uint _p0, uint _p1, float _stiffness) {
+    addDistanceConstraint(_p0, _p1, _stiffness, glm::distance(m_positions[_p0], m_positions[_p1]));
 }
 
 // OpenGL uinterface
 
-void DynamicObject::init() {
+void DynamicObject::initRendering() {
     glGenVertexArrays(1, &m_VAO);
     glBindVertexArray(m_VAO);
 
     glGenBuffers(1, &m_positions_VBO);
-    glBindBuffer(GL_ARRAY_BUFFER, m_positions_VBO);
-    glBufferData(GL_ARRAY_BUFFER, m_positions.size() * sizeof(glm::vec3), m_positions.data(), GL_STATIC_DRAW);
+    updateRenderedPositions();
     glEnableVertexAttribArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, m_positions_VBO);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
+    glGenBuffers(1, &m_lines_EBO);
+    updateRenderedConstraints();
+
+    glBindVertexArray(0);
+}
+
+void DynamicObject::updateRenderedPositions() {
+    glBindBuffer(GL_ARRAY_BUFFER, m_positions_VBO);
+    glBufferData(GL_ARRAY_BUFFER, m_positions.size() * sizeof(glm::vec3), m_positions.data(), GL_STATIC_DRAW);
+}
+
+void DynamicObject::updateRenderedConstraints() {
     m_lines.resize(0);
     for (uint ci = 0; ci < M; ci++) {
         uint np = m_cardinalities[ci];
-        for (uint i = 0; i < np; i++) {
+        for (uint i = 0; i < (np > 2 ? np : 1); i++) {
             uint pj1 = m_indices[ci][i % np];
             uint pj2 = m_indices[ci][(i + 1) % np];
             m_lines.push_back(glm::uvec2(pj1, pj2));
         }
     }
 
-    glGenBuffers(1, &m_lines_EBO);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_lines_EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_lines.size() * sizeof(glm::uvec2), m_lines.data(), GL_STATIC_DRAW);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-    glBindVertexArray(0);
 }
 
 void DynamicObject::render() {
@@ -253,7 +263,22 @@ void DynamicObject::render() {
 }
 
 void DynamicObject::clear() {
+    N = 0;
     m_positions.clear();
+    m_velocities.clear();
+    m_masses.clear();
+    m_weights.clear();
+    m_fixed.clear();
+
+    M = 0;
+    m_cardinalities.clear();
+    m_functions.clear();
+    m_gradients.clear();
+    m_indices.clear();
+    m_stiffnesses.clear();
+    m_types.clear();
+    m_lines.clear();
+
     if (m_VAO) {
         glDeleteVertexArrays(1, &m_VAO);
         m_VAO = 0;
@@ -261,5 +286,9 @@ void DynamicObject::clear() {
     if (m_positions_VBO) {
         glDeleteBuffers(1, &m_positions_VBO);
         m_positions_VBO = 0;
+    }
+    if (m_lines_EBO) {
+        glDeleteBuffers(1, &m_lines_EBO);
+        m_lines_EBO = 0;
     }
 }

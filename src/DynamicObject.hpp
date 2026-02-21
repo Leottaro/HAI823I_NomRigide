@@ -52,11 +52,8 @@ public:
         const std::vector<uint> &_indices,
         float _stiffness,
         const ConstraintType &_type);
-    void addDistanceConstraint(
-        float _targeted_distance,
-        const std::vector<uint> &_indices,
-        float _stiffness,
-        const ConstraintType &_type);
+    void addDistanceConstraint(uint _p0, uint _p1, float _stiffness, float _targeted_distance);
+    void addDistanceConstraint(uint _p0, uint _p1, float _stiffness); // the targeted distance is set to the current distance between p0 and p1
 
     // OpenGL interface
 private:
@@ -67,7 +64,9 @@ private:
     std::vector<glm::uvec2> m_lines;
 
 public:
-    void init();
+    void initRendering();
+    void updateRenderedPositions();
+    void updateRenderedConstraints();
     void render();
     void clear();
 };
