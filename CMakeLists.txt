@@ -17,16 +17,18 @@ include_directories(${PROJECT_SOURCE_DIR} .)
 set(APP_SOURCES
     src/main.cpp
 
-    src/ShaderProgram.cpp
     src/ShaderProgram.hpp
+    src/ShaderProgram.cpp
 
     src/Transformation.hpp
 
-    src/Camera.cpp
     src/Camera.hpp
+    src/Camera.cpp
 
-    src/Mesh.cpp
     src/Mesh.hpp
+    src/Mesh.cpp
+    src/MeshGenerator.cpp
+    src/MeshDynamicGenerator.cpp
 
     src/DynamicObject.hpp
     src/DynamicObject.cpp

@@ -1,8 +1,24 @@
 #pragma once
 
+// GLEW
 #include <GL/glew.h>
-#include <glm/ext.hpp>
+
+// GLM
 #include <glm/glm.hpp>
+#include <glm/ext.hpp>
+
+// GLFW
+#include <GLFW/glfw3.h>
+
+// EIGEN
+#include <Eigen/Dense>
+
+// IMGUI
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
+
+// USUAL INCLUDES
 #include <memory>
 #include <string>
 

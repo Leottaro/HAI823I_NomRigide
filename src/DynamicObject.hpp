@@ -1,8 +1,26 @@
 #pragma once
 
-#include "Mesh.hpp"
-#include "Transformation.hpp"
+// GLEW
+#include <GL/glew.h>
+
+// GLM
+#include <glm/glm.hpp>
+#include <glm/ext.hpp>
+
+// GLFW
+#include <GLFW/glfw3.h>
+
+// EIGEN
+#include <Eigen/Dense>
+
+// IMGUI
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
+
+// USUAL INCLUDES
 #include <functional>
+#include <vector>
 
 typedef std::function<float(const std::vector<glm::vec3> &)> constraint_function;
 typedef std::function<glm::vec3(const std::vector<glm::vec3> &, uint)> gradient_function;
@@ -39,6 +57,21 @@ class DynamicObject {
     }
 
 public:
+    // GETTERS
+    uint getN() const { return N; };
+    const std::vector<glm::vec3> &getPositions() const { return m_positions; };
+    const std::vector<glm::vec3> &getVelocities() const { return m_velocities; };
+    const std::vector<float> &getMasses() const { return m_masses; };
+    const std::vector<float> &getWeights() const { return m_weights; };
+    const std::vector<bool> &getFixed() const { return m_fixed; };
+    uint getM() const { return M; };
+    const std::vector<uint> &getCardinalities() const { return m_cardinalities; };
+    const std::vector<constraint_function> &getFunctions() const { return m_functions; };
+    const std::vector<gradient_function> &getGradients() const { return m_gradients; };
+    const std::vector<std::vector<uint>> &getIndices() const { return m_indices; };
+    const std::vector<float> &getStiffnesses() const { return m_stiffnesses; };
+    const std::vector<ConstraintType> &getTypes() const { return m_types; };
+
     // "3.1. Algorithm Overview" of ./articles/Position_Based_Dynamics.pdf
     void update(float _delta_time);
 

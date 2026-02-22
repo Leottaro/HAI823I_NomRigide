@@ -17,14 +17,13 @@
 #include <imgui_impl_opengl3.h>
 
 // USUAL INCLUDES
-#include <iostream>
-#include <stdio.h>
-#include <signal.h>
-#include <execinfo.h>
 #include "ShaderProgram.hpp"
 #include "Camera.hpp"
 #include "Mesh.hpp"
 #include "DynamicObject.hpp"
+#include <stdio.h>
+#include <execinfo.h>
+
 using namespace std;
 
 // TODO: SINGLETON
@@ -35,7 +34,7 @@ glm::vec2 scroll = glm::vec2(0, 0);
 int polygon_mode = GL_FILL;
 GLFWwindow *window;
 
-bool next_frame = true;
+bool run_simulation = false;
 
 void globalInit();
 
@@ -47,38 +46,35 @@ int main(void) {
     shader.link();
 
     // TODO: SCENE
-    // init meshes
-    // vector<Mesh> meshes(0);
-    // meshes[0].setCubeSphere(20);
-    // meshes[0].setTranslation(glm::vec3(-0.5));
-    // meshes[0].setScaleXZ(3.);
-    // meshes[1].loadOFF("ressources/models/rhino2.off");
-    // Transformation rhino_transfo;
-    // init camera
-    // glm::vec3 center;
-    // float radius;
-    // meshes[1].computeBoundingSphere(center, radius);
     Camera camera(glm::vec3(), 8., glm::vec2(-M_PI_4 * 0.5, 0.));
 
-    DynamicObject triangle;
-    triangle.addVertex(glm::vec3(0.), glm::vec3(0.), 1.f, true);
-    triangle.addVertex(glm::vec3(-1., 1., -1.), glm::vec3(5., 0., 0.), 1.f, false);
-    triangle.addVertex(glm::vec3(-1., 1., 1.), glm::vec3(0.), 1.f, false);
-    triangle.addVertex(glm::vec3(1., 1., -1.), glm::vec3(0.), 1.f, false);
-    triangle.addVertex(glm::vec3(1., 1., 1.), glm::vec3(-5., 0., 0.), 1.f, false);
+    // DynamicObject triangle;
+    // triangle.addVertex(glm::vec3(0.), glm::vec3(0.), 1.f, true);
+    // triangle.addVertex(glm::vec3(-1., 1., -1.), glm::vec3(5., 0., 0.), 1.f, false);
+    // triangle.addVertex(glm::vec3(-1., 1., 1.), glm::vec3(0.), 1.f, false);
+    // triangle.addVertex(glm::vec3(1., 1., -1.), glm::vec3(0.), 1.f, false);
+    // triangle.addVertex(glm::vec3(1., 1., 1.), glm::vec3(-5., 0., 0.), 1.f, false);
 
-    // ROOT
-    triangle.addDistanceConstraint(0, 1, 1.f, 2.f);
-    triangle.addDistanceConstraint(0, 2, 1.f, 2.f);
-    triangle.addDistanceConstraint(0, 3, 1.f, 2.f);
-    triangle.addDistanceConstraint(0, 4, 1.f, 2.f);
+    // // ROOT
+    // triangle.addDistanceConstraint(0, 1, 1.f, 2.f);
+    // triangle.addDistanceConstraint(0, 2, 1.f, 2.f);
+    // triangle.addDistanceConstraint(0, 3, 1.f, 2.f);
+    // triangle.addDistanceConstraint(0, 4, 1.f, 2.f);
 
-    // SQUARE
-    triangle.addDistanceConstraint(1, 2, 1.f);
-    triangle.addDistanceConstraint(2, 4, 1.f);
-    triangle.addDistanceConstraint(4, 3, 1.f);
-    triangle.addDistanceConstraint(3, 1, 1.f);
-    triangle.addDistanceConstraint(1, 4, 1.f);
+    // // SQUARE
+    // triangle.addDistanceConstraint(1, 2, 1.f);
+    // triangle.addDistanceConstraint(2, 4, 1.f);
+    // triangle.addDistanceConstraint(4, 3, 1.f);
+    // triangle.addDistanceConstraint(3, 1, 1.f);
+    // triangle.addDistanceConstraint(1, 4, 1.f);
+    // triangle.initRendering();
+
+    uint size = 15;
+    Mesh sphere;
+    sphere.setSimpleGrid(size, size);
+    DynamicObject triangle = sphere.intoRigidBody();
+    triangle.setVertexFixed(0, true);
+    // triangle.setVertexFixed(size - 1, true);
     triangle.initRendering();
 
     // for (Mesh &mesh : meshes) {
@@ -113,10 +109,10 @@ int main(void) {
         // rhino_transfo.updateRotation();
         // glm::vec4 cam_center = rhino_transfo.computeTransformationMatrix() * glm::vec4(center, 1.0);
         camera.update(window, deltaTime, glm::vec3(0.), cursor_vel, scroll);
-        if (next_frame) {
+        if (run_simulation) {
             triangle.update(deltaTime);
             triangle.updateRenderedPositions();
-            // next_frame = false;
+            // run_simulation = false;
         }
 
         // RENDER
@@ -167,6 +163,7 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
     glViewport(0, 0, width, height);
 }
 
+bool space_key_pressed = false;
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
     // cout << "key:" << key << " scancode:" << scancode << " action:" << action << " mods:" << mods << endl;
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
@@ -181,7 +178,14 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
         }
         glPolygonMode(GL_FRONT_AND_BACK, polygon_mode);
     } else if (key == GLFW_KEY_SPACE) {
-        next_frame = true;
+        if (action == GLFW_PRESS) {
+            if (!space_key_pressed) {
+                space_key_pressed = true;
+                run_simulation = !run_simulation;
+            }
+        } else if (space_key_pressed) {
+            space_key_pressed = false;
+        }
     }
 }
 

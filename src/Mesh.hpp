@@ -7,15 +7,24 @@
 #include <glm/glm.hpp>
 #include <glm/ext.hpp>
 
+// GLFW
+#include <GLFW/glfw3.h>
+
+// EIGEN
+#include <Eigen/Dense>
+
+// IMGUI
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
+
 // USUAL INCLUDES
-#include <memory>
+#include "DynamicObject.hpp"
 #include <vector>
+#include <string>
 
 class Mesh {
-protected:
     std::vector<glm::vec3> m_positions;
-
-private:
     std::vector<glm::vec3> m_normals;
     std::vector<glm::vec2> m_uvs;
     std::vector<glm::uvec3> m_triangles;
@@ -56,6 +65,9 @@ public:
 
     void recomputePerVertexNormals(bool angleBased = false);
     void recomputePerVertexTextureCoordinates();
+
+    // Conversion into DynamicObject
+    DynamicObject intoRigidBody() const;
 
     // OpenGL interface
     void init();

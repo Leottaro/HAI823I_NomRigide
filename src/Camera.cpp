@@ -1,17 +1,4 @@
-// GLFW
-#include <GLFW/glfw3.h>
-
-// GLM
-#include <glm/glm.hpp>
-#include <glm/ext.hpp>
-
-// IMGUI
-#include <imgui.h>
-#include <imgui_impl_glfw.h>
-#include <imgui_impl_opengl3.h>
-
 // USUAL INCLUDES
-#include <iostream>
 #include "Camera.hpp"
 
 #define M_PI_SAFE float(M_PI - 0.001)

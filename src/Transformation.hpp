@@ -1,8 +1,24 @@
 #pragma once
 
-#include <GLFW/glfw3.h>
+// GLEW
+#include <GL/glew.h>
+
+// GLM
 #include <glm/glm.hpp>
 #include <glm/ext.hpp>
+
+// GLFW
+#include <GLFW/glfw3.h>
+
+// EIGEN
+#include <Eigen/Dense>
+
+// IMGUI
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
+
+// USUAL INCLUDES
 #include <math.h>
 
 #define M_PI_SAFE float(M_PI - 0.001)

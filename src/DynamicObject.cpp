@@ -150,7 +150,7 @@ void DynamicObject::update(float _delta_time) {
             evolution += constraint_evolution / m_cardinalities[ci];
         }
         evolution /= float(M);
-    } while (abs(old_evolution - evolution) > 1e-7f);
+    } while (abs(old_evolution - evolution) > FLT_MIN); // TODO: better convergence (ocillation) detection: (ici ? https://en.wikipedia.org/wiki/Gauss%E2%80%93Seidel_method#Convergence)
 
     // (12)-(15)
     for (uint i = 0; i < N; i++) {
@@ -159,7 +159,8 @@ void DynamicObject::update(float _delta_time) {
     }
 
     // TODO: (16) Velocity update
-    // std::cout << std::endl;
+    // std::cout << std::endl
+    //           << std::endl;
     // for (uint i = 0; i < N; i++) {
     //     std::cout << "v" << i << ":" << std::endl
     //               << "    (" << m_positions[i].x << "," << m_positions[i].y << "," << m_positions[i].z << ")" << std::endl
