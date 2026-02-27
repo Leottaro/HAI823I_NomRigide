@@ -107,7 +107,7 @@ void DynamicObject::update(float _delta_time) {
     std::vector<glm::vec3> affected_points;
     std::vector<glm::vec3> gradients;
     float old_evolution, evolution, constraint_evolution;
-    old_evolution = evolution = constraint_evolution = 0.f;
+    evolution = 0.f;
     do { // TODO: while pas convergé
         old_evolution = evolution;
         evolution = 0.f;

@@ -48,38 +48,13 @@ int main(void) {
     // TODO: SCENE
     Camera camera(glm::vec3(), 8., glm::vec2(-M_PI_4 * 0.5, 0.));
 
-    // DynamicObject triangle;
-    // triangle.addVertex(glm::vec3(0.), glm::vec3(0.), 1.f, true);
-    // triangle.addVertex(glm::vec3(-1., 1., -1.), glm::vec3(5., 0., 0.), 1.f, false);
-    // triangle.addVertex(glm::vec3(-1., 1., 1.), glm::vec3(0.), 1.f, false);
-    // triangle.addVertex(glm::vec3(1., 1., -1.), glm::vec3(0.), 1.f, false);
-    // triangle.addVertex(glm::vec3(1., 1., 1.), glm::vec3(-5., 0., 0.), 1.f, false);
-
-    // // ROOT
-    // triangle.addDistanceConstraint(0, 1, 1.f, 2.f);
-    // triangle.addDistanceConstraint(0, 2, 1.f, 2.f);
-    // triangle.addDistanceConstraint(0, 3, 1.f, 2.f);
-    // triangle.addDistanceConstraint(0, 4, 1.f, 2.f);
-
-    // // SQUARE
-    // triangle.addDistanceConstraint(1, 2, 1.f);
-    // triangle.addDistanceConstraint(2, 4, 1.f);
-    // triangle.addDistanceConstraint(4, 3, 1.f);
-    // triangle.addDistanceConstraint(3, 1, 1.f);
-    // triangle.addDistanceConstraint(1, 4, 1.f);
-    // triangle.initRendering();
-
-    uint size = 15;
-    Mesh sphere;
-    sphere.setSimpleGrid(size, size);
-    DynamicObject triangle = sphere.intoRigidBody();
-    triangle.setVertexFixed(0, true);
-    // triangle.setVertexFixed(size - 1, true);
-    triangle.initRendering();
-
-    // for (Mesh &mesh : meshes) {
-    //     mesh.init();
-    // }
+    size_t size = 5;
+    Mesh object_mesh;
+    object_mesh.setCube(size);
+    DynamicObject rigid_object = object_mesh.intoRigidBody();
+    // rigid_object.setVertexFixed(0, true);
+    rigid_object.setVertexFixed((size - 1) * (size - 1), true);
+    rigid_object.initRendering();
 
     // TODO: init textures
     // TODO: setup lights
@@ -104,37 +79,23 @@ int main(void) {
         ImGui::NewFrame();
 
         // OBJECTS UPDATE
-        // rhino_transfo.setTranslation(glm::vec3(0., 0., -1.5));
-        // rhino_transfo.setEulerAngles(glm::vec3(0., currentFrame * 2. * M_PI * 0.1, 0.));
-        // rhino_transfo.updateRotation();
-        // glm::vec4 cam_center = rhino_transfo.computeTransformationMatrix() * glm::vec4(center, 1.0);
         camera.update(window, deltaTime, glm::vec3(0.), cursor_vel, scroll);
         if (run_simulation) {
-            triangle.update(deltaTime);
-            triangle.updateRenderedPositions();
+            rigid_object.update(deltaTime);
+            rigid_object.updateRenderedPositions();
             // run_simulation = false;
         }
 
-        // RENDER
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear the screen
-        shader.use();                                       // Use program
-
         // Update uniforms
+        shader.use();
         glm::mat4 projection = camera.getProjectionMatrix();
         glm::mat4 view = camera.getViewMatrix();
         shader.set("projection", projection);
         shader.set("view", view);
 
-        // Render Meshes
-        // for (int i = 0; i < meshes.size(); i++) {
-        //     glm::mat4 model = glm::mat4(1.);
-        //     glm::mat4 model_view = view * model;
-        //     glm::mat4 normal_mat = glm::transpose(glm::inverse(model_view));
-        //     shader.set("model_view", model_view);
-        //     shader.set("normal_mat", normal_mat);
-        //     meshes[i].render();
-        // }
-        triangle.render();
+        // OBJECTS RENDERING
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        rigid_object.render();
 
         // ImGui Render
         ImGui::Render();
@@ -149,7 +110,7 @@ int main(void) {
     // for (Mesh &mesh : meshes) {
     //     mesh.clear();
     // }
-    triangle.clear();
+    rigid_object.clear();
 
     glfwTerminate();
 
@@ -261,7 +222,7 @@ void globalInit() {
     // INITIALIZE IMGUI
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO &io = ImGui::GetIO();
+    // ImGuiIO &io = ImGui::GetIO();
     // io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
     // io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;  // Enable Gamepad Controls
     // io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;     // IF using Docking Branch

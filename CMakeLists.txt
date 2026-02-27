@@ -42,6 +42,7 @@ target_compile_definitions(${APP_TARGET_DEBUG} PRIVATE DEBUG)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     target_compile_options(${APP_TARGET_OPT} PRIVATE
+        -Wall
         -O3
         -Ofast
         -march=native
@@ -53,7 +54,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     )
     target_link_options(${APP_TARGET_OPT} PRIVATE -flto)
 else()
-    target_compile_options(${APP_TARGET_OPT} PRIVATE -O3 -DNDEBUG)
+    target_compile_options(${APP_TARGET_OPT} PRIVATE -Wall -O3 -DNDEBUG)
 endif()
 
 # opengl

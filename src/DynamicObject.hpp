@@ -76,6 +76,10 @@ public:
     void update(float _delta_time);
 
     void addVertex(const glm::vec3 &_position, const glm::vec3 &_velocity, float _mass, bool _fixed);
+    void setVertexPosition(uint _pj, glm::vec3 _position) { m_positions[_pj] = _position; }
+    void setVertexVelocity(uint _pj, glm::vec3 _velocity) { m_velocities[_pj] = _velocity; }
+    void setVertexMass(uint _pj, float _mass) { m_masses[_pj] = _mass; }
+    void setVertexWeight(uint _pj, float _weight) { m_weights[_pj] = _weight; }
     void setVertexFixed(uint _pj, bool _fixed);
 
     void addConstraint(

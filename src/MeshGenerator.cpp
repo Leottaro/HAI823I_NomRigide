@@ -62,7 +62,7 @@ void Mesh::setCube(size_t _n) {
     m_positions.resize(n_vertices);
     m_normals.resize(n_vertices);
 
-    size_t n_triangles = n_vertices * 2;
+    size_t n_triangles = 12 * (_n - 1) * (_n - 1);
     m_triangles.resize(n_triangles);
 
     for (size_t face_depth = 0; face_depth < 2; face_depth++) {
@@ -74,8 +74,8 @@ void Mesh::setCube(size_t _n) {
 
                     size_t v0 = j + _n * (i + _n * (face_axis + 3 * face_depth));
 
-                    m_positions[v0][face_axis] = face_depth;
-                    m_positions[v0][(face_axis + 1) % 3] = face_depth == 0 ? j_pos : i_pos;
+                    m_positions[v0][face_axis] = face_depth == 0 ? j_pos : i_pos;
+                    m_positions[v0][(face_axis + 1) % 3] = face_depth;
                     m_positions[v0][(face_axis + 2) % 3] = face_depth == 0 ? i_pos : j_pos;
 
                     m_normals[v0] = glm::vec3(0.);
@@ -84,13 +84,15 @@ void Mesh::setCube(size_t _n) {
                     if (i == (_n - 1) || j == (_n - 1))
                         continue;
 
-                    size_t v1 = (j + 1) + _n * (i + _n * (face_axis + 3 * face_depth));
-                    size_t v2 = j + _n * ((i + 1) + _n * (face_axis + 3 * face_depth));
-                    size_t v3 = (j + 1) + _n * ((i + 1) + _n * (face_axis + 3 * face_depth));
+                    size_t v1 = v0 + 1;
+                    size_t v2 = v0 + _n;
+                    size_t v3 = v2 + 1;
                     glm::uvec3 triangle1 = glm::uvec3(v0, v2, v1);
                     glm::uvec3 triangle2 = glm::uvec3(v1, v2, v3);
-                    m_triangles[2 * v0] = triangle1;
-                    m_triangles[2 * v0 + 1] = triangle2;
+
+                    size_t t0 = j + (_n - 1) * (i + (_n - 1) * (face_axis + 3 * face_depth));
+                    m_triangles[2 * t0] = triangle1;
+                    m_triangles[2 * t0 + 1] = triangle2;
                 }
             }
         }
