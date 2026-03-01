@@ -53,5 +53,40 @@ DynamicObject Mesh::intoRigidBody() const {
         addEdgeIfNeeded(object, seen_edges, b, c);
     }
 
+    std::map<std::pair<uint, uint>, std::vector<uint>> edgeToOpposite;
+
+    for (uint i = 0; i < m_triangles.size(); i++) {
+        const uint a = positions_map.at(m_triangles[i][0]);
+        const uint b = positions_map.at(m_triangles[i][1]);
+        const uint c = positions_map.at(m_triangles[i][2]);
+        edgeToOpposite[{std::min(a,b), std::max(a,b)}].push_back(c);
+        edgeToOpposite[{std::min(a,c), std::max(a,c)}].push_back(b);
+        edgeToOpposite[{std::min(b,c), std::max(b,c)}].push_back(a);
+    }
+    const std::vector<glm::vec3>& physical_positions = object.getPositions();
+    for (auto const& pair : edgeToOpposite) {
+        const auto& edge = pair.first;
+        const auto& opposites = pair.second;
+        if (opposites.size() == 2) {
+            uint p0 = edge.first;
+            uint p1 = edge.second;
+            uint p2 = opposites[0];
+            uint p3 = opposites[1];
+
+            glm::vec3 v0 = physical_positions[p0];
+            glm::vec3 v1 = physical_positions[p1];
+            glm::vec3 v2 = physical_positions[p2];
+            glm::vec3 v3 = physical_positions[p3];
+
+            glm::vec3 n1 = glm::normalize(glm::cross(v2 - v0, v2 - v1));
+            glm::vec3 n2 = glm::normalize(glm::cross(v3 - v1, v3 - v0));
+
+            float cosTheta = glm::clamp(glm::dot(n1, n2), -1.f, 1.f);
+            float theta = acos(cosTheta);
+            //if (fabs(theta) < 1e-4f){ // test pour rajouter uniquement les angles plats
+                object.addBendingConstraint(p0,p1,p2,p3, 1.f);
+            //}
+        }
+    }
     return object;
 }

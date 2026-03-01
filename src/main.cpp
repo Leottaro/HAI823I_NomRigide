@@ -25,6 +25,7 @@
 #include <execinfo.h>
 
 using namespace std;
+#include <iostream>
 
 // TODO: SINGLETON
 GLuint window_width = 800, window_height = 600;

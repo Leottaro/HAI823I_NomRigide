@@ -91,6 +91,8 @@ public:
         const ConstraintType &_type);
     void addDistanceConstraint(uint _p0, uint _p1, float _stiffness, float _targeted_distance);
     void addDistanceConstraint(uint _p0, uint _p1, float _stiffness); // the targeted distance is set to the current distance between p0 and p1
+    void addBendingConstraint(uint _p0, uint _p1, uint _p2, uint _p3, float _stiffness, float _targeted_angle);
+    void addBendingConstraint(uint _p0, uint _p1, uint _p2, uint _p3, float _stiffness); // the targeted angle is set to the current angle between p0,p2,p1 normal and p0,p3,p1 normal
 
     // OpenGL interface
 private:
