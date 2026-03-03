@@ -19,6 +19,25 @@ READ "3.5. Damping" of ./articles/Position_Based_Dynamics.pdf
 (9) endfor
 */
 void DynamicObject::dampVelocities(float k_damping) {
+
+    bool is_fixed = false;
+    for (uint i = 0; i < N; i++) {
+        if (m_fixed[i]) {
+            is_fixed = true;
+            break;
+        }
+    }
+
+    if (is_fixed) {
+        float air_friction = 0.001f;
+        for (uint i = 0; i < N; i++) {
+            if (!m_fixed[i]) {
+                m_velocities[i] *= (1.0f - air_friction);
+            }
+        }
+        return;
+    }
+
     float total_mass = 0.f;
     glm::vec3 xcm = glm::vec3(0.); // (1) : global linear velocity
     glm::vec3 vcm = glm::vec3(0.); // (2)
