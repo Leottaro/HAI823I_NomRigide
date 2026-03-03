@@ -180,6 +180,8 @@ void DynamicObject::addVertex(const glm::vec3 &_position, const glm::vec3 &_velo
 void DynamicObject::setVertexFixed(uint _pj, bool _fixed) {
     m_fixed[_pj] = _fixed;
     m_weights[_pj] = _fixed ? 0.f : 1.f / m_masses[_pj];
+    m_point_fixed.push_back(m_positions[_pj]);
+    initPointFixedRendering();
 }
 
 void DynamicObject::addConstraint(
@@ -312,6 +314,20 @@ void DynamicObject::initRendering() {
     glBindVertexArray(0);
 }
 
+void DynamicObject::initPointFixedRendering() {
+    glGenVertexArrays(1,&m_VAO_point_fixed);
+    glGenBuffers(1,&m_VBO_point_fixed);
+
+    glBindVertexArray(m_VAO_point_fixed);
+    glBindBuffer(GL_ARRAY_BUFFER,m_VBO_point_fixed);
+
+    glBufferData(GL_ARRAY_BUFFER, m_point_fixed.size() * sizeof(glm::vec3), m_point_fixed.data(), GL_STATIC_DRAW);
+
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(glm::vec3), (void*)0);
+    glBindVertexArray(0);
+}
+
 void DynamicObject::updateRenderedPositions() {
     glBindBuffer(GL_ARRAY_BUFFER, m_positions_VBO);
     glBufferData(GL_ARRAY_BUFFER, m_positions.size() * sizeof(glm::vec3), m_positions.data(), GL_STATIC_DRAW);
@@ -338,6 +354,14 @@ void DynamicObject::render() {
     // glDrawArrays(GL_LINE_STRIP, 0, m_positions.size());
     // glDrawArrays(GL_POINTS, 0, m_positions.size());
     glDrawElements(GL_LINES, m_lines.size() * 2, GL_UNSIGNED_INT, 0);
+}
+
+void DynamicObject::drawPointFixed() {
+    if (m_point_fixed.size() != 0) {
+        glBindVertexArray(m_VAO_point_fixed);
+        glDrawArrays(GL_POINTS, 0, m_point_fixed.size());
+        glBindVertexArray(0);
+    }
 }
 
 void DynamicObject::clear() {

@@ -38,6 +38,7 @@ class DynamicObject {
     std::vector<float> m_masses;         // mi
     std::vector<float> m_weights;        // wi
     std::vector<bool> m_fixed;           // if the vertex is fixed
+    std::vector<glm::vec3> m_point_fixed;// the points fixed
 
     // Constraints
     uint M = 0;                                   // number of contraints
@@ -98,14 +99,18 @@ public:
 private:
     GLuint m_VAO;
     GLuint m_positions_VBO;
+    GLuint m_VAO_point_fixed;
+    GLuint m_VBO_point_fixed;
 
     GLuint m_lines_EBO;
     std::vector<glm::uvec2> m_lines;
 
 public:
     void initRendering();
+    void initPointFixedRendering();
     void updateRenderedPositions();
     void updateRenderedConstraints();
     void render();
     void clear();
+    void drawPointFixed();
 };

@@ -45,6 +45,8 @@ int main(void) {
     // ShaderProgram shader = ShaderProgram("ressources/shaders/vertex_shader.glsl", "ressources/shaders/fragment_shader.glsl");
     ShaderProgram shader = ShaderProgram("ressources/shaders/vertex_simple.glsl", "ressources/shaders/fragment_simple.glsl");
     shader.link();
+    ShaderProgram pointFixedshader = ShaderProgram("ressources/shaders/draw_point_vertex_shader.glsl", "ressources/shaders/draw_point_fragement_shader.glsl");
+    pointFixedshader.link();
 
     // TODO: SCENE
     Camera camera(glm::vec3(), 8., glm::vec2(-M_PI_4 * 0.5, 0.));
@@ -97,6 +99,12 @@ int main(void) {
         // OBJECTS RENDERING
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         rigid_object.render();
+
+        // Draw Point Fixed
+        pointFixedshader.use();
+        pointFixedshader.set("projection", projection);
+        pointFixedshader.set("view", view);
+        rigid_object.drawPointFixed();
 
         // ImGui Render
         ImGui::Render();
@@ -202,6 +210,7 @@ void initOpenGL() {
     glEnable(GL_DEPTH_TEST);                             // Enable depth test
     glDepthFunc(GL_LESS);                                // Accept fragment if it closer to the camera than the former one
     glEnable(GL_CULL_FACE);                              // Cull triangles which normal is not towards the camera
+    glEnable(GL_PROGRAM_POINT_SIZE);                    // control the point size in shader
 }
 
 void globalInit() {
