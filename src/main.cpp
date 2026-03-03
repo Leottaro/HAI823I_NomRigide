@@ -205,11 +205,15 @@ void initOpenGL() {
 }
 
 void globalInit() {
-    glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
 
+#if defined(__linux__)
+    glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
+#endif
     // INITIALIZE GLFW
-    if (!glfwInit())
+    if (!glfwInit()) {
+        std::cerr << "Failed to initialize GLFW!" << std::endl;
         exit(EXIT_FAILURE);
+    }
     initWindow();
 
     // INITIALIZE GLEW

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.22.1)
+cmake_minimum_required(VERSION 3.20.0)
 project(hai823i_nomrigide)
 set(APP_VERSION_MAJOR 1)
 set(APP_VERSION_MINOR 0)
@@ -60,8 +60,8 @@ endif()
 # opengl
 find_package(OpenGL REQUIRED)
 include_directories(${OPENGL_INCLUDE_DIRS})
-target_link_libraries(${APP_TARGET_DEBUG} OpenGL)
-target_link_libraries(${APP_TARGET_OPT} OpenGL)
+target_link_libraries(${APP_TARGET_DEBUG} OpenGL::GL)
+target_link_libraries(${APP_TARGET_OPT} OpenGL::GL)
 
 # glew
 add_subdirectory(external/glew/build/cmake)
@@ -78,6 +78,7 @@ target_link_libraries(${APP_TARGET_OPT} glfw)
 # imgui
 add_subdirectory(external/imgui)
 include_directories(external/imgui)
+target_link_libraries(imgui PRIVATE glfw)
 target_link_libraries(${APP_TARGET_DEBUG} imgui)
 target_link_libraries(${APP_TARGET_OPT} imgui)
 
