@@ -23,7 +23,7 @@
 #include <vector>
 
 typedef std::function<float(const std::vector<glm::vec3> &)> constraint_function;
-typedef std::function<glm::vec3(const std::vector<glm::vec3> &, uint)> gradient_function;
+typedef std::function<std::vector<glm::vec3>(const std::vector<glm::vec3> &)> gradient_function;
 
 enum ConstraintType {
     EQUALITY_CONSTRAINT,
@@ -95,6 +95,7 @@ public:
     void addBendingConstraint(uint _p0, uint _p1, uint _p2, uint _p3, float _stiffness); // the targeted angle is set to the current angle between p0,p2,p1 normal and p0,p3,p1 normal
 
     // OpenGL interface
+
 private:
     GLuint m_VAO;
     GLuint m_positions_VBO;
@@ -103,6 +104,8 @@ private:
     std::vector<glm::uvec2> m_lines;
 
 public:
+    void addDrawLine(uint _p0, uint _p1) { m_lines.push_back(glm::uvec2(_p0, _p1)); };
+
     void initRendering();
     void updateRenderedPositions();
     void updateRenderedConstraints();

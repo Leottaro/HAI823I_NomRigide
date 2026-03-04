@@ -108,7 +108,7 @@ void DynamicObject::update(float _delta_time) {
     std::vector<glm::vec3> gradients;
     float old_evolution, evolution, constraint_evolution;
     evolution = 0.f;
-    do { // TODO: while pas convergé
+    do {
         old_evolution = evolution;
         evolution = 0.f;
         for (uint ci = 0; ci < M; ci++) {
@@ -130,18 +130,17 @@ void DynamicObject::update(float _delta_time) {
             }
 
             // Determine S
-            gradients.resize(m_cardinalities[ci]);
+            gradients = m_gradients[ci](affected_points);
             float denominator = 0.f;
             for (uint i = 0; i < m_cardinalities[ci]; i++) {
-                uint pj = m_indices[ci][i];
-                gradients[i] = m_gradients[ci](affected_points, i);
                 denominator += length2(gradients[i]);
             }
             float s = function_value / denominator;
+
             // add the deltas
             for (uint i = 0; i < m_cardinalities[ci]; i++) {
                 uint pj = m_indices[ci][i];
-                glm::vec3 delta_pj = - m_stiffnesses[ci] * s * (float(m_cardinalities[ci]) * m_weights[pj] / total_weigths) * gradients[i]; // ajout stiffness
+                glm::vec3 delta_pj = -s * (float(m_cardinalities[ci]) * m_weights[pj] / total_weigths) * gradients[i];
                 new_positions[pj] += delta_pj; // TODO: stiffness factor
                 constraint_evolution += glm::length(delta_pj);
             }
@@ -149,7 +148,7 @@ void DynamicObject::update(float _delta_time) {
             evolution += constraint_evolution / m_cardinalities[ci];
         }
         evolution /= float(M);
-    } while (abs(old_evolution - evolution) > 0.0001); // TODO: better convergence (ocillation) detection: (ici ? https://en.wikipedia.org/wiki/Gauss%E2%80%93Seidel_method#Convergence)
+    } while (abs(old_evolution - evolution) > FLT_MIN); // TODO: better convergence (ocillation) detection: (ici ? https://en.wikipedia.org/wiki/Gauss%E2%80%93Seidel_method#Convergence)
 
     // (12)-(15)
     for (uint i = 0; i < N; i++) {
@@ -208,9 +207,9 @@ void DynamicObject::addDistanceConstraint(uint _p0, uint _p1, float _stiffness, 
     m_functions.push_back([_targeted_distance](const std::vector<glm::vec3> &_p) {
         return glm::distance(_p[0], _p[1]) - _targeted_distance;
     });
-    m_gradients.push_back([_targeted_distance](const std::vector<glm::vec3> &_p, uint _pj) {
+    m_gradients.push_back([_targeted_distance](const std::vector<glm::vec3> &_p) {
         glm::vec3 n = glm::normalize(_p[0] - _p[1]);
-        return _pj == 0 ? n : -n;
+        return std::vector<glm::vec3>{n, -n};
     });
 }
 void DynamicObject::addDistanceConstraint(uint _p0, uint _p1, float _stiffness) {
@@ -225,62 +224,40 @@ void DynamicObject::addBendingConstraint(uint _p0, uint _p1, uint _p2, uint _p3,
     m_types.push_back(EQUALITY_CONSTRAINT);
 
     m_functions.push_back([_targeted_angle](const std::vector<glm::vec3> &_p) {
-        glm::vec3 e = glm::normalize(_p[1] - _p[0]);   // arête commune
+        glm::vec3 e = glm::normalize(_p[1] - _p[0]); // arête commune
 
-        glm::vec3 n1 = glm::normalize(glm::cross(_p[2]-_p[0], _p[2]-_p[1]));
-        glm::vec3 n2 = glm::normalize(glm::cross(_p[3]-_p[1], _p[3]-_p[0]));
+        glm::vec3 n1 = glm::normalize(glm::cross(_p[2] - _p[0], _p[2] - _p[1]));
+        glm::vec3 n2 = glm::normalize(glm::cross(_p[3] - _p[1], _p[3] - _p[0]));
         float cosTheta = glm::clamp(glm::dot(n1, n2), -1.f, 1.f);
         float theta = acos(cosTheta);
         float sign = glm::dot(glm::cross(n1, n2), e);
         if (sign < 0)
-            theta = - theta;
+            theta = -theta;
         return theta - _targeted_angle;
-        });
-    m_gradients.push_back([_targeted_angle](const std::vector<glm::vec3> &_p, uint _pj) {
-        //bridson model
+    });
+    m_gradients.push_back([_targeted_angle](const std::vector<glm::vec3> &_p) {
+        // bridson model
         // p0 and p1 : common edge
-    
         glm::vec3 e = _p[1] - _p[0];
-        float eps = 1e-4;
         float elen = glm::length(e);
-        //if (elen < eps) elen = eps; // eviter les infinis
-        float invElen = 1./elen;
 
-        glm::vec3 n1 = glm::cross(_p[2]-_p[0], _p[2]-_p[1]);
-        glm::vec3 n2 = glm::cross(_p[3]-_p[1], _p[3]-_p[0]);
+        glm::vec3 n1 = glm::cross(_p[2] - _p[0], _p[2] - _p[1]);
+        glm::vec3 n2 = glm::cross(_p[3] - _p[1], _p[3] - _p[0]);
         float n1sq = length2(n1);
         float n2sq = length2(n2);
-        
-        /* n1sq = std::max(n1sq,eps);
-        n2sq = std::max(n2sq,eps); */ // eviter les infinis
 
-        // gp2 = u1, gp3 = u2, gp0 = u3, gp1 = u4 
-        glm::vec3 gp2 = elen*(n1/n1sq);
-	    glm::vec3 gp3 = elen*(n2/n2sq);
-        glm::vec3 gp0 = glm::dot(_p[2]-_p[1],e) / elen * (n1/n1sq) + glm::dot(_p[3]-_p[1],e) / elen * (n2/n2sq);
-	    glm::vec3 gp1 = -glm::dot(_p[2]-_p[0],e) / elen * (n1/n1sq) - glm::dot(_p[3]-_p[0],e) / elen * (n2/n2sq);
+        // gp2 = u1, gp3 = u2, gp0 = u3, gp1 = u4
+        glm::vec3 gp2 = elen * (n1 / n1sq);
+        glm::vec3 gp3 = elen * (n2 / n2sq);
+        glm::vec3 gp0 = glm::dot(_p[2] - _p[1], e) / elen * (n1 / n1sq) + glm::dot(_p[3] - _p[1], e) / elen * (n2 / n2sq);
+        glm::vec3 gp1 = -glm::dot(_p[2] - _p[0], e) / elen * (n1 / n1sq) - glm::dot(_p[3] - _p[0], e) / elen * (n2 / n2sq);
 
-        glm::vec3 sum = gp0 + gp1 + gp2 + gp3;
+        // glm::vec3 sum = gp0 + gp1 + gp2 + gp3;
+        // if (glm::length(sum) > 1.e-4f) {
+        //     std::cout << "ERREUR : sum != 0" << std::endl;
+        // }
 
-        if (glm::length(sum) > 0.001f) {
-            std::cout << "ERREUR : sum != 0" << std::endl;
-        }
-
-
-        if(_pj == 0){
-            return - gp0;
-        }
-        if(_pj == 1){
-            return - gp1;
-        }
-        if(_pj == 2){
-            return - gp2;
-        }
-        if(_pj == 3){
-            return - gp3;
-        }
-        return glm::vec3(0);
-
+        return std::vector<glm::vec3>{-gp0, -gp1, -gp2, -gp3};
     });
 }
 
@@ -318,26 +295,17 @@ void DynamicObject::updateRenderedPositions() {
 }
 
 void DynamicObject::updateRenderedConstraints() {
-    m_lines.resize(0);
-    for (uint ci = 0; ci < M; ci++) {
-        uint np = m_cardinalities[ci];
-        for (uint i = 0; i < (np > 2 ? np : 1); i++) {
-            uint pj1 = m_indices[ci][i % np];
-            uint pj2 = m_indices[ci][(i + 1) % np];
-            m_lines.push_back(glm::uvec2(pj1, pj2));
-        }
-    }
-
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_lines_EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_lines.size() * sizeof(glm::uvec2), m_lines.data(), GL_STATIC_DRAW);
 }
 
 void DynamicObject::render() {
     glBindVertexArray(m_VAO); // Activate the VAO storing geometry data
-    // glDrawArrays(GL_TRIANGLE_STRIP, 0, m_positions.size());
-    // glDrawArrays(GL_LINE_STRIP, 0, m_positions.size());
-    // glDrawArrays(GL_POINTS, 0, m_positions.size());
-    glDrawElements(GL_LINES, m_lines.size() * 2, GL_UNSIGNED_INT, 0);
+    if (m_lines.empty()) {
+        glDrawArrays(GL_POINTS, 0, m_positions.size());
+    } else {
+        glDrawElements(GL_LINES, m_lines.size() * 2, GL_UNSIGNED_INT, 0);
+    }
 }
 
 void DynamicObject::clear() {

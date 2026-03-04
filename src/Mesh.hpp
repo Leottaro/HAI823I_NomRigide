@@ -20,6 +20,7 @@
 
 // USUAL INCLUDES
 #include "DynamicObject.hpp"
+#include "Transformation.hpp"
 #include <vector>
 #include <string>
 
@@ -67,7 +68,7 @@ public:
     void recomputePerVertexTextureCoordinates();
 
     // Conversion into DynamicObject
-    DynamicObject intoRigidBody() const;
+    DynamicObject intoRigidBody(const Transformation &_t) const;
 
     // OpenGL interface
     void init();

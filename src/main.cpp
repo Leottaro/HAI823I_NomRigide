@@ -23,9 +23,9 @@
 #include "DynamicObject.hpp"
 #include <stdio.h>
 #include <execinfo.h>
+#include <iostream>
 
 using namespace std;
-#include <iostream>
 
 // TODO: SINGLETON
 GLuint window_width = 800, window_height = 600;
@@ -52,7 +52,8 @@ int main(void) {
     size_t size = 5;
     Mesh object_mesh;
     object_mesh.setCube(size);
-    DynamicObject rigid_object = object_mesh.intoRigidBody();
+
+    DynamicObject rigid_object = object_mesh.intoRigidBody(Transformation(glm::vec3(-0.5f), glm::vec3(1.f), glm::vec3(0.f)));
     // rigid_object.setVertexFixed(0, true);
     rigid_object.setVertexFixed((size - 1) * (size - 1), true);
     rigid_object.initRendering();

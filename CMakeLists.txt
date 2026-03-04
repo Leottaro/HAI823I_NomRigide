@@ -37,7 +37,7 @@ set(APP_SOURCES
 add_executable(${APP_TARGET_DEBUG} ${APP_SOURCES})
 add_executable(${APP_TARGET_OPT} ${APP_SOURCES})
 
-target_compile_options(${APP_TARGET_DEBUG} PRIVATE -O0 -g3)
+target_compile_options(${APP_TARGET_DEBUG} PRIVATE -Wall -O0 -g3)
 target_compile_definitions(${APP_TARGET_DEBUG} PRIVATE DEBUG)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
