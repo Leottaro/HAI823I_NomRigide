@@ -52,7 +52,7 @@ void DynamicObject::dampVelocities(double k_damping) {
     }
 
     // check invertibility
-    if (fabs(glm::determinant(I)) < 1e-8) {
+    if (fabsf64(glm::determinant(I)) < 1e-8) {
         return;
     }
     glm::dvec3 omega = glm::inverse(I) * L; // (5): angular velocity
@@ -87,6 +87,13 @@ READ "3.1. Algorithm Overview" of ./articles/Position_Based_Dynamics.pdf
 (16)      velocityUpdate(v1 ,..., vN )
 (17)  endloop
 */
+
+// TODO: imgui solver settings
+#define SOLVER_CONVERGENCE_WINDOW 50
+#define MAXIMUM_RESIDUAL_THRESHOLD 1.e-6
+#define RESIDUAL_RANGE_THRESHOLD 1.e-6
+#define MAXIMUM_DELTA_THRESHOLD 1.e-8
+
 void DynamicObject::update(double _delta_time) {
     std::vector<glm::dvec3> new_positions(N); // p_i
 
@@ -104,16 +111,19 @@ void DynamicObject::update(double _delta_time) {
     // TODO: (8) Generate collision constraints
 
     // (9)-(11)
-    std::vector<glm::dvec3> affected_points;
-    std::vector<glm::dvec3> gradients;
-    double evolution, constraint_evolution;
-    do {
-        evolution = 0.;
-        for (uint ci = 0; ci < M; ci++) {
-            constraint_evolution = 0.;
+    std::vector<double> residuals_buffer(SOLVER_CONVERGENCE_WINDOW, DBL_MAX);
+    std::vector<double> maxdelta_buffer(SOLVER_CONVERGENCE_WINDOW, -DBL_MAX);
 
+    double rmin, rmax, dmax;
+    rmin = rmax = DBL_MAX;
+    uint nbloop = 0;
+    do {
+        residuals_buffer[nbloop % SOLVER_CONVERGENCE_WINDOW] = 0.;
+        maxdelta_buffer[nbloop % SOLVER_CONVERGENCE_WINDOW] = -DBL_MAX;
+
+        for (uint ci = 0; ci < M; ci++) {
             // gather function input (and total weight)
-            affected_points.resize(m_cardinalities[ci]);
+            std::vector<glm::dvec3> affected_points(m_cardinalities[ci]);
             double total_weigths = 0.;
             for (uint i = 0; i < m_cardinalities[ci]; i++) {
                 uint pj = m_indices[ci][i];
@@ -126,9 +136,10 @@ void DynamicObject::update(double _delta_time) {
                 // The constraint is already satisfied so we don't project it
                 continue;
             }
+            residuals_buffer[nbloop % SOLVER_CONVERGENCE_WINDOW] += function_value * function_value;
 
             // Determine S
-            gradients = m_gradients[ci](affected_points);
+            std::vector<glm::dvec3> gradients = m_gradients[ci](affected_points);
             double denominator = 0.;
             for (uint i = 0; i < m_cardinalities[ci]; i++) {
                 denominator += length2(gradients[i]);
@@ -139,14 +150,20 @@ void DynamicObject::update(double _delta_time) {
             for (uint i = 0; i < m_cardinalities[ci]; i++) {
                 uint pj = m_indices[ci][i];
                 glm::dvec3 delta_pj = -s * (double(m_cardinalities[ci]) * m_weights[pj] / total_weigths) * gradients[i];
-                new_positions[pj] += delta_pj; // TODO: stiffness factor
-                constraint_evolution += glm::length(delta_pj);
+                new_positions[pj] += delta_pj;
+                maxdelta_buffer[nbloop % SOLVER_CONVERGENCE_WINDOW] = std::max(maxdelta_buffer[nbloop % SOLVER_CONVERGENCE_WINDOW], glm::length(delta_pj));
             }
-
-            evolution += constraint_evolution / m_cardinalities[ci];
         }
-        evolution /= double(M);
-    } while (evolution > 1.e-8); // TODO: better convergence (ocillation) detection: (ici ? https://en.wikipedia.org/wiki/Gauss%E2%80%93Seidel_method#Convergence)
+
+        residuals_buffer[nbloop % SOLVER_CONVERGENCE_WINDOW] = sqrt(residuals_buffer[nbloop % SOLVER_CONVERGENCE_WINDOW]);
+        auto rpair = std::minmax_element(residuals_buffer.begin(), residuals_buffer.end());
+        rmin = *rpair.first;
+        rmax = *rpair.second;
+
+        dmax = *std::max_element(maxdelta_buffer.begin(), maxdelta_buffer.end());
+
+        nbloop++;
+    } while (rmax > MAXIMUM_RESIDUAL_THRESHOLD || rmax - rmin > RESIDUAL_RANGE_THRESHOLD || dmax > MAXIMUM_DELTA_THRESHOLD);
 
     // (12)-(15)
     for (uint i = 0; i < N; i++) {
@@ -155,14 +172,6 @@ void DynamicObject::update(double _delta_time) {
     }
 
     // TODO: (16) Velocity update
-    // std::cout << std::endl
-    //           << std::endl;
-    // for (uint i = 0; i < N; i++) {
-    //     std::cout << "v" << i << ":" << std::endl
-    //               << "    (" << m_positions[i].x << "," << m_positions[i].y << "," << m_positions[i].z << ")" << std::endl
-    //               << "    (" << m_velocities[i].x << "," << m_velocities[i].y << "," << m_velocities[i].z << ")" << std::endl
-    //               << "    " << m_masses[i] << "\t" << m_weights[i] << std::endl;
-    // }
 }
 
 void DynamicObject::addVertex(const glm::dvec3 &_position, const glm::dvec3 &_velocity, double _mass, bool _fixed) {

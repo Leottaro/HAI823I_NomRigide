@@ -51,15 +51,16 @@ int main(void) {
 
     size_t size = 5;
     Mesh object_mesh;
-    object_mesh.setCube(size);
+    object_mesh.setCubeSphere(size);
 
-    DynamicObject rigid_object = object_mesh.intoRigidBody(Transformation(glm::vec3(-0.5f), glm::vec3(1.f), glm::vec3(0.f)));
+    DynamicObject rigid_object = object_mesh.intoRigidBody(Transformation(glm::vec3(0.f), glm::vec3(1.f), glm::vec3(0.f)));
     // rigid_object.setVertexFixed(0, true);
     rigid_object.setVertexFixed((size - 1) * (size - 1), true);
     rigid_object.initRendering();
 
     // TODO: init textures
     // TODO: setup lights
+    // TODO: real-time interactions
 
     // timings
     float deltaTime = 0.0f;
