@@ -42,20 +42,31 @@ void globalInit();
 int main(void) {
     globalInit();
 
-    // ShaderProgram shader = ShaderProgram("ressources/shaders/vertex_shader.glsl", "ressources/shaders/fragment_shader.glsl");
-    ShaderProgram shader = ShaderProgram("ressources/shaders/vertex_simple.glsl", "ressources/shaders/fragment_simple.glsl");
-    shader.link();
+    ShaderProgram mesh_shader = ShaderProgram("ressources/shaders/mesh_vertex.glsl", "ressources/shaders/mesh_fragment.glsl");
+    mesh_shader.link();
+    ShaderProgram dynamic_shader = ShaderProgram("ressources/shaders/dynamic_vertex.glsl", "ressources/shaders/dynamic_fragment.glsl");
+    dynamic_shader.link();
 
     // TODO: SCENE
     Camera camera(glm::vec3(), 8., glm::vec2(-M_PI_4 * 0.5, 0.));
 
+    std::vector<StaticBody> static_bodies;
+
+    Mesh floor;
+    floor.setSimpleGrid(10, 10);
+    floor.init();
+    Transformation floor_transfo;
+    floor_transfo.setTranslation(glm::vec3(-0.5, -2, -0.5));
+    floor_transfo.setScaleXZ(10);
+    static_bodies.push_back(StaticBody(&floor, &floor_transfo));
+
     size_t size = 5;
     Mesh object_mesh;
-    object_mesh.setCubeSphere(size);
-
-    DynamicObject rigid_object = object_mesh.intoRigidBody(Transformation(glm::vec3(0.f), glm::vec3(1.f), glm::vec3(0.f)));
+    object_mesh.setCube(size);
+    Transformation rigid_object_transformation(glm::vec3(0.f), glm::vec3(1.f), glm::vec3(M_PIf / 4.f, 0.f, M_PIf / 4.f));
+    DynamicObject rigid_object = DynamicObject::rigidBodyFromMesh(StaticBody(&object_mesh, &rigid_object_transformation));
     // rigid_object.setVertexFixed(0, true);
-    rigid_object.setVertexFixed((size - 1) * (size - 1), true);
+    // rigid_object.setVertexFixed((size - 1) * (size - 1), true);
     rigid_object.initRendering();
 
     // TODO: init textures
@@ -70,6 +81,7 @@ int main(void) {
     do {
         glfwSwapBuffers(window);
         glfwPollEvents();
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
@@ -84,21 +96,32 @@ int main(void) {
         // OBJECTS UPDATE
         camera.update(window, deltaTime, glm::vec3(0.), cursor_vel, scroll);
         if (run_simulation) {
-            rigid_object.update(deltaTime);
+            rigid_object.update(deltaTime, static_bodies);
             rigid_object.updateRenderedPositions();
             // run_simulation = false;
         }
 
         // Update uniforms
-        shader.use();
         glm::mat4 projection = camera.getProjectionMatrix();
         glm::mat4 view = camera.getViewMatrix();
-        shader.set("projection", projection);
-        shader.set("view", view);
 
-        // OBJECTS RENDERING
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        // DYNAMIC OBJECTS RENDERING
+        dynamic_shader.use();
+        dynamic_shader.set("view", view);
+        dynamic_shader.set("projection", projection);
         rigid_object.render();
+
+        // STATIC OBJECTS RENDERING
+        mesh_shader.use();
+        mesh_shader.set("projection", projection);
+        for (const StaticBody &static_body : static_bodies) {
+            glm::mat4 model = static_body.m_transformation->computeTransformationMatrix();
+            glm::mat4 model_view = view * model;
+            glm::mat4 normal_mat = glm::transpose(glm::inverse(model_view));
+            mesh_shader.set("model_view", model_view);
+            mesh_shader.set("normal_mat", normal_mat);
+            static_body.m_mesh->render();
+        }
 
         // ImGui Render
         ImGui::Render();
@@ -109,11 +132,11 @@ int main(void) {
         cursor_vel = glm::vec2(0.);
     } while (glfwWindowShouldClose(window) == GLFW_FALSE);
 
-    shader.~ShaderProgram();
-    // for (Mesh &mesh : meshes) {
-    //     mesh.clear();
-    // }
+    dynamic_shader.~ShaderProgram();
     rigid_object.clear();
+
+    mesh_shader.~ShaderProgram();
+    floor.clear();
 
     glfwTerminate();
 

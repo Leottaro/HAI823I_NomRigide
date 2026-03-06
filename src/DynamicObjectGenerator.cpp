@@ -1,4 +1,4 @@
-#include "Mesh.hpp"
+#include "DynamicObject.hpp"
 #include <iostream>
 #include <unordered_set>
 #include <unordered_map>
@@ -12,15 +12,17 @@ struct Vec3Less {
     }
 };
 
-DynamicObject Mesh::intoRigidBody(const Transformation &_t) const {
-    const glm::mat4 tranformation = _t.computeTransformationMatrix();
+DynamicObject DynamicObject::rigidBodyFromMesh(const StaticBody &_static_body) {
+    const glm::mat4 tranformation = _static_body.m_transformation->computeTransformationMatrix();
     DynamicObject object;
 
     std::map<glm::vec3, uint, Vec3Less> seen_positions;
     std::unordered_map<uint, uint> positions_map;
     uint pj = 0;
-    for (uint i = 0; i < m_positions.size(); i++) {
-        const glm::vec3 &pos = m_positions[i];
+
+    const std::vector<glm::vec3> &mesh_positions = _static_body.m_mesh->vertexPositions();
+    for (uint i = 0; i < mesh_positions.size(); i++) {
+        const glm::vec3 &pos = mesh_positions[i];
         if (seen_positions.find(pos) == seen_positions.end()) {
             glm::vec4 transformed_pos = tranformation * glm::vec4(pos, 1.f);
             glm::vec3 added_pos = glm::vec3(transformed_pos) / transformed_pos.w;
@@ -49,10 +51,11 @@ DynamicObject Mesh::intoRigidBody(const Transformation &_t) const {
         }
     };
 
-    for (uint i = 0; i < m_triangles.size(); i++) {
-        const uint a = positions_map.at(m_triangles[i][0]);
-        const uint b = positions_map.at(m_triangles[i][1]);
-        const uint c = positions_map.at(m_triangles[i][2]);
+    const std::vector<glm::uvec3> &mesh_triangles = _static_body.m_mesh->triangleIndices();
+    for (uint i = 0; i < mesh_triangles.size(); i++) {
+        const uint a = positions_map.at(mesh_triangles[i][0]);
+        const uint b = positions_map.at(mesh_triangles[i][1]);
+        const uint c = positions_map.at(mesh_triangles[i][2]);
 
         addEdgeIfNeeded(a, b);
         addEdgeIfNeeded(a, c);
@@ -62,10 +65,10 @@ DynamicObject Mesh::intoRigidBody(const Transformation &_t) const {
     // BENDING CONSTRAINTS
 
     std::map<std::pair<uint, uint>, std::vector<uint>> edgeToOpposite;
-    for (uint i = 0; i < m_triangles.size(); i++) {
-        uint a = positions_map.at(m_triangles[i][0]);
-        uint b = positions_map.at(m_triangles[i][1]);
-        uint c = positions_map.at(m_triangles[i][2]);
+    for (uint i = 0; i < mesh_triangles.size(); i++) {
+        uint a = positions_map.at(mesh_triangles[i][0]);
+        uint b = positions_map.at(mesh_triangles[i][1]);
+        uint c = positions_map.at(mesh_triangles[i][2]);
 
         edgeToOpposite[{std::min(a, b), std::max(a, b)}].push_back(c);
         edgeToOpposite[{std::min(a, c), std::max(a, c)}].push_back(b);

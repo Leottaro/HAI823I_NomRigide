@@ -19,8 +19,17 @@
 #include <imgui_impl_opengl3.h>
 
 // USUAL INCLUDES
+#include "Mesh.hpp"
+#include "Transformation.hpp"
 #include <functional>
 #include <vector>
+
+struct StaticBody {
+    Mesh *m_mesh;
+    Transformation *m_transformation;
+
+    StaticBody(Mesh *_mesh, Transformation *_transformation) : m_mesh(_mesh), m_transformation(_transformation) {}
+};
 
 typedef std::function<double(const std::vector<glm::dvec3> &)> constraint_function;
 typedef std::function<std::vector<glm::dvec3>(const std::vector<glm::dvec3> &)> gradient_function;
@@ -73,7 +82,7 @@ public:
     const std::vector<ConstraintType> &getTypes() const { return m_types; };
 
     // "3.1. Algorithm Overview" of ./articles/Position_Based_Dynamics.pdf
-    void update(double _delta_time);
+    void update(double _delta_time, const std::vector<StaticBody> &static_bodies);
 
     void addVertex(const glm::dvec3 &_position, const glm::dvec3 &_velocity, double _mass, bool _fixed);
     void setVertexPosition(uint _pj, glm::dvec3 _position) { m_positions[_pj] = _position; }
@@ -93,6 +102,9 @@ public:
     void addDistanceConstraint(uint _p0, uint _p1, double _stiffness); // the targeted distance is set to the current distance between p0 and p1
     void addBendingConstraint(uint _p0, uint _p1, uint _p2, uint _p3, double _stiffness, double _targeted_angle);
     void addBendingConstraint(uint _p0, uint _p1, uint _p2, uint _p3, double _stiffness); // the targeted angle is set to the current angle between p0,p2,p1 normal and p0,p3,p1 normal
+
+    // Objects creation
+    static DynamicObject rigidBodyFromMesh(const StaticBody &_static_body);
 
     // OpenGL interface
 

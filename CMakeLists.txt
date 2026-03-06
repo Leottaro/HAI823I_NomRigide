@@ -28,7 +28,7 @@ set(APP_SOURCES
     src/Mesh.hpp
     src/Mesh.cpp
     src/MeshGenerator.cpp
-    src/MeshDynamicGenerator.cpp
+    src/DynamicObjectGenerator.cpp
 
     src/DynamicObject.hpp
     src/DynamicObject.cpp

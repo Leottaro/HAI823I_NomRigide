@@ -94,28 +94,27 @@ READ "3.1. Algorithm Overview" of ./articles/Position_Based_Dynamics.pdf
 #define RESIDUAL_RANGE_THRESHOLD 1.e-6
 #define MAXIMUM_DELTA_THRESHOLD 1.e-8
 
-void DynamicObject::update(double _delta_time) {
+void DynamicObject::update(double _delta_time, const std::vector<StaticBody> &static_bodies) {
     std::vector<glm::dvec3> new_positions(N); // p_i
 
     // (5) external forces (gravity, etc...) (for now, just gravity)
-    for (uint i = 0; i < N; i++)
-        m_velocities[i] = m_fixed[i] ? m_velocities[i] : m_velocities[i] + _delta_time * glm::dvec3(0., -9.807, 0.);
+    for (uint pj = 0; pj < N; pj++)
+        m_velocities[pj] = m_fixed[pj] ? m_velocities[pj] : m_velocities[pj] + _delta_time * glm::dvec3(0., -9.807, 0.);
 
     // (6)
     dampVelocities(1.);
 
     // (7)
-    for (uint i = 0; i < N; i++)
-        new_positions[i] = m_fixed[i] ? m_positions[i] : m_positions[i] + _delta_time * m_velocities[i];
+    for (uint pj = 0; pj < N; pj++)
+        new_positions[pj] = m_fixed[pj] ? m_positions[pj] : m_positions[pj] + _delta_time * m_velocities[pj];
 
-    // TODO: (8) Generate collision constraints
+    // TODO: (8) Generate collision constraints with static_bodies
 
     // (9)-(11)
     std::vector<double> residuals_buffer(SOLVER_CONVERGENCE_WINDOW, DBL_MAX);
     std::vector<double> maxdelta_buffer(SOLVER_CONVERGENCE_WINDOW, -DBL_MAX);
 
     double rmin, rmax, dmax;
-    rmin = rmax = DBL_MAX;
     uint nbloop = 0;
     do {
         residuals_buffer[nbloop % SOLVER_CONVERGENCE_WINDOW] = 0.;
@@ -166,9 +165,9 @@ void DynamicObject::update(double _delta_time) {
     } while (rmax > MAXIMUM_RESIDUAL_THRESHOLD || rmax - rmin > RESIDUAL_RANGE_THRESHOLD || dmax > MAXIMUM_DELTA_THRESHOLD);
 
     // (12)-(15)
-    for (uint i = 0; i < N; i++) {
-        m_velocities[i] = (new_positions[i] - m_positions[i]) / _delta_time; // (13)
-        m_positions[i] = new_positions[i];                                   // (14)
+    for (uint pj = 0; pj < N; pj++) {
+        m_velocities[pj] = (new_positions[pj] - m_positions[pj]) / _delta_time; // (13)
+        m_positions[pj] = new_positions[pj];                                    // (14)
     }
 
     // TODO: (16) Velocity update
@@ -279,6 +278,7 @@ void DynamicObject::addBendingConstraint(uint _p0, uint _p1, uint _p2, uint _p3,
         theta = -theta;
     addBendingConstraint(_p0, _p1, _p2, _p3, _stiffness, theta);
 }
+
 // OpenGL uinterface
 
 void DynamicObject::initRendering() {

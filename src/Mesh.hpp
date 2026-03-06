@@ -19,7 +19,6 @@
 #include <imgui_impl_opengl3.h>
 
 // USUAL INCLUDES
-#include "DynamicObject.hpp"
 #include "Transformation.hpp"
 #include <vector>
 #include <string>
@@ -66,9 +65,6 @@ public:
 
     void recomputePerVertexNormals(bool angleBased = false);
     void recomputePerVertexTextureCoordinates();
-
-    // Conversion into DynamicObject
-    DynamicObject intoRigidBody(const Transformation &_t) const;
 
     // OpenGL interface
     void init();
