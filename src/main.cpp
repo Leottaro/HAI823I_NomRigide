@@ -53,17 +53,18 @@ int main(void) {
     std::vector<StaticBody> static_bodies;
 
     Mesh floor;
-    floor.setSimpleGrid(10, 10);
+    // floor.setSimpleGrid(2, 2);
+    floor.setCube(2);
     floor.init();
     Transformation floor_transfo;
-    floor_transfo.setTranslation(glm::vec3(-0.5, -2, -0.5));
-    floor_transfo.setScaleXZ(10);
+    // floor_transfo.setTranslation(glm::vec3(-5, -2, -5));
+    // floor_transfo.setScaleXZ(10);
     static_bodies.push_back(StaticBody(&floor, &floor_transfo));
 
     size_t size = 5;
     Mesh object_mesh;
     object_mesh.setCube(size);
-    Transformation rigid_object_transformation(glm::vec3(0.f), glm::vec3(1.f), glm::vec3(M_PIf / 4.f, 0.f, M_PIf / 4.f));
+    Transformation rigid_object_transformation(glm::vec3(0.f, 2.f, 0.f), glm::vec3(1.f), glm::vec3(M_PIf / 4.f, 0.f, M_PIf / 4.f));
     DynamicObject rigid_object = DynamicObject::rigidBodyFromMesh(StaticBody(&object_mesh, &rigid_object_transformation));
     // rigid_object.setVertexFixed(0, true);
     // rigid_object.setVertexFixed((size - 1) * (size - 1), true);
@@ -96,7 +97,9 @@ int main(void) {
         // OBJECTS UPDATE
         camera.update(window, deltaTime, glm::vec3(0.), cursor_vel, scroll);
         if (run_simulation) {
-            rigid_object.update(deltaTime, static_bodies);
+            if (!rigid_object.update(deltaTime, static_bodies)) {
+                run_simulation = false;
+            }
             rigid_object.updateRenderedPositions();
             // run_simulation = false;
         }

@@ -49,7 +49,7 @@ class DynamicObject {
     std::vector<bool> m_fixed;            // if the vertex is fixed
 
     // Constraints
-    uint M = 0;                                   // number of contraints
+    uint M = 0, Mcoll = 0;                        // number of contraints
     std::vector<uint> m_cardinalities;            // nj: The number of impacted vertices
     std::vector<constraint_function> m_functions; // Cj: The constraint itself. Input's size must match the cardinality
     std::vector<gradient_function> m_gradients;   // Cj: The gradient (evolution) of the constraint. Input's size must match the cardinality
@@ -64,6 +64,8 @@ class DynamicObject {
         m_velocities.resize(N);
         m_masses.resize(N);
     }
+
+    void addCollisionConstraint(uint _p0, glm::dvec3 _intersection, glm::dvec3 _normal, double _stiffness);
 
 public:
     // GETTERS
@@ -82,7 +84,7 @@ public:
     const std::vector<ConstraintType> &getTypes() const { return m_types; };
 
     // "3.1. Algorithm Overview" of ./articles/Position_Based_Dynamics.pdf
-    void update(double _delta_time, const std::vector<StaticBody> &static_bodies);
+    bool update(double _delta_time, const std::vector<StaticBody> &static_bodies);
 
     void addVertex(const glm::dvec3 &_position, const glm::dvec3 &_velocity, double _mass, bool _fixed);
     void setVertexPosition(uint _pj, glm::dvec3 _position) { m_positions[_pj] = _position; }
