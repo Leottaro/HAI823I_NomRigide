@@ -74,8 +74,8 @@ void Mesh::setCube(size_t _n) {
 
                     size_t v0 = j + _n * (i + _n * (face_axis + 3 * face_depth));
 
-                    m_positions[v0][face_axis] = face_depth == 0 ? j_pos : i_pos;
-                    m_positions[v0][(face_axis + 1) % 3] = face_depth;
+                    m_positions[v0][face_axis] = face_depth;
+                    m_positions[v0][(face_axis + 1) % 3] = face_depth == 0 ? j_pos : i_pos;
                     m_positions[v0][(face_axis + 2) % 3] = face_depth == 0 ? i_pos : j_pos;
 
                     m_normals[v0] = glm::vec3(0.);

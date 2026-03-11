@@ -33,17 +33,14 @@ double rayTriangleIntersection(const glm::dvec3 &origin, const glm::dvec3 &direc
     // determine intersection
     t = -(glm::dot(normal, origin - v0)) / dot;
     intersection = origin + t * direction;
-    if (glm::dot(intersection - origin, direction) < 0.) {
-        return false;
-    }
 
     // barycentric coordinates
     return computeBarycentrics(v0, v1, v2, normal, intersection, barycentrics);
 }
 
-inline glm::dvec3 applyTransformation(const glm::dvec3 &vec, double w, const glm::dmat4 &transfo) {
-    glm::dvec4 temp = glm::dvec4(vec, w) * transfo;
-    return temp.w == 0. ? glm::dvec3(temp.x, temp.y, temp.z) : glm::dvec3(temp.x, temp.y, temp.z) / temp.w;
+inline glm::vec3 applyTransformation(const glm::vec3 &vec, float w, const glm::mat4 &transfo) {
+    glm::vec4 temp = transfo * glm::vec4(vec.x, vec.y, vec.z, w);
+    return temp.w == 0. ? glm::vec3(temp.x, temp.y, temp.z) : glm::vec3(temp.x, temp.y, temp.z) / temp.w;
 }
 
 /*
@@ -156,6 +153,7 @@ bool DynamicObject::update(double _delta_time, const std::vector<StaticBody> &st
         for (const StaticBody &static_body : static_bodies) {
             const std::vector<glm::vec3> &mesh_positions = static_body.m_mesh->vertexPositions();
             const std::vector<glm::vec3> &mesh_normals = static_body.m_mesh->vertexNormals();
+            const std::vector<glm::uvec3> &mesh_triangles = static_body.m_mesh->triangleIndices();
             glm::mat4 transformation = static_body.m_transformation->computeTransformationMatrix();
 
             double min_t = DBL_MAX, max_t = -DBL_MAX, t;
@@ -164,14 +162,14 @@ bool DynamicObject::update(double _delta_time, const std::vector<StaticBody> &st
             double min_dist = DBL_MAX, dist;
             glm::dvec3 closest_surface, closest_surface_normal, surface;
 
-            for (glm::uvec3 &triangle : static_body.m_mesh->triangleIndices()) {
-                glm::dvec3 v0 = applyTransformation(mesh_positions[triangle[0]], 1., transformation);
-                glm::dvec3 v1 = applyTransformation(mesh_positions[triangle[1]], 1., transformation);
-                glm::dvec3 v2 = applyTransformation(mesh_positions[triangle[2]], 1., transformation);
+            for (const glm::uvec3 &triangle : mesh_triangles) {
+                glm::dvec3 v0 = applyTransformation(mesh_positions[triangle[0]], 1.f, transformation);
+                glm::dvec3 v1 = applyTransformation(mesh_positions[triangle[1]], 1.f, transformation);
+                glm::dvec3 v2 = applyTransformation(mesh_positions[triangle[2]], 1.f, transformation);
 
-                glm::dvec3 n0 = applyTransformation(mesh_normals[triangle[0]], 0., transformation);
-                glm::dvec3 n1 = applyTransformation(mesh_normals[triangle[1]], 0., transformation);
-                glm::dvec3 n2 = applyTransformation(mesh_normals[triangle[2]], 0., transformation);
+                glm::dvec3 n0 = applyTransformation(mesh_normals[triangle[0]], 0.f, transformation);
+                glm::dvec3 n1 = applyTransformation(mesh_normals[triangle[1]], 0.f, transformation);
+                glm::dvec3 n2 = applyTransformation(mesh_normals[triangle[2]], 0.f, transformation);
                 glm::dvec3 normal = glm::cross(v1 - v0, v2 - v0);
 
                 // ray intersections
@@ -193,15 +191,25 @@ bool DynamicObject::update(double _delta_time, const std::vector<StaticBody> &st
                 // closest surface
                 glm::dvec3 project_on_plane = glm::cross(normal, glm::cross(new_positions[pj] - v0, normal));
                 computeBarycentrics(v0, v1, v2, normal, project_on_plane, barycentrics);
-                for (uint i = 0; i < 3; i++) {
-                    if (barycentrics[i] < 0.) {
-                        barycentrics[(i + 1) % 3] -= barycentrics[i];
-                        barycentrics[(i + 2) % 3] -= barycentrics[i];
-                        barycentrics[i] = 0.;
-                        break;
-                    }
-                }
-                surface = v0 * barycentrics[0] + v1 * barycentrics[1] + v2 * barycentrics[2];
+
+                // https://www.desmos.com/calculator/eeqkstj2ck
+                const auto f = [project_on_plane](const glm::dvec3 &p1, const glm::dvec3 p2, uint i, glm::dvec3 &barycentrics) {
+                    glm::dvec3 direction = p2 - p1;
+                    double n_squared = std::pow(glm::distance(p2, p1), 2);
+                    double dot = glm::dot(direction, project_on_plane - p1);
+                    double dot_over_one = dot / n_squared;
+                    double r = std::max(0., std::min(1., dot_over_one));
+                    barycentrics[i] = 0.;
+                    barycentrics[(i + 1) % 3] = 1. - r;
+                    barycentrics[(i + 2) % 3] = r;
+                    return p1 + direction * r;
+                };
+
+                surface = barycentrics[0] < 0.   ? f(v1, v2, 0, barycentrics)
+                          : barycentrics[1] < 0. ? f(v2, v0, 1, barycentrics)
+                          : barycentrics[2] < 0. ? f(v0, v1, 2, barycentrics)
+                                                 : project_on_plane;
+
                 dist = glm::distance(new_positions[pj], surface);
                 if (dist < min_dist) {
                     min_dist = dist;
@@ -210,12 +218,12 @@ bool DynamicObject::update(double _delta_time, const std::vector<StaticBody> &st
                 }
             }
 
-            if (0. <= min_t && min_t <= 1.) {
+            if (0. < min_t && min_t < 1.) {
                 // WILL ENTER THE OBJECT
-                addCollisionConstraint(pj, closest_intersection, closest_normal, 1.);
-            } else if (min_t <= 0. && max_t <= 1.) {
+                addCollisionConstraint(pj, closest_intersection, glm::normalize(closest_normal), 1.);
+            } else if (min_t < 0. && max_t > 1.) {
                 // COMPLETLY INSIDE THE OBJECT
-                addCollisionConstraint(pj, closest_surface, closest_surface_normal, 1.);
+                addCollisionConstraint(pj, closest_surface, glm::normalize(closest_surface_normal), 1.);
             }
         }
     }
@@ -239,7 +247,7 @@ bool DynamicObject::update(double _delta_time, const std::vector<StaticBody> &st
                 affected_points[i] = new_positions[pj];
                 total_weigths += m_weights[pj];
             }
-            if (total_weigths == 0.) {
+            if (total_weigths != total_weigths || total_weigths == 0.) {
                 std::cerr << "invalid total weights : " << total_weigths << std::endl;
                 return false;
             }
@@ -257,7 +265,7 @@ bool DynamicObject::update(double _delta_time, const std::vector<StaticBody> &st
             for (uint i = 0; i < m_cardinalities[ci]; i++) {
                 denominator += length2(gradients[i]);
             }
-            if (denominator == 0.) {
+            if (denominator != denominator || denominator == 0.) {
                 std::cerr << "invalid denominator : " << denominator << std::endl;
                 return false;
             }
@@ -342,7 +350,7 @@ void DynamicObject::addDistanceConstraint(uint _p0, uint _p1, double _stiffness,
     m_functions.push_back([_targeted_distance](const std::vector<glm::dvec3> &_p) {
         return glm::distance(_p[0], _p[1]) - _targeted_distance;
     });
-    m_gradients.push_back([_targeted_distance](const std::vector<glm::dvec3> &_p) {
+    m_gradients.push_back([](const std::vector<glm::dvec3> &_p) {
         glm::dvec3 n = glm::normalize(_p[0] - _p[1]);
         return std::vector<glm::dvec3>{n, -n};
     });
@@ -370,7 +378,7 @@ void DynamicObject::addBendingConstraint(uint _p0, uint _p1, uint _p2, uint _p3,
             theta = -theta;
         return theta - _targeted_angle;
     });
-    m_gradients.push_back([_targeted_angle](const std::vector<glm::dvec3> &_p) {
+    m_gradients.push_back([](const std::vector<glm::dvec3> &_p) {
         // bridson model
         // p0 and p1 : common edge
         glm::dvec3 e = _p[1] - _p[0];
@@ -418,7 +426,7 @@ void DynamicObject::addCollisionConstraint(uint _p0, glm::dvec3 _intersection, g
     m_functions.push_back([_intersection, _normal](const std::vector<glm::dvec3> &_p) {
         return glm::dot(_p[0] - _intersection, _normal);
     });
-    m_gradients.push_back([_intersection, _normal](const std::vector<glm::dvec3> &_p) {
+    m_gradients.push_back([_normal](const std::vector<glm::dvec3> &_p) {
         return std::vector<glm::dvec3>{_normal};
     });
 }
