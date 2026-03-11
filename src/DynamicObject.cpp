@@ -26,7 +26,7 @@ double rayTriangleIntersection(const glm::dvec3 &origin, const glm::dvec3 &direc
                                double &t, glm::dvec3 &intersection, glm::dvec3 &barycentrics) {
     // Check if ray is parallel
     double dot = glm::dot(direction, normal);
-    if (fabsf64(dot) < 1.e-8) {
+    if (fabsf64(dot) <= 1.e-8) {
         return false;
     }
 
@@ -36,11 +36,6 @@ double rayTriangleIntersection(const glm::dvec3 &origin, const glm::dvec3 &direc
 
     // barycentric coordinates
     return computeBarycentrics(v0, v1, v2, normal, intersection, barycentrics);
-}
-
-inline glm::vec3 applyTransformation(const glm::vec3 &vec, float w, const glm::mat4 &transfo) {
-    glm::vec4 temp = transfo * glm::vec4(vec.x, vec.y, vec.z, w);
-    return temp.w == 0. ? glm::vec3(temp.x, temp.y, temp.z) : glm::vec3(temp.x, temp.y, temp.z) / temp.w;
 }
 
 /*
@@ -157,7 +152,7 @@ bool DynamicObject::update(double _delta_time, const std::vector<StaticBody> &st
             glm::mat4 transformation = static_body.m_transformation->computeTransformationMatrix();
 
             double min_t = DBL_MAX, max_t = -DBL_MAX, t;
-            glm::dvec3 closest_intersection, closest_normal, furthest_intersection, furthest_normal, intersection, barycentrics;
+            glm::dvec3 closest_intersection, closest_normal, intersection, barycentrics;
 
             double min_dist = DBL_MAX, dist;
             glm::dvec3 closest_surface, closest_surface_normal, surface;
@@ -173,8 +168,7 @@ bool DynamicObject::update(double _delta_time, const std::vector<StaticBody> &st
                 glm::dvec3 normal = glm::cross(v1 - v0, v2 - v0);
 
                 // ray intersections
-                bool res = rayTriangleIntersection(origin, direction, v0, v1, v2, normal, t, intersection, barycentrics);
-                if (!res) {
+                if (!rayTriangleIntersection(origin, direction, v0, v1, v2, normal, t, intersection, barycentrics)) {
                     continue;
                 }
                 if (t < min_t) {
@@ -182,35 +176,28 @@ bool DynamicObject::update(double _delta_time, const std::vector<StaticBody> &st
                     closest_intersection = intersection;
                     closest_normal = barycentrics[0] * n0 + barycentrics[1] * n1 + barycentrics[2] * n2;
                 }
-                if (t > max_t) {
-                    max_t = t;
-                    furthest_intersection = intersection;
-                    furthest_normal = barycentrics[0] * n0 + barycentrics[1] * n1 + barycentrics[2] * n2;
-                }
 
                 // closest surface
                 glm::dvec3 project_on_plane = glm::cross(normal, glm::cross(new_positions[pj] - v0, normal));
                 computeBarycentrics(v0, v1, v2, normal, project_on_plane, barycentrics);
 
                 // https://www.desmos.com/calculator/eeqkstj2ck
-                const auto f = [project_on_plane](const glm::dvec3 &p1, const glm::dvec3 p2, uint i, glm::dvec3 &barycentrics) {
+                const auto fallback_in_triangle = [project_on_plane](const glm::dvec3 &p1, const glm::dvec3 &p2) {
                     glm::dvec3 direction = p2 - p1;
                     double n_squared = std::pow(glm::distance(p2, p1), 2);
                     double dot = glm::dot(direction, project_on_plane - p1);
                     double dot_over_one = dot / n_squared;
                     double r = std::max(0., std::min(1., dot_over_one));
-                    barycentrics[i] = 0.;
-                    barycentrics[(i + 1) % 3] = 1. - r;
-                    barycentrics[(i + 2) % 3] = r;
                     return p1 + direction * r;
                 };
 
-                surface = barycentrics[0] < 0.   ? f(v1, v2, 0, barycentrics)
-                          : barycentrics[1] < 0. ? f(v2, v0, 1, barycentrics)
-                          : barycentrics[2] < 0. ? f(v0, v1, 2, barycentrics)
+                surface = barycentrics[0] < 0.   ? fallback_in_triangle(v1, v2)
+                          : barycentrics[1] < 0. ? fallback_in_triangle(v2, v0)
+                          : barycentrics[2] < 0. ? fallback_in_triangle(v0, v1)
                                                  : project_on_plane;
 
                 dist = glm::distance(new_positions[pj], surface);
+
                 if (dist < min_dist) {
                     min_dist = dist;
                     closest_surface = surface;
@@ -218,7 +205,7 @@ bool DynamicObject::update(double _delta_time, const std::vector<StaticBody> &st
                 }
             }
 
-            if (0. < min_t && min_t < 1.) {
+            if (0. <= min_t && min_t <= 1.) {
                 // WILL ENTER THE OBJECT
                 addCollisionConstraint(pj, closest_intersection, glm::normalize(closest_normal), 1.);
             } else if (min_t < 0. && max_t > 1.) {

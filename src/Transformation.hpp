@@ -104,3 +104,8 @@ public:
         return translation_matrix * rotation_matrix * scale_matrix;
     }
 };
+
+inline glm::vec3 applyTransformation(const glm::vec3 &vec, float w, const glm::mat4 &transfo) {
+    glm::vec4 temp = transfo * glm::vec4(vec.x, vec.y, vec.z, w);
+    return temp.w == 0. ? glm::vec3(temp.x, temp.y, temp.z) : glm::vec3(temp.x, temp.y, temp.z) / temp.w;
+}

@@ -57,16 +57,17 @@ int main(void) {
     floor.setCube(2);
     floor.init();
     Transformation floor_transfo;
-    floor_transfo.setTranslation(glm::vec3(-5, -1, -5));
+    floor_transfo.setTranslation(glm::vec3(-5, 2, -5));
     floor_transfo.setScaleXZ(10);
+    floor_transfo.setEulerAngles(glm::vec3(M_PIf / 8.f, 0.f, 0.f));
     static_bodies.push_back(StaticBody(&floor, &floor_transfo));
 
     size_t size = 2;
     Mesh object_mesh;
     object_mesh.setCube(size);
     Transformation rigid_object_transformation(glm::vec3(0.f, 2.f, 0.f), glm::vec3(1.f), glm::vec3(M_PIf / 4.f, 0.f, M_PIf / 4.f));
-    // Transformation rigid_object_transformation(glm::vec3(0.f, 2.f, 0.f), glm::vec3(1.f), glm::vec3(0.f, 0.f, 0.f));
     DynamicObject rigid_object = DynamicObject::rigidBodyFromMesh(StaticBody(&object_mesh, &rigid_object_transformation));
+
     // rigid_object.setVertexFixed(0, true);
     // rigid_object.setVertexFixed((size - 1) * (size - 1), true);
     rigid_object.initRendering();
