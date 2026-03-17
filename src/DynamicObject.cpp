@@ -70,7 +70,7 @@ void DynamicObject::dampVelocities(double k_damping) {
     }
 
     // check invertibility
-    if (fabsf64(glm::determinant(I)) < 1e-8) {
+    if (std::abs(glm::determinant(I)) < 1e-8) {
         return;
     }
     glm::dvec3 omega = glm::inverse(I) * L; // (5): angular velocity
