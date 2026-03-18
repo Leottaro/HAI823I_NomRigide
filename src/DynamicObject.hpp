@@ -66,7 +66,7 @@ class DynamicObject {
     }
 
     void addCollisionConstraint(uint _p0, glm::dvec3 _intersection, glm::dvec3 _normal, double _stiffness);
-
+    void addEdgeCollisionConstraint(uint _p0, uint _p1, double _alpha, glm::dvec3 _surface_point, glm::dvec3 _normal, double _stiffness);
 public:
     // GETTERS
     uint getN() const { return N; };
