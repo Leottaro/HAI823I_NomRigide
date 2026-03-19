@@ -1,6 +1,7 @@
 #include "DynamicObject.hpp"
 #include <glm/matrix.hpp>
 #include <iostream>
+#include <unordered_map>
 
 double length2(const glm::dvec3 &vec) {
     return vec.x * vec.x + vec.y * vec.y + vec.z * vec.z;
@@ -138,6 +139,7 @@ bool DynamicObject::update(double _delta_time, const std::vector<StaticBody> &st
         new_positions[pj] = m_fixed[pj] ? m_positions[pj] : m_positions[pj] + _delta_time * m_velocities[pj];
 
     // (8)
+    std::unordered_map<size_t, glm::dvec3> colliding_vertices;
     for (uint pj = 0; pj < N; pj++) {
         glm::dvec3 origin = m_positions[pj];
         glm::dvec3 direction = new_positions[pj] - m_positions[pj];
@@ -205,9 +207,11 @@ bool DynamicObject::update(double _delta_time, const std::vector<StaticBody> &st
             if (0. <= min_t && min_t <= 1.) {
                 // WILL ENTER THE OBJECT
                 addCollisionConstraint(pj, closest_intersection, glm::normalize(closest_normal), 1.);
+                colliding_vertices.insert({pj, glm::normalize(closest_normal)});
             } else if (min_t < 0. && max_t > 1.) {
                 // COMPLETLY INSIDE THE OBJECT
                 addCollisionConstraint(pj, closest_surface, glm::normalize(closest_surface_normal), 1.);
+                colliding_vertices.insert({pj, glm::normalize(closest_surface_normal)});
             }
         }
     }
@@ -306,7 +310,23 @@ bool DynamicObject::update(double _delta_time, const std::vector<StaticBody> &st
         m_positions[pj] = new_positions[pj];                                    // (14)
     }
 
-    // TODO: (16) Velocity update
+    // (16)
+    for (auto [pj, collision_normal] : colliding_vertices) {
+        // Decompose velocity into normal and tangential components
+        double v_dot_n = glm::dot(m_velocities[pj], collision_normal);
+        glm::dvec3 v_normal = v_dot_n * collision_normal;
+        glm::dvec3 v_tangent = collision_normal - v_normal;
+
+        // Apply restitution (reflection in the direction of collision normal)
+        // Negative sign because we reflect away from surface
+        v_normal *= -m_restitution_coefficient;
+
+        // Apply friction (dampen velocity perpendicular to collision normal)
+        v_tangent *= (1. - m_friction_coefficient);
+
+        // Reconstruct velocity
+        m_velocities[pj] = v_normal + v_tangent;
+    }
 
     // cancel collision constraitns
     Mcoll = 0;

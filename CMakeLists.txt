@@ -3,7 +3,7 @@ project(hai823i_nomrigide)
 set(APP_VERSION_MAJOR 1)
 set(APP_VERSION_MINOR 0)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(OpenGL_GL_PREFERENCE GLVND) # asked me to set this to GLVND or LEGACY
 # set(CMAKE_VERBOSE_MAKEFILE 1) # If you want verbose
 

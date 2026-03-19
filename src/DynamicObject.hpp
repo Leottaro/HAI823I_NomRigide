@@ -57,6 +57,11 @@ class DynamicObject {
     std::vector<double> m_stiffnesses;            // kj: Strength in [0;1]
     std::vector<ConstraintType> m_types;          // Either Equality (=0) or Inequality (>=0)
 
+    // Collisions parameters
+    double m_ambient_friction_coefficient = 0.01;
+    double m_friction_coefficient = 0.5;
+    double m_restitution_coefficient = 0.5;
+
     // "3.5. Damping" of ./articles/Position_Based_Dynamics.pdf
     void dampVelocities(double k_damping = 1.); // k_damping = 1. -> rigid body
 
@@ -83,6 +88,13 @@ public:
     const std::vector<std::vector<uint>> &getIndices() const { return m_indices; };
     const std::vector<double> &getStiffnesses() const { return m_stiffnesses; };
     const std::vector<ConstraintType> &getTypes() const { return m_types; };
+
+    void setAmbientFrictionCoefficient(double _coeff) { m_ambient_friction_coefficient = _coeff; }
+    double getAmbientFrictionCoefficient() { return m_ambient_friction_coefficient; }
+    void setFrictionCoefficient(double _coeff) { m_friction_coefficient = _coeff; }
+    double getFrictionCoefficient() { return m_friction_coefficient; }
+    void setRestitutionCoefficient(double _coeff) { m_restitution_coefficient = _coeff; }
+    double getRestitutionCoefficient() { return m_restitution_coefficient; }
 
     // "3.1. Algorithm Overview" of ./articles/Position_Based_Dynamics.pdf
     bool update(double _delta_time, const std::vector<StaticBody> &static_bodies);
