@@ -53,23 +53,23 @@ int main(void) {
     std::vector<StaticBody> static_bodies;
 
     Mesh floor;
-    // floor.setSimpleGrid(2, 2);
+    floor.setSimpleGrid(2, 2);
     floor.setCube(2);
     floor.init();
     Transformation floor_transfo;
-    floor_transfo.setTranslation(glm::vec3(-5, 2, -5));
-    floor_transfo.setScaleXZ(10);
+    floor_transfo.setTranslation(glm::vec3(0.f, -3.f, 0.f));
+    floor_transfo.setScale(glm::vec3(10.f, 4.f, 50.f));
     floor_transfo.setEulerAngles(glm::vec3(M_PIf / 8.f, 0.f, 0.f));
     static_bodies.push_back(StaticBody(&floor, &floor_transfo));
 
-    size_t size = 2;
+    size_t size = 5;
     Mesh object_mesh;
-    object_mesh.setCube(size);
-    Transformation rigid_object_transformation(glm::vec3(0.f, 2.f, 0.f), glm::vec3(1.f), glm::vec3(M_PIf / 4.f, 0.f, M_PIf / 4.f));
-    DynamicObject rigid_object = DynamicObject::rigidBodyFromMesh(StaticBody(&object_mesh, &rigid_object_transformation));
+    object_mesh.setCubeSphere(size);
+    Transformation rigid_object_transformation(glm::vec3(0.f, 3.f, 0.f), glm::vec3(1.f), glm::vec3(0.f));
+    DynamicObject rigid_object = DynamicObject::bodyFromMesh(StaticBody(&object_mesh, &rigid_object_transformation), .9f, .9f);
 
     // rigid_object.setVertexFixed(0, true);
-    // rigid_object.setVertexFixed((size - 1) * (size - 1), true);
+    // rigid_object.setVertexFixed(size - 1, true);
     rigid_object.initRendering();
 
     // TODO: init textures

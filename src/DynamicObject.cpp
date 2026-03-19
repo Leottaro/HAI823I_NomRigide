@@ -121,10 +121,7 @@ READ "3.1. Algorithm Overview" of ./articles/Position_Based_Dynamics.pdf
 */
 
 // TODO: imgui solver settings
-#define SOLVER_CONVERGENCE_WINDOW 50
-#define MAXIMUM_RESIDUAL_THRESHOLD 1.e-6
-#define RESIDUAL_RANGE_THRESHOLD 1.e-6
-#define MAXIMUM_DELTA_THRESHOLD 1.e-8
+#define SOLVER_ITERATIONS 100
 
 bool DynamicObject::update(double _delta_time, const std::vector<StaticBody> &static_bodies) {
     std::vector<glm::dvec3> new_positions(N); // p_i
@@ -260,15 +257,7 @@ bool DynamicObject::update(double _delta_time, const std::vector<StaticBody> &st
     }
 
     // (9)-(11)
-    std::vector<double> residuals_buffer(SOLVER_CONVERGENCE_WINDOW, DBL_MAX);
-    std::vector<double> maxdelta_buffer(SOLVER_CONVERGENCE_WINDOW, -DBL_MAX);
-
-    double rmin, rmax, dmax;
-    uint nbloop = 0;
-    do {
-        residuals_buffer[nbloop % SOLVER_CONVERGENCE_WINDOW] = 0.;
-        maxdelta_buffer[nbloop % SOLVER_CONVERGENCE_WINDOW] = -DBL_MAX;
-
+    for (uint i = 0; i < SOLVER_ITERATIONS; i++) {
         for (uint ci = 0; ci < M + Mcoll; ci++) {
             // gather function input (and total weight)
             std::vector<glm::dvec3> affected_points(m_cardinalities[ci]);
@@ -288,7 +277,6 @@ bool DynamicObject::update(double _delta_time, const std::vector<StaticBody> &st
                 // The constraint is already satisfied so we don't project it
                 continue;
             }
-            residuals_buffer[nbloop % SOLVER_CONVERGENCE_WINDOW] += function_value * function_value;
 
             // Determine S
             std::vector<glm::dvec3> gradients = m_gradients[ci](affected_points);
@@ -306,20 +294,11 @@ bool DynamicObject::update(double _delta_time, const std::vector<StaticBody> &st
             for (uint i = 0; i < m_cardinalities[ci]; i++) {
                 uint pj = m_indices[ci][i];
                 glm::dvec3 delta_pj = -s * (double(m_cardinalities[ci]) * m_weights[pj] / total_weigths) * gradients[i];
-                new_positions[pj] += delta_pj;
-                maxdelta_buffer[nbloop % SOLVER_CONVERGENCE_WINDOW] = std::max(maxdelta_buffer[nbloop % SOLVER_CONVERGENCE_WINDOW], glm::length(delta_pj));
+                double k_prime = 1. - std::pow(1. - m_stiffnesses[ci], 1. / SOLVER_ITERATIONS);
+                new_positions[pj] += k_prime * delta_pj;
             }
         }
-
-        residuals_buffer[nbloop % SOLVER_CONVERGENCE_WINDOW] = sqrt(residuals_buffer[nbloop % SOLVER_CONVERGENCE_WINDOW]);
-        auto rpair = std::minmax_element(residuals_buffer.begin(), residuals_buffer.end());
-        rmin = *rpair.first;
-        rmax = *rpair.second;
-
-        dmax = *std::max_element(maxdelta_buffer.begin(), maxdelta_buffer.end());
-
-        nbloop++;
-    } while (rmax > MAXIMUM_RESIDUAL_THRESHOLD || rmax - rmin > RESIDUAL_RANGE_THRESHOLD || dmax > MAXIMUM_DELTA_THRESHOLD);
+    }
 
     // (12)-(15)
     for (uint pj = 0; pj < N; pj++) {
@@ -479,8 +458,7 @@ void DynamicObject::addEdgeCollisionConstraint(uint _p0, uint _p1, double _alpha
     m_gradients.push_back([_alpha, _normal](const std::vector<glm::dvec3> &_p) {
         return std::vector<glm::dvec3>{
             (1.0 - _alpha) * _normal,
-            _alpha * _normal
-        };
+            _alpha * _normal};
     });
 }
 

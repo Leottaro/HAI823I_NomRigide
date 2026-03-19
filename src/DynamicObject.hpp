@@ -67,6 +67,7 @@ class DynamicObject {
 
     void addCollisionConstraint(uint _p0, glm::dvec3 _intersection, glm::dvec3 _normal, double _stiffness);
     void addEdgeCollisionConstraint(uint _p0, uint _p1, double _alpha, glm::dvec3 _surface_point, glm::dvec3 _normal, double _stiffness);
+
 public:
     // GETTERS
     uint getN() const { return N; };
@@ -106,7 +107,8 @@ public:
     void addBendingConstraint(uint _p0, uint _p1, uint _p2, uint _p3, double _stiffness); // the targeted angle is set to the current angle between p0,p2,p1 normal and p0,p3,p1 normal
 
     // Objects creation
-    static DynamicObject rigidBodyFromMesh(const StaticBody &_static_body);
+    static DynamicObject bodyFromMesh(const StaticBody &_static_body, float _distance_stifness, float _angle_stifness);
+    static DynamicObject rigidBodyFromMesh(const StaticBody &_static_body) { return bodyFromMesh(_static_body, 1.f, 1.f); }
 
     // OpenGL interface
 
