@@ -119,7 +119,8 @@ public:
     void addBendingConstraint(uint _p0, uint _p1, uint _p2, uint _p3, double _stiffness); // the targeted angle is set to the current angle between p0,p2,p1 normal and p0,p3,p1 normal
 
     // Objects creation
-    static DynamicObject bodyFromMesh(const StaticBody &_static_body, float _distance_stifness, float _angle_stifness);
+    static DynamicObject bodyFromMesh(const StaticBody &_static_body, float _distance_stiffness, float _angle_stiffness);
+    static DynamicObject bodyFromMesh(const StaticBody &_static_body, float _stiffness) { return bodyFromMesh(_static_body, _stiffness, _stiffness); }
     static DynamicObject rigidBodyFromMesh(const StaticBody &_static_body) { return bodyFromMesh(_static_body, 1.f, 1.f); }
 
     // OpenGL interface

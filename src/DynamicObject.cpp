@@ -333,7 +333,7 @@ bool DynamicObject::update(double _delta_time, const std::vector<StaticBody> &st
         // Decompose velocity into normal and tangential components
         double v_dot_n = glm::dot(m_velocities[pj], collision_normal);
         glm::dvec3 v_normal = v_dot_n * collision_normal;
-        glm::dvec3 v_tangent = collision_normal - v_normal;
+        glm::dvec3 v_tangent = m_velocities[pj] - v_normal;
 
         // Apply restitution (reflection in the direction of collision normal)
         // Negative sign because we reflect away from surface
