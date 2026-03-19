@@ -25,16 +25,14 @@
 #define M_PI_2_SAFE float(M_PI_2 - 0.001)
 #define M_PI_4_SAFE float(M_PI_4 - 0.001)
 
-const glm::vec3 VEC_ZERO = glm::vec3(0.f, 0.f, 0.f);
-const glm::vec3 VEC_UP = glm::vec3(0.f, 1.f, 0.f);
-const glm::vec3 VEC_FRONT = glm::vec3(0.f, 0.f, 1.f);
-const glm::vec3 VEC_RIGHT = glm::vec3(1.f, 0.f, 0.f);
+#define VEC_ZERO glm::vec3(0.f, 0.f, 0.f)
+#define VEC_UP glm::vec3(0.f, 1.f, 0.f)
+#define VEC_FRONT glm::vec3(0.f, 0.f, 1.f)
+#define VEC_RIGHT glm::vec3(1.f, 0.f, 0.f)
 
 class Transformation {
     glm::vec3 m_translation;
-    glm::quat m_rotation;
     glm::vec3 m_scale;
-
     glm::vec3 m_euler_angles;
 
     // HELPERS
@@ -66,12 +64,12 @@ class Transformation {
     }
 
 public:
-    Transformation(glm::vec3 _translation = glm::vec3(0.f), glm::vec3 _scale = glm::vec3(1.f), glm::vec3 _euler_angles = glm::vec3(0.f)) : m_translation(_translation), m_scale(_scale), m_euler_angles(_euler_angles) { updateRotation(); }
+    Transformation() : m_translation(0.f), m_scale(1.f), m_euler_angles(0.f) {}
+    Transformation(glm::vec3 _translation, glm::vec3 _scale, glm::vec3 _euler_angles) : m_translation(_translation), m_scale(_scale), m_euler_angles(_euler_angles) { updateRotation(); }
 
     // GETTERS
     inline const glm::vec3 getTranslation() const { return m_translation; }
     inline const glm::vec3 getEulerAngles() const { return m_euler_angles; }
-    inline const glm::quat getRotation() const { return m_rotation; }
     inline glm::vec3 getScale() const { return m_scale; }
     inline glm::vec3 getFrontVector() const { return Transformation::EulerToEuclidian(m_euler_angles); }
 
@@ -80,7 +78,6 @@ public:
     inline void setEulerAngles(const glm::vec3 &r) { m_euler_angles = r; }
     inline void addEulerAngles(const glm::vec3 &r) { m_euler_angles += r; }
     inline void setEulerAnglesFromFront(const glm::vec3 &_front) { m_euler_angles = glm::vec3(Transformation::EuclidianToEuler(_front), 0.f); }
-    inline void setRotation(const glm::quat &q) { m_rotation = q; }
     inline void setScale(glm::vec3 s) { m_scale = s; }
     inline void setScale(float s) { m_scale = glm::vec3(s); }
     inline void setScaleX(float sx) { m_scale.x = sx; }
@@ -96,17 +93,19 @@ public:
             glm::clamp(m_euler_angles.x, -M_PI_2_SAFE, M_PI_2_SAFE), // Pitch clamp
             Transformation::clipAnglePI(m_euler_angles.y),           // Yaw clip
             m_euler_angles.z);
-
-        m_rotation = glm::quat(m_euler_angles);
-    }
-    inline void updateEulerAngles() {
-        m_euler_angles = glm::eulerAngles(m_rotation);
     }
 
     inline glm::mat4 computeTransformationMatrix() const {
+        glm::mat4 translation_matrix = glm::translate(glm::mat4(1.), m_translation);
+        glm::mat4 rotation_matrix = glm::rotate(glm::mat4(1.), m_euler_angles.x, VEC_RIGHT);
+        rotation_matrix = glm::rotate(rotation_matrix, m_euler_angles.y, VEC_UP);
+        rotation_matrix = glm::rotate(rotation_matrix, m_euler_angles.z, VEC_FRONT);
         glm::mat4 scale_matrix = glm::scale(glm::mat4(1.), m_scale);
-        glm::mat4 rotation_scale_matrix = glm::mat4_cast(m_rotation) * scale_matrix;
-        glm::mat4 transformation_matrix = glm::translate(rotation_scale_matrix, m_translation);
-        return transformation_matrix;
+        return translation_matrix * rotation_matrix * scale_matrix;
     }
 };
+
+inline glm::vec3 applyTransformation(const glm::vec3 &vec, float w, const glm::mat4 &transfo) {
+    glm::vec4 temp = transfo * glm::vec4(vec.x, vec.y, vec.z, w);
+    return temp.w == 0. ? glm::vec3(temp.x, temp.y, temp.z) : glm::vec3(temp.x, temp.y, temp.z) / temp.w;
+}

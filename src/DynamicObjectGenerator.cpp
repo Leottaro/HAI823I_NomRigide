@@ -12,7 +12,7 @@ struct Vec3Less {
     }
 };
 
-DynamicObject DynamicObject::rigidBodyFromMesh(const StaticBody &_static_body) {
+DynamicObject DynamicObject::bodyFromMesh(const StaticBody &_static_body, float _distance_stifness, float _angle_stifness) {
     const glm::mat4 tranformation = _static_body.m_transformation->computeTransformationMatrix();
     DynamicObject object;
 
@@ -39,15 +39,15 @@ DynamicObject DynamicObject::rigidBodyFromMesh(const StaticBody &_static_body) {
     // DISTANCES CONSTRAINTS
 
     std::unordered_set<uint64_t> seen_edges;
-    const auto addEdgeIfNeeded = [&object, &seen_edges](uint a, uint b) {
+    const auto addEdgeIfNeeded = [&object, &seen_edges, _distance_stifness](uint a, uint b) {
         const uint v0 = (a < b) ? a : b;
         const uint v1 = (a < b) ? b : a;
         const uint64_t key = (static_cast<uint64_t>(v0) << 32) | static_cast<uint64_t>(v1);
 
         if (seen_edges.find(key) == seen_edges.end()) {
             seen_edges.insert(key);
-            object.addDistanceConstraint(v0, v1, 1.f);
-            // object.addDrawLine(v0, v1);
+            object.addDistanceConstraint(v0, v1, _distance_stifness);
+            object.addDrawLine(v0, v1);
         }
     };
 
@@ -84,7 +84,7 @@ DynamicObject DynamicObject::rigidBodyFromMesh(const StaticBody &_static_body) {
             uint p2 = opposites[0];
             uint p3 = opposites[1];
 
-            object.addBendingConstraint(p0, p1, p2, p3, 1.f);
+            object.addBendingConstraint(p0, p1, p2, p3, _angle_stifness);
             object.addDrawLine(p0, p1);
             object.addDrawLine(p1, p2);
             object.addDrawLine(p0, p2);

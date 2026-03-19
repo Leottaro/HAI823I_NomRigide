@@ -49,13 +49,18 @@ class DynamicObject {
     std::vector<bool> m_fixed;            // if the vertex is fixed
 
     // Constraints
-    uint M = 0;                                   // number of contraints
+    uint M = 0, Mcoll = 0;                        // number of contraints
     std::vector<uint> m_cardinalities;            // nj: The number of impacted vertices
     std::vector<constraint_function> m_functions; // Cj: The constraint itself. Input's size must match the cardinality
     std::vector<gradient_function> m_gradients;   // Cj: The gradient (evolution) of the constraint. Input's size must match the cardinality
     std::vector<std::vector<uint>> m_indices;     // Indices of impacted vertices
     std::vector<double> m_stiffnesses;            // kj: Strength in [0;1]
     std::vector<ConstraintType> m_types;          // Either Equality (=0) or Inequality (>=0)
+
+    // Collisions parameters
+    double m_ambient_friction_coefficient = 0.01;
+    double m_friction_coefficient = 0.5;
+    double m_restitution_coefficient = 0.5;
 
     // "3.5. Damping" of ./articles/Position_Based_Dynamics.pdf
     void dampVelocities(double k_damping = 1.); // k_damping = 1. -> rigid body
@@ -64,6 +69,9 @@ class DynamicObject {
         m_velocities.resize(N);
         m_masses.resize(N);
     }
+
+    void addCollisionConstraint(uint _p0, glm::dvec3 _intersection, glm::dvec3 _normal, double _stiffness);
+    void addEdgeCollisionConstraint(uint _p0, uint _p1, double _alpha, glm::dvec3 _surface_point, glm::dvec3 _normal, double _stiffness);
 
 public:
     // GETTERS
@@ -81,8 +89,15 @@ public:
     const std::vector<double> &getStiffnesses() const { return m_stiffnesses; };
     const std::vector<ConstraintType> &getTypes() const { return m_types; };
 
+    void setAmbientFrictionCoefficient(double _coeff) { m_ambient_friction_coefficient = _coeff; }
+    double getAmbientFrictionCoefficient() { return m_ambient_friction_coefficient; }
+    void setFrictionCoefficient(double _coeff) { m_friction_coefficient = _coeff; }
+    double getFrictionCoefficient() { return m_friction_coefficient; }
+    void setRestitutionCoefficient(double _coeff) { m_restitution_coefficient = _coeff; }
+    double getRestitutionCoefficient() { return m_restitution_coefficient; }
+
     // "3.1. Algorithm Overview" of ./articles/Position_Based_Dynamics.pdf
-    void update(double _delta_time, const std::vector<StaticBody> &static_bodies);
+    bool update(double _delta_time, const std::vector<StaticBody> &static_bodies);
 
     void addVertex(const glm::dvec3 &_position, const glm::dvec3 &_velocity, double _mass, bool _fixed);
     void setVertexPosition(uint _pj, glm::dvec3 _position) { m_positions[_pj] = _position; }
@@ -104,7 +119,8 @@ public:
     void addBendingConstraint(uint _p0, uint _p1, uint _p2, uint _p3, double _stiffness); // the targeted angle is set to the current angle between p0,p2,p1 normal and p0,p3,p1 normal
 
     // Objects creation
-    static DynamicObject rigidBodyFromMesh(const StaticBody &_static_body);
+    static DynamicObject bodyFromMesh(const StaticBody &_static_body, float _distance_stifness, float _angle_stifness);
+    static DynamicObject rigidBodyFromMesh(const StaticBody &_static_body) { return bodyFromMesh(_static_body, 1.f, 1.f); }
 
     // OpenGL interface
 

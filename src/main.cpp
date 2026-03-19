@@ -53,25 +53,29 @@ int main(void) {
     std::vector<StaticBody> static_bodies;
 
     Mesh floor;
-    floor.setSimpleGrid(10, 10);
+    floor.setSimpleGrid(2, 2);
+    floor.setCube(2);
     floor.init();
     Transformation floor_transfo;
-    floor_transfo.setTranslation(glm::vec3(-0.5, -2, -0.5));
-    floor_transfo.setScaleXZ(10);
+    floor_transfo.setTranslation(glm::vec3(0.f, -3.f, 0.f));
+    floor_transfo.setScale(glm::vec3(10.f, 4.f, 50.f));
+    floor_transfo.setEulerAngles(glm::vec3(M_PIf / 8.f, 0.f, 0.f));
     static_bodies.push_back(StaticBody(&floor, &floor_transfo));
 
-    size_t size = 5;
+    size_t size = 10;
     Mesh object_mesh;
-    object_mesh.setCube(size);
-    Transformation rigid_object_transformation(glm::vec3(0.f), glm::vec3(1.f), glm::vec3(glm::pi<float>() / 4.f, 0.f, glm::pi<float>() / 4.f));
-    DynamicObject rigid_object = DynamicObject::rigidBodyFromMesh(StaticBody(&object_mesh, &rigid_object_transformation));
+    object_mesh.setCubeSphere(size);
+    Transformation rigid_object_transformation(glm::vec3(0.f, 3.f, 0.f), glm::vec3(1.f), glm::vec3(0.f));
+    DynamicObject rigid_object = DynamicObject::bodyFromMesh(StaticBody(&object_mesh, &rigid_object_transformation), 1.f, 1.f);
+
     // rigid_object.setVertexFixed(0, true);
-    // rigid_object.setVertexFixed((size - 1) * (size - 1), true);
+    // rigid_object.setVertexFixed(size - 1, true);
     rigid_object.initRendering();
 
     // TODO: init textures
     // TODO: setup lights
     // TODO: real-time interactions
+    // TODO: interface
 
     // timings
     float deltaTime = 0.0f;
@@ -94,12 +98,14 @@ int main(void) {
         ImGui::NewFrame();
 
         // OBJECTS UPDATE
-        camera.update(window, deltaTime, glm::vec3(0.), cursor_vel, scroll);
         if (run_simulation) {
-            rigid_object.update(deltaTime, static_bodies);
+            if (!rigid_object.update(deltaTime, static_bodies)) {
+                run_simulation = false;
+            }
             rigid_object.updateRenderedPositions();
             // run_simulation = false;
         }
+        camera.update(window, deltaTime, rigid_object.getPositions()[0], cursor_vel, scroll);
 
         // Update uniforms
         glm::mat4 projection = camera.getProjectionMatrix();

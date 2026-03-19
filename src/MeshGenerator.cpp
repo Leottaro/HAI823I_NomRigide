@@ -74,9 +74,9 @@ void Mesh::setCube(size_t _n) {
 
                     size_t v0 = j + _n * (i + _n * (face_axis + 3 * face_depth));
 
-                    m_positions[v0][face_axis] = face_depth == 0 ? j_pos : i_pos;
-                    m_positions[v0][(face_axis + 1) % 3] = face_depth;
-                    m_positions[v0][(face_axis + 2) % 3] = face_depth == 0 ? i_pos : j_pos;
+                    m_positions[v0][face_axis] = face_depth - 0.5f;
+                    m_positions[v0][(face_axis + 1) % 3] = (face_depth == 0 ? j_pos : i_pos) - 0.5f;
+                    m_positions[v0][(face_axis + 2) % 3] = (face_depth == 0 ? i_pos : j_pos) - 0.5f;
 
                     m_normals[v0] = glm::vec3(0.);
                     m_normals[v0][face_axis] = face_depth == 0 ? -1. : 1.;
@@ -105,7 +105,7 @@ void Mesh::setCubeSphere(size_t _n) {
     setCube(_n);
     size_t n_vertices = 6 * _n * _n;
     for (size_t i = 0; i < n_vertices; i++) {
-        m_normals[i] = glm::normalize(m_positions[i] - glm::vec3(0.5));
-        m_positions[i] = m_normals[i];
+        m_positions[i] = glm::normalize(m_positions[i]);
+        m_normals[i] = m_positions[i];
     }
 }
