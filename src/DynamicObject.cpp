@@ -500,6 +500,56 @@ void DynamicObject::addEdgeCollisionConstraint(uint _p0, uint _p1, double _alpha
     });
 }
 
+
+void DynamicObject::addVolumeConstraint(std::vector<glm::uvec3> _indices, double _stiffness, double _pressure, double _targeted_volume) {
+    M++;
+    m_cardinalities.push_back(getPositions().size());
+    std::vector<uint> all_indices(N);
+    std::iota(all_indices.begin(), all_indices.end(), 0);
+    m_indices.push_back(all_indices);
+    m_stiffnesses.push_back(_stiffness);
+    m_types.push_back(EQUALITY_CONSTRAINT);
+
+    m_functions.push_back([_targeted_volume, _pressure, _indices](const std::vector<glm::dvec3> &_p) {
+        double V = 0;
+        for (size_t i = 0; i < _indices.size(); i++) {
+            const glm::dvec3 p1 = _p[_indices[i][0]];
+            const glm::dvec3 p2 = _p[_indices[i][1]];
+            const glm::dvec3 p3 = _p[_indices[i][2]];
+            V += glm::dot(glm::cross(p1, p2), p3) / 6.;
+        }
+        return V - _pressure * _targeted_volume;
+    });
+    m_gradients.push_back([_indices](const std::vector<glm::dvec3> &_p) {
+        std::vector<glm::dvec3> grads(_p.size(), glm::dvec3(0.0));
+        for (size_t i = 0; i < _indices.size(); i++) {
+            uint i1 = _indices[i][0];
+            uint i2 = _indices[i][1];
+            uint i3 = _indices[i][2];
+
+            glm::dvec3 p1 = _p[i1];
+            glm::dvec3 p2 = _p[i2];
+            glm::dvec3 p3 = _p[i3];
+
+            grads[i1] += glm::cross(p2, p3) / 6.;
+            grads[i2] += glm::cross(p3, p1) / 6.;
+            grads[i3] += glm::cross(p1, p2) / 6.;
+        }
+        return grads;
+    });
+}
+
+void DynamicObject::addVolumeConstraint(std::vector<glm::uvec3> _indices, double _stiffness,  double _pressure) {
+    double V = 0;
+    for (size_t i = 0; i < _indices.size(); i ++) {
+        const glm::dvec3 p1 = m_positions[_indices[i][0]];
+        const glm::dvec3 p2 = m_positions[_indices[i][1]];
+        const glm::dvec3 p3 = m_positions[_indices[i][2]];
+        V += glm::dot(glm::cross(p1, p2), p3) / 6.;
+    }
+    addVolumeConstraint(_indices, _stiffness, _pressure, V);
+}
+
 // OpenGL uinterface
 
 void DynamicObject::initRendering() {

@@ -66,9 +66,9 @@ int main(void) {
     Mesh object_mesh;
     object_mesh.setCubeSphere(size);
     Transformation rigid_object_transformation(glm::vec3(0.f, 3.f, 0.f), glm::vec3(1.f), glm::vec3(0.f));
-    DynamicObject rigid_object = DynamicObject::bodyFromMesh(StaticBody(&object_mesh, &rigid_object_transformation), 1.f);
+    DynamicObject rigid_object = DynamicObject::bodyFromMesh(StaticBody(&object_mesh, &rigid_object_transformation), 0.1f, 0.05f);
 
-    // rigid_object.setVertexFixed(0, true);
+    //rigid_object.setVertexFixed(0, true);
     // rigid_object.setVertexFixed(size - 1, true);
     rigid_object.initRendering();
 

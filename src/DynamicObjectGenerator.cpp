@@ -93,5 +93,19 @@ DynamicObject DynamicObject::bodyFromMesh(const StaticBody &_static_body, float 
         }
     }
 
+    // VOLUME CONSTRAINT
+    std::vector<glm::uvec3> remapped_triangles;
+    remapped_triangles.reserve(mesh_triangles.size());
+
+    for (const auto& tri : mesh_triangles) {
+        remapped_triangles.push_back(glm::uvec3(
+            positions_map.at(tri[0]),
+            positions_map.at(tri[1]),
+            positions_map.at(tri[2])
+        ));
+    }
+
+    object.addVolumeConstraint(remapped_triangles, 1., 1.);
+
     return object;
 }
