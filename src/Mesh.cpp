@@ -1,6 +1,7 @@
 #define _USE_MATH_DEFINES
 
 #include "Mesh.hpp"
+
 #include <fstream>
 
 using namespace std;
@@ -25,7 +26,7 @@ void Mesh::centerAndScaleToUnit() {
         m_positions[i] = (m_positions[i] - center) / maxD;
 }
 
-void Mesh::loadOFF(const std::string &filename) {
+void Mesh::loadOFF(const std::string& filename) {
     ifstream in(filename.c_str());
     if (!in)
         return;
@@ -74,15 +75,15 @@ void Mesh::loadOFF(const std::string &filename) {
     recomputePerVertexTextureCoordinates();
 }
 
-void Mesh::computeBoundingSphere(glm::vec3 &center, float &radius) const {
+void Mesh::computeBoundingSphere(glm::vec3& center, float& radius) const {
     center = glm::vec3(0.0);
-    for (const glm::vec3 &p : m_positions) {
+    for (const glm::vec3& p : m_positions) {
         center += p;
     }
     center /= m_positions.size();
 
     radius = 0.f;
-    for (const glm::vec3 &p : m_positions) {
+    for (const glm::vec3& p : m_positions) {
         radius = std::max(radius, distance(center, p));
     }
 }
@@ -99,7 +100,7 @@ void Mesh::recomputePerVertexNormals(bool angleBased) {
         m_normals[t[2]] += n_t;
     }
     for (unsigned int nIt = 0; nIt < m_normals.size(); ++nIt) {
-        glm::normalize(m_normals[nIt]);
+        m_normals[nIt] = glm::normalize(m_normals[nIt]);
     }
 }
 
@@ -109,7 +110,7 @@ void Mesh::recomputePerVertexTextureCoordinates() {
 
     float xMin = FLT_MAX, xMax = FLT_MIN;
     float yMin = FLT_MAX, yMax = FLT_MIN;
-    for (glm::vec3 &p : m_positions) {
+    for (glm::vec3& p : m_positions) {
         xMin = std::min(xMin, p[0]);
         xMax = std::max(xMax, p[0]);
         yMin = std::min(yMin, p[1]);
@@ -154,7 +155,7 @@ void Mesh::init() {
 }
 
 void Mesh::render() {
-    glBindVertexArray(m_VAO); // Activate the VAO storing geometry data
+    glBindVertexArray(m_VAO);  // Activate the VAO storing geometry data
     glDrawElements(GL_TRIANGLES, m_triangles.size() * 3, GL_UNSIGNED_INT, 0);
 }
 
