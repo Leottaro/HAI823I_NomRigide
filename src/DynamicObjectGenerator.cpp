@@ -85,11 +85,11 @@ DynamicObject DynamicObject::bodyFromMesh(const StaticBody &_static_body, float 
             uint p3 = opposites[1];
 
             object.addBendingConstraint(p0, p1, p2, p3, _angle_stiffness);
-            object.addDrawLine(p0, p1);
+            /* object.addDrawLine(p0, p1);
             object.addDrawLine(p1, p2);
             object.addDrawLine(p0, p2);
             object.addDrawLine(p0, p3);
-            object.addDrawLine(p1, p3);
+            object.addDrawLine(p1, p3); */
         }
     }
 
@@ -105,7 +105,7 @@ DynamicObject DynamicObject::bodyFromMesh(const StaticBody &_static_body, float 
         ));
     }
 
-    object.addVolumeConstraint(remapped_triangles, 1., 1.);
+    //object.addVolumeConstraint(remapped_triangles, 1., 1.);
 
     return object;
 }

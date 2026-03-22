@@ -56,6 +56,7 @@ class DynamicObject {
     std::vector<std::vector<uint>> m_indices;     // Indices of impacted vertices
     std::vector<double> m_stiffnesses;            // kj: Strength in [0;1]
     std::vector<ConstraintType> m_types;          // Either Equality (=0) or Inequality (>=0)
+    std::vector<double> m_rest_lengths;             
 
     // Collisions parameters
     double m_ambient_friction_coefficient = 0.01;
@@ -119,6 +120,7 @@ public:
     void addBendingConstraint(uint _p0, uint _p1, uint _p2, uint _p3, double _stiffness); // the targeted angle is set to the current angle between p0,p2,p1 normal and p0,p3,p1 normal
     void addVolumeConstraint(std::vector<glm::uvec3> _indices, double _stiffness, double _pressure, double _targeted_volume); 
     void addVolumeConstraint(std::vector<glm::uvec3> _indices, double _stiffness, double _pressure);
+    void applyTearing(double threshold);
 
     // Objects creation
     static DynamicObject bodyFromMesh(const StaticBody &_static_body, float _distance_stiffness, float _angle_stiffness);

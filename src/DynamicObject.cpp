@@ -39,6 +39,56 @@ double rayTriangleIntersection(const glm::dvec3 &origin, const glm::dvec3 &direc
     return computeBarycentrics(v0, v1, v2, normal, intersection, barycentrics);
 }
 
+void DynamicObject::applyTearing(double threshold)
+{
+    std::vector<size_t> constraints_to_remove;
+
+    for (size_t ci = 0; ci < M; ci++)
+    {
+        if (m_cardinalities[ci] != 2 || m_types[ci] != EQUALITY_CONSTRAINT)
+            continue;
+
+        uint i0 = m_indices[ci][0];
+        uint i1 = m_indices[ci][1];
+
+        glm::dvec3 p0 = m_positions[i0];
+        glm::dvec3 p1 = m_positions[i1];
+
+        double current_length = glm::distance(p0, p1);
+        double rest_length = m_rest_lengths[ci];
+
+        double stretch = current_length / rest_length;
+
+        if (stretch > threshold)
+        {
+            constraints_to_remove.push_back(ci);
+        }
+    }
+    std::sort(constraints_to_remove.rbegin(), constraints_to_remove.rend());
+
+    for (size_t ci : constraints_to_remove)
+    {
+        m_indices.erase(m_indices.begin() + ci);
+        m_functions.erase(m_functions.begin() + ci);
+        m_gradients.erase(m_gradients.begin() + ci);
+        m_cardinalities.erase(m_cardinalities.begin() + ci);
+        m_stiffnesses.erase(m_stiffnesses.begin() + ci);
+        m_types.erase(m_types.begin() + ci);
+        m_rest_lengths.erase(m_rest_lengths.begin() + ci);
+        M--;
+    }
+    if (constraints_to_remove.size() != 0){
+        m_lines.clear();
+        for (size_t ci = 0; ci < M; ci++) {
+            if (m_cardinalities[ci] == 2) {
+                uint i0 = m_indices[ci][0];
+                uint i1 = m_indices[ci][1];
+                addDrawLine(i0,i1);
+            }
+        }
+    }
+}
+
 /*
 READ "3.5. Damping" of ./articles/Position_Based_Dynamics.pdf
 (1) xcm = (∑i xi*mi )/( ∑i mi )
@@ -355,6 +405,8 @@ bool DynamicObject::update(double _delta_time, const std::vector<StaticBody> &st
     m_functions.resize(M);
     m_gradients.resize(M);
 
+    applyTearing(3.f);
+
     return true;
 }
 
@@ -394,6 +446,7 @@ void DynamicObject::addDistanceConstraint(uint _p0, uint _p1, double _stiffness,
     m_indices.push_back({_p0, _p1});
     m_stiffnesses.push_back(_stiffness);
     m_types.push_back(EQUALITY_CONSTRAINT);
+    m_rest_lengths.push_back(_targeted_distance);
 
     m_functions.push_back([_targeted_distance](const std::vector<glm::dvec3> &_p) {
         return glm::distance(_p[0], _p[1]) - _targeted_distance;
@@ -413,6 +466,7 @@ void DynamicObject::addBendingConstraint(uint _p0, uint _p1, uint _p2, uint _p3,
     m_indices.push_back({_p0, _p1, _p2, _p3});
     m_stiffnesses.push_back(_stiffness);
     m_types.push_back(EQUALITY_CONSTRAINT);
+    m_rest_lengths.push_back(0.f);
 
     m_functions.push_back([_targeted_angle](const std::vector<glm::dvec3> &_p) {
         glm::dvec3 e = glm::normalize(_p[1] - _p[0]); // arête commune
@@ -509,6 +563,7 @@ void DynamicObject::addVolumeConstraint(std::vector<glm::uvec3> _indices, double
     m_indices.push_back(all_indices);
     m_stiffnesses.push_back(_stiffness);
     m_types.push_back(EQUALITY_CONSTRAINT);
+    m_rest_lengths.push_back(0.f);
 
     m_functions.push_back([_targeted_volume, _pressure, _indices](const std::vector<glm::dvec3> &_p) {
         double V = 0;
@@ -574,8 +629,10 @@ void DynamicObject::updateRenderedPositions() {
 }
 
 void DynamicObject::updateRenderedConstraints() {
+    glBindVertexArray(m_VAO);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_lines_EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_lines.size() * sizeof(glm::uvec2), m_lines.data(), GL_STATIC_DRAW);
+    glBindVertexArray(m_VAO);
 }
 
 void DynamicObject::render() {
