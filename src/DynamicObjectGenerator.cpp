@@ -12,7 +12,7 @@ struct Vec3Less {
     }
 };
 
-DynamicObject DynamicObject::bodyFromMesh(const StaticBody &_static_body, float _distance_stiffness, float _angle_stiffness) {
+DynamicObject DynamicObject::bodyFromMesh(const StaticBody &_static_body, float _distance_stiffness, float _angle_stiffness, float _volume_stiffness, float _volume_pressure) {
     const glm::mat4 tranformation = _static_body.m_transformation->computeTransformationMatrix();
     DynamicObject object;
 
@@ -94,18 +94,21 @@ DynamicObject DynamicObject::bodyFromMesh(const StaticBody &_static_body, float 
     }
 
     // VOLUME CONSTRAINT
+    if (_volume_stiffness <= 0.f || _volume_pressure <= 0.f) {
+        return object;
+    }
+
     std::vector<glm::uvec3> remapped_triangles;
     remapped_triangles.reserve(mesh_triangles.size());
 
-    for (const auto& tri : mesh_triangles) {
+    for (const auto &tri : mesh_triangles) {
         remapped_triangles.push_back(glm::uvec3(
             positions_map.at(tri[0]),
             positions_map.at(tri[1]),
-            positions_map.at(tri[2])
-        ));
+            positions_map.at(tri[2])));
     }
 
-    object.addVolumeConstraint(remapped_triangles, 1., 1.);
+    object.addVolumeConstraint(remapped_triangles, _volume_stiffness, _volume_pressure);
 
     return object;
 }

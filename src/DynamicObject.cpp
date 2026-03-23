@@ -289,8 +289,12 @@ bool DynamicObject::update(double _delta_time, const std::vector<StaticBody> &st
                 affected_points[i] = new_positions[pj];
                 total_weigths += m_weights[pj];
             }
-            if (total_weigths != total_weigths || total_weigths == 0.) {
-                std::cerr << "invalid total weights : " << total_weigths << std::endl;
+            if (total_weigths == 0.) {
+                continue;
+            }
+
+            if (total_weigths != total_weigths) {
+                std::cerr << "Nan total weights..." << std::endl;
                 return false;
             }
 
