@@ -125,8 +125,15 @@ public:
     static DynamicObject bodyFromMesh(const StaticBody &_static_body, float _stiffness) { return bodyFromMesh(_static_body, _stiffness, _stiffness, 1.f, 0.f); }
     static DynamicObject rigidBodyFromMesh(const StaticBody &_static_body) { return bodyFromMesh(_static_body, 1.f, 1.f, 1.f, 0.f); }
 
-    // OpenGL interface
+    // Object interaction
+private:
+    uint grabbed_point = UINT32_MAX;
+    void findNearestPointToLine(const glm::dvec3 &_position, const glm::dvec3 &_direction, uint &point, double &distance, glm::dvec3 &projection) const;
 
+public:
+    bool updateInteractions(GLFWwindow *_window, const glm::dvec3 &_camera_pos, const glm::dvec3 &_cursor_worldpos);
+
+    // OpenGL interface
 private:
     GLuint m_VAO;
     GLuint m_positions_VBO;

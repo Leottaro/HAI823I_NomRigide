@@ -4,6 +4,8 @@
 // GLM
 #include <glm/glm.hpp>
 #include <glm/ext.hpp>
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/string_cast.hpp>
 
 // GLFW
 #include <GLFW/glfw3.h>
@@ -30,11 +32,13 @@ using namespace std;
 // TODO: SINGLETON
 GLuint window_width = 800, window_height = 600;
 glm::vec2 cursor_pos = glm::vec2(0, 0);
+glm::vec3 cursor_worldpos = glm::vec3(0, 0, 0);
 glm::vec2 cursor_vel = glm::vec2(0, 0);
 glm::vec2 scroll = glm::vec2(0, 0);
 int polygon_mode = GL_FILL;
 GLFWwindow *window;
 
+Camera camera;
 bool run_simulation = false;
 
 void globalInit();
@@ -48,19 +52,18 @@ int main(void) {
     dynamic_shader.link();
 
     // TODO: SCENE
-    Camera camera(glm::vec3(), 8., glm::vec2(-M_PI_4 * 0.5, 0.));
 
     std::vector<StaticBody> static_bodies;
 
-    Mesh floor;
-    floor.setSimpleGrid(2, 2);
-    floor.setCube(2);
-    floor.init();
-    Transformation floor_transfo;
-    floor_transfo.setTranslation(glm::vec3(0.f, -3.f, 0.f));
-    floor_transfo.setScale(glm::vec3(10.f, 4.f, 50.f));
-    floor_transfo.setEulerAngles(glm::vec3(M_PIf / 8.f, 0.f, 0.f));
-    // static_bodies.push_back(StaticBody(&floor, &floor_transfo));
+    Mesh cube_mesh;
+    cube_mesh.setSimpleGrid(2, 2);
+    cube_mesh.setCube(2);
+    cube_mesh.init();
+    Transformation cube1_transfo;
+    cube1_transfo.setTranslation(glm::vec3(0.f, -3.f, 0.f));
+    cube1_transfo.setScale(glm::vec3(10.f, 4.f, 50.f));
+    cube1_transfo.setEulerAngles(glm::vec3(M_PIf / 8.f, 0.f, 0.f));
+    // static_bodies.push_back(StaticBody(&cube_mesh, &cube1_transfo));
 
     size_t size = 10;
     Mesh object_mesh;
@@ -77,7 +80,6 @@ int main(void) {
 
     // TODO: init textures
     // TODO: setup lights
-    // TODO: real-time interactions
     // TODO: interface
 
     // timings
@@ -101,13 +103,15 @@ int main(void) {
         ImGui::NewFrame();
 
         // OBJECTS UPDATE
+        cursor_worldpos = applyTransformation(glm::vec3(2.f * (cursor_pos.x / window_width) - 1.f, 1.f - 2.f * (cursor_pos.y / window_height), camera.m_near_far.x), 1.f, glm::inverse(camera.getViewMatrix()) * glm::inverse(camera.getProjectionMatrix()));
+        rigid_object.updateInteractions(window, camera.m_position, cursor_worldpos);
         if (run_simulation) {
             if (!rigid_object.update(deltaTime, static_bodies)) {
                 run_simulation = false;
             }
-            rigid_object.updateRenderedPositions();
         }
-        camera.update(window, deltaTime, glm::vec3(0.f), cursor_vel, scroll);
+        rigid_object.updateRenderedPositions();
+        camera.update(window, deltaTime, cursor_vel, scroll);
 
         // Update uniforms
         glm::mat4 projection = camera.getProjectionMatrix();
@@ -144,7 +148,7 @@ int main(void) {
     rigid_object.clear();
 
     mesh_shader.~ShaderProgram();
-    floor.clear();
+    cube_mesh.clear();
 
     glfwTerminate();
 
@@ -186,7 +190,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 
 void mouse_button_callback(GLFWwindow *window, int button, int action, int mods) {
     // cout << "mouse button:" << button << " action:" << action << " mods:" << mods << endl;
-    if (button == GLFW_MOUSE_BUTTON_LEFT) {
+    if (button == GLFW_MOUSE_BUTTON_LEFT && mods == 0) {
         glfwSetInputMode(window, GLFW_CURSOR, action == GLFW_PRESS ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
     }
 }
@@ -196,6 +200,7 @@ void cursor_pos_callback(GLFWwindow *window, double xpos, double ypos) {
     cursor_vel.y = ypos - cursor_pos.y;
     cursor_pos.x = xpos;
     cursor_pos.y = ypos;
+
     // cout << "cursor_pos: (" << cursor_pos.x << ", " << cursor_pos.y << ")\tcursor_vel: (" << cursor_vel.x << ", " << cursor_vel.y << ")" << endl;
 }
 

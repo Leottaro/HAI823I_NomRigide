@@ -1,5 +1,8 @@
-#include "DynamicObject.hpp"
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/string_cast.hpp>
 #include <glm/matrix.hpp>
+
+#include "DynamicObject.hpp"
 #include <iostream>
 #include <unordered_map>
 
@@ -504,7 +507,6 @@ void DynamicObject::addEdgeCollisionConstraint(uint _p0, uint _p1, double _alpha
     });
 }
 
-
 void DynamicObject::addVolumeConstraint(std::vector<glm::uvec3> _indices, double _stiffness, double _pressure, double _targeted_volume) {
     M++;
     m_cardinalities.push_back(getPositions().size());
@@ -543,15 +545,60 @@ void DynamicObject::addVolumeConstraint(std::vector<glm::uvec3> _indices, double
     });
 }
 
-void DynamicObject::addVolumeConstraint(std::vector<glm::uvec3> _indices, double _stiffness,  double _pressure) {
+void DynamicObject::addVolumeConstraint(std::vector<glm::uvec3> _indices, double _stiffness, double _pressure) {
     double V = 0;
-    for (size_t i = 0; i < _indices.size(); i ++) {
+    for (size_t i = 0; i < _indices.size(); i++) {
         const glm::dvec3 p1 = m_positions[_indices[i][0]];
         const glm::dvec3 p2 = m_positions[_indices[i][1]];
         const glm::dvec3 p3 = m_positions[_indices[i][2]];
         V += glm::dot(glm::cross(p1, p2), p3) / 6.;
     }
     addVolumeConstraint(_indices, _stiffness, _pressure, V);
+}
+
+// Object interaction
+
+void DynamicObject::findNearestPointToLine(const glm::dvec3 &_position, const glm::dvec3 &_direction, uint &point, double &distance, glm::dvec3 &projection) const {
+    point = 0;
+    distance = DBL_MAX;
+
+    for (uint pj = 0; pj < N; pj++) {
+        glm::dvec3 proj = projectPointOnLine(_position, _direction, m_positions[pj]);
+        double dist = glm::distance(m_positions[pj], proj);
+
+        if (dist < distance) {
+            point = pj;
+            distance = dist;
+            projection = proj;
+        }
+    }
+
+    distance = sqrt(distance);
+}
+
+bool DynamicObject::updateInteractions(GLFWwindow *_window, const glm::dvec3 &_camera_pos, const glm::dvec3 &_cursor_worldpos) {
+    if (glfwGetMouseButton(_window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_RELEASE || glfwGetKey(_window, GLFW_KEY_LEFT_SHIFT) == GLFW_RELEASE) {
+        grabbed_point = UINT32_MAX;
+        return false;
+    }
+
+    glm::dvec3 cursor_direction = glm::normalize(_cursor_worldpos - _camera_pos);
+    if (grabbed_point != UINT32_MAX) {
+        m_positions[grabbed_point] = projectPointOnLine(_camera_pos, cursor_direction, m_positions[grabbed_point]);
+        return true;
+    }
+
+    uint point;
+    double distance;
+    glm::dvec3 projection;
+    findNearestPointToLine(_camera_pos, cursor_direction, point, distance, projection);
+    if (distance < 0.3) {
+        m_positions[point] = projection;
+        grabbed_point = point;
+        return true;
+    }
+
+    return false;
 }
 
 // OpenGL uinterface

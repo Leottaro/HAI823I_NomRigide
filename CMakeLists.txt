@@ -44,12 +44,12 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     target_compile_options(${APP_TARGET_OPT} PRIVATE
         -Wall
         -O3
-        -Ofast
+        # -Ofast
         -march=native
         -mtune=native
-        -flto
+        # -flto
         -funroll-loops
-        -ffast-math
+        # -ffast-math
         -DNDEBUG
     )
     target_link_options(${APP_TARGET_OPT} PRIVATE -flto)
