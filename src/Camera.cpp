@@ -22,7 +22,7 @@ void Camera::updateMatrix() {
     m_view = glm::lookAt(m_transformation.getTranslation(), m_transformation.getTranslation() + front, up);
 }
 
-bool Camera::updateInterface(float _deltaTime) {
+bool Camera::updateInterface() {
     float disable_mouse_actions = false;
     if (ImGui::Begin("Camera Interface")) {
         disable_mouse_actions = ImGui::IsWindowHovered() || ImGui::IsAnyItemHovered() || ImGui::IsAnyItemActive() || ImGui::IsAnyItemFocused();
@@ -48,15 +48,13 @@ bool Camera::updateInterface(float _deltaTime) {
     return disable_mouse_actions;
 }
 
-void Camera::update(GLFWwindow *_window, float _deltaTime, glm::vec3 _target_position, glm::vec2 _cursor_vel, glm::vec2 _scroll) {
-    float disable_mouse_actions = updateInterface(_deltaTime);
-
+void Camera::update(GLFWwindow *_window, float _deltaTime, glm::vec3 _target_position, glm::vec2 _cursor_vel, glm::vec2 _scroll, bool _disable_mouse_actions) {
     int window_width, window_height;
     glfwGetWindowSize(_window, &window_width, &window_height);
     m_aspect_ratio = float(window_width) / window_height;
 
     // input handle
-    if (!disable_mouse_actions) {
+    if (!_disable_mouse_actions) {
         m_desired_distance = glm::max(m_desired_distance - m_scroll_speed * _scroll.y, 1.f);
         if (glfwGetMouseButton(_window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
             m_transformation.addEulerAngles(glm::vec3(

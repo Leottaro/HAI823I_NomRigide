@@ -68,6 +68,6 @@ public:
 
     // OpenGL interface
     void init();
-    void render();
+    void render() const;
     void clear();
 };

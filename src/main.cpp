@@ -38,7 +38,7 @@ glm::vec2 cursor_pos = glm::vec2(0, 0);
 glm::vec2 cursor_vel = glm::vec2(0, 0);
 glm::vec2 scroll = glm::vec2(0, 0);
 int polygon_mode = GL_FILL;
-GLFWwindow* window;
+GLFWwindow *window;
 
 bool run_simulation = false;
 
@@ -61,27 +61,29 @@ int main(void) {
     Mesh floor;
     floor.setSimpleGrid(2, 2);
     floor.setCube(2);
-    floor.init();
+    scene.addMesh(floor);
+
     Transformation floor_transfo;
     floor_transfo.setTranslation(glm::vec3(0.f, -3.f, 0.f));
     floor_transfo.setScale(glm::vec3(10.f, 4.f, 50.f));
     floor_transfo.setEulerAngles(glm::vec3(M_PIf / 8.f, 0.f, 0.f));
-    scene.addStaticBody(&floor, &floor_transfo, (char*)"sol");
+    scene.addStaticBody("sol", 0, floor_transfo);
 
     size_t size = 5;
     Mesh object_mesh;
     object_mesh.setCubeSphere(size);
     Transformation rigid_object_transformation(glm::vec3(0.f, 3.f, 0.f), glm::vec3(1.f), glm::vec3(0.f));
-    // DynamicObject rigid_object = DynamicObject::bodyFromMesh(StaticBody(object_mesh, rigid_object_transformation, "boule"), 0.1f, 0.05f);
-    scene.addDynamicObject(&object_mesh, &rigid_object_transformation, "boule", 0.1f, 0.05f);
+    DynamicObject rigid_object = DynamicObject::bodyFromMesh(StaticBody(&object_mesh, &rigid_object_transformation), 0.1f, 0.05f);
+    scene.addDynamicObject("boule", rigid_object);
 
     // rigid_object.setVertexFixed(0, true);
     // rigid_object.setVertexFixed(size - 1, true);
 
     scene.init();
-    for (DynamicObject& obj : scene.getDynamicObjects()) {
-        obj.initRendering();
-    }
+    scene.resetObjects();
+    // for (DynamicObject &obj : scene.getDynamicObjects()) {
+    //     obj.initRendering();
+    // }
     // rigid_object.initRendering();
 
     // TODO: init textures
@@ -93,7 +95,7 @@ int main(void) {
     float deltaTime = 0.0f;
     float lastFrame = 0.0f;
     size_t frame_count = 0;
-    glfwSwapInterval(1);  // VSync - avoid having 3000 fps
+    glfwSwapInterval(1); // VSync - avoid having 3000 fps
     do {
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -121,46 +123,23 @@ int main(void) {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
+        // INTERFACES
+        bool disable_mouse_actions = false;
+        if (camera.updateInterface())
+            disable_mouse_actions = true;
+        if (scene.updateInterface())
+            disable_mouse_actions = true;
+
         // OBJECTS UPDATE
         if (run_simulation) {
-            for (DynamicObject& obj : scene.getDynamicObjects()) {
-                if (!obj.update(deltaTime, scene.getStaticBodies())) {
-                    run_simulation = false;
-                }
-                obj.updateRenderedPositions();
+            if (!scene.updateSimulation(deltaTime)) {
+                run_simulation = false;
             }
-            // if (!rigid_object.update(deltaTime, scene.getStaticBodies())) {
-            //     run_simulation = false;
-            // }
-            // rigid_object.updateRenderedPositions();
         }
-        camera.update(window, deltaTime, glm::vec3(0.f), cursor_vel, scroll);
-        scene.updateProps();
+        camera.update(window, deltaTime, glm::vec3(0.f), cursor_vel, scroll, disable_mouse_actions);
 
-        // Update uniforms
-        glm::mat4 projection = camera.getProjectionMatrix();
-        glm::mat4 view = camera.getViewMatrix();
-
-        // DYNAMIC OBJECTS RENDERING
-        dynamic_shader.use();
-        dynamic_shader.set("view", view);
-        dynamic_shader.set("projection", projection);
-        for (DynamicObject& obj : scene.getDynamicObjects()) {
-            obj.render();
-        }
-        // rigid_object.render();
-
-        // STATIC OBJECTS RENDERING
-        mesh_shader.use();
-        mesh_shader.set("projection", projection);
-        for (const StaticBody& static_body : scene.getStaticBodies()) {
-            glm::mat4 model = static_body.m_transformation->computeTransformationMatrix();
-            glm::mat4 model_view = view * model;
-            glm::mat4 normal_mat = glm::transpose(glm::inverse(model_view));
-            mesh_shader.set("model_view", model_view);
-            mesh_shader.set("normal_mat", normal_mat);
-            static_body.m_mesh->render();
-        }
+        // RENDERING
+        scene.render(dynamic_shader, mesh_shader, camera.getProjectionMatrix(), camera.getViewMatrix());
 
         // ImGui Render
         ImGui::Render();
@@ -172,21 +151,21 @@ int main(void) {
     } while (glfwWindowShouldClose(window) == GLFW_FALSE);
 
     dynamic_shader.~ShaderProgram();
-    for (DynamicObject& obj : scene.getDynamicObjects())
-        obj.clear();
+    // for (DynamicObject &obj : scene.getDynamicObjects())
+    //     obj.clear();
 
     // rigid_object.clear();
 
     mesh_shader.~ShaderProgram();
-    for (StaticBody& obj : scene.getStaticBodies())
-        obj.m_mesh->clear();
+    // for (StaticBody &obj : scene.getStaticBodies())
+    //     obj.m_mesh->clear();
 
     glfwTerminate();
 
     return 0;
 }
 
-void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
+void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
     // cout << "framebuffer size: " << width << ", " << height << endl;
     window_width = width;
     window_height = height;
@@ -194,7 +173,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
 }
 
 bool space_key_pressed = false;
-void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
     // cout << "key:" << key << " scancode:" << scancode << " action:" << action << " mods:" << mods << endl;
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
         glfwSetWindowShouldClose(window, GLFW_TRUE);
@@ -219,14 +198,14 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
     }
 }
 
-void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
+void mouse_button_callback(GLFWwindow *window, int button, int action, int mods) {
     // cout << "mouse button:" << button << " action:" << action << " mods:" << mods << endl;
     if (button == GLFW_MOUSE_BUTTON_LEFT) {
         glfwSetInputMode(window, GLFW_CURSOR, action == GLFW_PRESS ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
     }
 }
 
-void cursor_pos_callback(GLFWwindow* window, double xpos, double ypos) {
+void cursor_pos_callback(GLFWwindow *window, double xpos, double ypos) {
     cursor_vel.x = xpos - cursor_pos.x;
     cursor_vel.y = ypos - cursor_pos.y;
     cursor_pos.x = xpos;
@@ -234,7 +213,7 @@ void cursor_pos_callback(GLFWwindow* window, double xpos, double ypos) {
     // cout << "cursor_pos: (" << cursor_pos.x << ", " << cursor_pos.y << ")\tcursor_vel: (" << cursor_vel.x << ", " << cursor_vel.y << ")" << endl;
 }
 
-void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
+void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
     // cout << "scroll: (" << xoffset << ", " << yoffset << ")" << endl;
     scroll.x = xoffset;
     scroll.y = yoffset;
@@ -244,9 +223,9 @@ void initWindow() {
     glfwWindowHint(GLFW_SAMPLES, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);  // To make MacOS happy; should not be needed
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // To make MacOS happy; should not be needed
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_SCALE_FRAMEBUFFER, GL_FALSE);  // https://discourse.glfw.org/t/resizing-window-results-in-wrong-aspect-ratio/1268s
+    glfwWindowHint(GLFW_SCALE_FRAMEBUFFER, GL_FALSE); // https://discourse.glfw.org/t/resizing-window-results-in-wrong-aspect-ratio/1268s
 
     window = glfwCreateWindow(window_width, window_height, "ImGui OpenGL3 example", NULL, NULL);
     if (!window) {
@@ -265,11 +244,11 @@ void initWindow() {
 }
 
 void initOpenGL() {
-    glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);  // Ensure we can capture the escape key being pressed below
-    glClearColor(0.1f, 0.1f, 0.3f, 0.0f);                 // Dark blue background
-    glEnable(GL_DEPTH_TEST);                              // Enable depth test
-    glDepthFunc(GL_LESS);                                 // Accept fragment if it closer to the camera than the former one
-    glEnable(GL_CULL_FACE);                               // Cull triangles which normal is not towards the camera
+    glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE); // Ensure we can capture the escape key being pressed below
+    glClearColor(0.1f, 0.1f, 0.3f, 0.0f);                // Dark blue background
+    glEnable(GL_DEPTH_TEST);                             // Enable depth test
+    glDepthFunc(GL_LESS);                                // Accept fragment if it closer to the camera than the former one
+    glEnable(GL_CULL_FACE);                              // Cull triangles which normal is not towards the camera
 }
 
 void globalInit() {
@@ -299,7 +278,7 @@ void globalInit() {
     // io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;  // Enable Gamepad Controls
     // io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;     // IF using Docking Branch
     ImGui::StyleColorsDark();
-    ImGui_ImplGlfw_InitForOpenGL(window, true);  // Second param install_callback=true will install GLFW callbacks and chain to existing ones.
+    ImGui_ImplGlfw_InitForOpenGL(window, true); // Second param install_callback=true will install GLFW callbacks and chain to existing ones.
     ImGui_ImplOpenGL3_Init();
 
     initOpenGL();

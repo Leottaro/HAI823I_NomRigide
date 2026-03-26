@@ -41,8 +41,8 @@ private:
 public:
     Camera(glm::vec3 _target, float _distance, glm::vec2 _angles = glm::vec2(0.), float _fovy = M_PI_4, float _speed = 0.4, float _scroll_speed = 0.4);
 
-    bool updateInterface(float _deltaTime);
-    void update(GLFWwindow *_window, float _deltaTime, glm::vec3 _target_position, glm::vec2 _cursor_vel, glm::vec2 _scroll);
+    bool updateInterface();
+    void update(GLFWwindow *_window, float _deltaTime, glm::vec3 _target_position, glm::vec2 _cursor_vel, glm::vec2 _scroll, bool _disable_mouse_actions);
 
     glm::mat4 getViewMatrix() const { return m_view; }
     glm::mat4 getProjectionMatrix() const { return m_projection; }

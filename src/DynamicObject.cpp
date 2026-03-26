@@ -500,7 +500,6 @@ void DynamicObject::addEdgeCollisionConstraint(uint _p0, uint _p1, double _alpha
     });
 }
 
-
 void DynamicObject::addVolumeConstraint(std::vector<glm::uvec3> _indices, double _stiffness, double _pressure, double _targeted_volume) {
     M++;
     m_cardinalities.push_back(getPositions().size());
@@ -539,9 +538,9 @@ void DynamicObject::addVolumeConstraint(std::vector<glm::uvec3> _indices, double
     });
 }
 
-void DynamicObject::addVolumeConstraint(std::vector<glm::uvec3> _indices, double _stiffness,  double _pressure) {
+void DynamicObject::addVolumeConstraint(std::vector<glm::uvec3> _indices, double _stiffness, double _pressure) {
     double V = 0;
-    for (size_t i = 0; i < _indices.size(); i ++) {
+    for (size_t i = 0; i < _indices.size(); i++) {
         const glm::dvec3 p1 = m_positions[_indices[i][0]];
         const glm::dvec3 p2 = m_positions[_indices[i][1]];
         const glm::dvec3 p3 = m_positions[_indices[i][2]];
@@ -578,7 +577,7 @@ void DynamicObject::updateRenderedConstraints() {
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_lines.size() * sizeof(glm::uvec2), m_lines.data(), GL_STATIC_DRAW);
 }
 
-void DynamicObject::render() {
+void DynamicObject::render() const {
     glBindVertexArray(m_VAO); // Activate the VAO storing geometry data
     if (m_lines.empty()) {
         glDrawArrays(GL_POINTS, 0, m_positions.size());
