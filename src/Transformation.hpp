@@ -73,6 +73,10 @@ public:
     inline const glm::vec3 &getTranslation() const { return m_translation; }
     inline const glm::vec3 &getEulerAngles() const { return m_euler_angles; }
     inline const glm::vec3 &getScale() const { return m_scale; }
+    inline glm::vec3 getFrontVector() { return Transformation::EulerToEuclidian(m_euler_angles); }
+    inline glm::vec3 &getTranslation() { return m_translation; }
+    inline glm::vec3 &getEulerAngles() { return m_euler_angles; }
+    inline glm::vec3 &getScale() { return m_scale; }
 
     // SETTERS
     inline void setTranslation(const glm::vec3 &t) { m_translation = t; }

@@ -2,6 +2,7 @@
 #include <GL/glew.h>
 
 // GLM
+#include <glm/ext.hpp>
 #include <glm/glm.hpp>
 #include <glm/ext.hpp>
 #define GLM_ENABLE_EXPERIMENTAL
@@ -19,13 +20,18 @@
 #include <imgui_impl_opengl3.h>
 
 // USUAL INCLUDES
-#include "ShaderProgram.hpp"
-#include "Camera.hpp"
-#include "Mesh.hpp"
-#include "DynamicObject.hpp"
-#include <stdio.h>
 #include <execinfo.h>
+#include <stdio.h>
+
+#include <iomanip>
 #include <iostream>
+#include <sstream>
+
+#include "Camera.hpp"
+#include "DynamicObject.hpp"
+#include "Mesh.hpp"
+#include "Scene.hpp"
+#include "ShaderProgram.hpp"
 
 using namespace std;
 
@@ -53,30 +59,33 @@ int main(void) {
 
     // TODO: SCENE
 
-    std::vector<StaticBody> static_bodies;
+    // std::vector<StaticBody> static_bodies;
+    Scene scene = Scene();
 
-    Mesh cube_mesh;
-    cube_mesh.setSimpleGrid(2, 2);
-    cube_mesh.setCube(2);
-    cube_mesh.init();
-    Transformation cube1_transfo;
-    cube1_transfo.setTranslation(glm::vec3(0.f, -3.f, 0.f));
-    cube1_transfo.setScale(glm::vec3(10.f, 4.f, 50.f));
-    cube1_transfo.setEulerAngles(glm::vec3(M_PIf / 8.f, 0.f, 0.f));
-    // static_bodies.push_back(StaticBody(&cube_mesh, &cube1_transfo));
+    Mesh floor;
+    floor.setSimpleGrid(2, 2);
+    floor.setCube(2);
+    scene.addMesh(floor);
+
+    Transformation floor_transfo;
+    floor_transfo.setTranslation(glm::vec3(0.f, -3.f, 0.f));
+    floor_transfo.setScale(glm::vec3(10.f, 4.f, 50.f));
+    floor_transfo.setEulerAngles(glm::vec3(M_PIf / 8.f, 0.f, 0.f));
+    // scene.addStaticBody("sol", 0, floor_transfo);
 
     size_t size = 10;
     Mesh object_mesh;
-    object_mesh.setSimpleGrid(size, size);
-    Transformation rigid_object_transformation(glm::vec3(-0.5f, 0.f, -0.5f), glm::vec3(1.f, 1.f, 1.f), glm::vec3(0.f));
-    DynamicObject rigid_object = DynamicObject::bodyFromMesh(StaticBody(&object_mesh, &rigid_object_transformation), 0.5f, 0.5f, 0.f, 0.f);
+    object_mesh.setCubeSphere(size);
+    Transformation dynamic_body_transformation(glm::vec3(0.f, 3.f, 0.f), glm::vec3(1.f), glm::vec3(0.f));
+    DynamicObject dynamic_body = DynamicObject::bodyFromMesh(StaticBody(&object_mesh, &dynamic_body_transformation), .5f, .5f, 0.f, 0.f);
+    dynamic_body.setVertexFixed(0, true);
+    // dynamic_body.setVertexFixed(size - 1, true);
+    // dynamic_body.setVertexFixed((size - 1) * size, true);
+    // dynamic_body.setVertexFixed(size * size - 1, true);
+    scene.addDynamicObject("boule", dynamic_body);
 
-    rigid_object.setVertexFixed(0, true);
-    rigid_object.setVertexFixed(size - 1, true);
-    rigid_object.setVertexFixed((size - 1) * size, true);
-    rigid_object.setVertexFixed(size * size - 1, true);
-
-    rigid_object.initRendering();
+    scene.init();
+    scene.resetObjects();
 
     // TODO: init textures
     // TODO: setup lights
@@ -91,6 +100,18 @@ int main(void) {
         glfwSwapBuffers(window);
         glfwPollEvents();
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        std::stringstream title;
+        title << "ImGui OpenGL3 example";
+
+        if (deltaTime == 0)
+            title << " inf";
+        else
+            title << " FPS: " << std::fixed << std::setprecision(0) << (1.0 / deltaTime);
+
+        if (!run_simulation)
+            title << " (paused)";
+
+        glfwSetWindowTitle(window, title.str().c_str());
 
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
@@ -102,38 +123,27 @@ int main(void) {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
+        // INTERFACES
+        bool disable_mouse_actions = false;
+        if (camera.updateInterface())
+            disable_mouse_actions = true;
+        if (scene.updateInterface())
+            disable_mouse_actions = true;
+
         // OBJECTS UPDATE
+        // TODO: interactions ?
         cursor_worldpos = applyTransformation(glm::vec3(2.f * (cursor_pos.x / window_width) - 1.f, 1.f - 2.f * (cursor_pos.y / window_height), camera.m_near_far.x), 1.f, glm::inverse(camera.getViewMatrix()) * glm::inverse(camera.getProjectionMatrix()));
-        rigid_object.updateInteractions(window, camera.m_position, cursor_worldpos);
+        scene.updateInteractions(window, camera.m_position, cursor_worldpos);
         if (run_simulation) {
-            if (!rigid_object.update(deltaTime, static_bodies)) {
+            if (!scene.updateSimulation(deltaTime)) {
                 run_simulation = false;
             }
+            dynamic_body.updateRenderedPositions();
         }
-        rigid_object.updateRenderedPositions();
-        camera.update(window, deltaTime, cursor_vel, scroll);
+        camera.update(window, deltaTime, cursor_vel, scroll, disable_mouse_actions);
 
-        // Update uniforms
-        glm::mat4 projection = camera.getProjectionMatrix();
-        glm::mat4 view = camera.getViewMatrix();
-
-        // DYNAMIC OBJECTS RENDERING
-        dynamic_shader.use();
-        dynamic_shader.set("view", view);
-        dynamic_shader.set("projection", projection);
-        rigid_object.render();
-
-        // STATIC OBJECTS RENDERING
-        mesh_shader.use();
-        mesh_shader.set("projection", projection);
-        for (const StaticBody &static_body : static_bodies) {
-            glm::mat4 model = static_body.m_transformation->computeTransformationMatrix();
-            glm::mat4 model_view = view * model;
-            glm::mat4 normal_mat = glm::transpose(glm::inverse(model_view));
-            mesh_shader.set("model_view", model_view);
-            mesh_shader.set("normal_mat", normal_mat);
-            static_body.m_mesh->render();
-        }
+        // RENDERING
+        scene.render(dynamic_shader, mesh_shader, camera.getProjectionMatrix(), camera.getViewMatrix());
 
         // ImGui Render
         ImGui::Render();
@@ -144,11 +154,9 @@ int main(void) {
         cursor_vel = glm::vec2(0.);
     } while (glfwWindowShouldClose(window) == GLFW_FALSE);
 
+    scene.clear();
     dynamic_shader.~ShaderProgram();
-    rigid_object.clear();
-
     mesh_shader.~ShaderProgram();
-    cube_mesh.clear();
 
     glfwTerminate();
 
@@ -243,7 +251,6 @@ void initOpenGL() {
 }
 
 void globalInit() {
-
 #if defined(__linux__)
     glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
 #endif

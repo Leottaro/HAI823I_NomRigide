@@ -1,6 +1,7 @@
 #define _USE_MATH_DEFINES
 
 #include "Mesh.hpp"
+
 #include <fstream>
 
 using namespace std;
@@ -99,7 +100,7 @@ void Mesh::recomputePerVertexNormals(bool angleBased) {
         m_normals[t[2]] += n_t;
     }
     for (unsigned int nIt = 0; nIt < m_normals.size(); ++nIt) {
-        glm::normalize(m_normals[nIt]);
+        m_normals[nIt] = glm::normalize(m_normals[nIt]);
     }
 }
 
@@ -153,7 +154,7 @@ void Mesh::init() {
     glBindVertexArray(0);
 }
 
-void Mesh::render() {
+void Mesh::render() const {
     glBindVertexArray(m_VAO); // Activate the VAO storing geometry data
     glDrawElements(GL_TRIANGLES, m_triangles.size() * 3, GL_UNSIGNED_INT, 0);
 }

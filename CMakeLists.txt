@@ -32,6 +32,9 @@ set(APP_SOURCES
 
     src/DynamicObject.hpp
     src/DynamicObject.cpp
+
+    src/Scene.hpp
+    src/Scene.cpp
 )
 
 add_executable(${APP_TARGET_DEBUG} ${APP_SOURCES})

@@ -19,7 +19,7 @@ void Camera::updateData() {
     m_view = glm::lookAt(m_position, m_position + m_front, m_real_up);
 }
 
-bool Camera::updateInterface(float _deltaTime) {
+bool Camera::updateInterface() {
     bool disable_mouse_actions = false;
     if (ImGui::Begin("Camera Interface")) {
         disable_mouse_actions = ImGui::IsWindowHovered() || ImGui::IsAnyItemHovered() || ImGui::IsAnyItemActive() || ImGui::IsAnyItemFocused();
@@ -164,15 +164,13 @@ void Camera::updateMouseInput(GLFWwindow *_window, float _deltaTime, const glm::
     }
 }
 
-void Camera::update(GLFWwindow *_window, float _deltaTime, const glm::vec2 &_cursor_vel, const glm::vec2 &_scroll) {
-    bool disable_mouse_actions = updateInterface(_deltaTime);
-
+void Camera::update(GLFWwindow *_window, float _deltaTime, const glm::vec2 &_cursor_vel, const glm::vec2 &_scroll, bool _disable_mouse_actions) {
     int window_width, window_height;
     glfwGetWindowSize(_window, &window_width, &window_height);
     m_aspect_ratio = float(window_width) / window_height;
 
     updateKeyboardInput(_window, _deltaTime);
-    updateMouseInput(_window, _deltaTime, _cursor_vel, _scroll, disable_mouse_actions);
+    updateMouseInput(_window, _deltaTime, _cursor_vel, _scroll, _disable_mouse_actions);
 
     updateData();
 }

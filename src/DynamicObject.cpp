@@ -584,6 +584,7 @@ bool DynamicObject::updateInteractions(GLFWwindow *_window, const glm::dvec3 &_c
 
     glm::dvec3 cursor_direction = glm::normalize(_cursor_worldpos - _camera_pos);
     if (grabbed_point != UINT32_MAX) {
+        // std::cout << "grabbing point " << grabbed_point << "..." << std::endl;
         m_positions[grabbed_point] = projectPointOnLine(_camera_pos, cursor_direction, m_positions[grabbed_point]);
         return true;
     }
@@ -593,6 +594,7 @@ bool DynamicObject::updateInteractions(GLFWwindow *_window, const glm::dvec3 &_c
     glm::dvec3 projection;
     findNearestPointToLine(_camera_pos, cursor_direction, point, distance, projection);
     if (distance < 0.3) {
+        // std::cout << "grabbing point " << point << " with distance " << distance << std::endl;
         m_positions[point] = projection;
         grabbed_point = point;
         return true;
@@ -629,7 +631,7 @@ void DynamicObject::updateRenderedConstraints() {
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_lines.size() * sizeof(glm::uvec2), m_lines.data(), GL_STATIC_DRAW);
 }
 
-void DynamicObject::render() {
+void DynamicObject::render() const {
     glBindVertexArray(m_VAO); // Activate the VAO storing geometry data
     if (m_lines.empty()) {
         glDrawArrays(GL_POINTS, 0, m_positions.size());

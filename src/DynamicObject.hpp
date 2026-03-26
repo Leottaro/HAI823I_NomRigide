@@ -4,8 +4,8 @@
 #include <GL/glew.h>
 
 // GLM
-#include <glm/glm.hpp>
 #include <glm/ext.hpp>
+#include <glm/glm.hpp>
 
 // GLFW
 #include <GLFW/glfw3.h>
@@ -19,15 +19,17 @@
 #include <imgui_impl_opengl3.h>
 
 // USUAL INCLUDES
-#include "Mesh.hpp"
-#include "Transformation.hpp"
 #include <functional>
 #include <vector>
+
+#include "Mesh.hpp"
+#include "Transformation.hpp"
 
 struct StaticBody {
     Mesh *m_mesh;
     Transformation *m_transformation;
 
+    StaticBody() : m_mesh(nullptr), m_transformation(nullptr) {}
     StaticBody(Mesh *_mesh, Transformation *_transformation) : m_mesh(_mesh), m_transformation(_transformation) {}
 };
 
@@ -90,10 +92,10 @@ public:
     const std::vector<ConstraintType> &getTypes() const { return m_types; };
 
     void setAmbientFrictionCoefficient(double _coeff) { m_ambient_friction_coefficient = _coeff; }
-    double getAmbientFrictionCoefficient() { return m_ambient_friction_coefficient; }
     void setFrictionCoefficient(double _coeff) { m_friction_coefficient = _coeff; }
-    double getFrictionCoefficient() { return m_friction_coefficient; }
     void setRestitutionCoefficient(double _coeff) { m_restitution_coefficient = _coeff; }
+    double getAmbientFrictionCoefficient() { return m_ambient_friction_coefficient; }
+    double getFrictionCoefficient() { return m_friction_coefficient; }
     double getRestitutionCoefficient() { return m_restitution_coefficient; }
 
     // "3.1. Algorithm Overview" of ./articles/Position_Based_Dynamics.pdf
@@ -147,6 +149,6 @@ public:
     void initRendering();
     void updateRenderedPositions();
     void updateRenderedConstraints();
-    void render();
+    void render() const;
     void clear();
 };

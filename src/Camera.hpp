@@ -43,14 +43,14 @@ private:
 
     void updateData();
 
-    bool updateInterface(float _deltaTime);
     void updateKeyboardInput(GLFWwindow *_window, float _deltaTime);
     void updateMouseInput(GLFWwindow *_window, float _deltaTime, const glm::vec2 &_cursor_vel, const glm::vec2 &_scroll, bool _disable_actions);
 
 public:
     Camera() { updateData(); };
 
-    void update(GLFWwindow *_window, float _deltaTime, const glm::vec2 &_cursor_vel, const glm::vec2 &_scroll);
+    bool updateInterface();
+    void update(GLFWwindow *_window, float _deltaTime, const glm::vec2 &_cursor_vel, const glm::vec2 &_scroll, bool _disable_mouse_actions);
 
     glm::vec3 getFront() const { return m_front; }
     glm::vec3 getRight() const { return m_right; }
