@@ -64,13 +64,23 @@ bool Scene::updateSimulation(float _deltaTime) {
         static_bodies[i].m_transformation = &m_static_bodies[i].transfo;
     }
 
-    for (DynamicObjectDesc &obj : m_dynamic_objects) {
-        if (!obj.object.update(_deltaTime, static_bodies)) {
-            obj.object.updateRenderedPositions();
-            return false;
-        }
-        obj.object.updateRenderedPositions();
+    int size = m_dynamic_objects.size();
+    std::vector<DynamicObject*> dynamic_bodies(size);
+    for (uint i = 0; i < m_dynamic_objects.size(); i++) {
+        dynamic_bodies[i] = &m_dynamic_objects[i].object;
     }
+    // for (DynamicObjectDesc &obj : m_dynamic_objects) {
+    //     if (!obj.object.update(_deltaTime, static_bodies, dynamic_bodies)) {
+    //         obj.object.updateRenderedPositions();
+    //         return false;
+    //     }
+    //     obj.object.updateRenderedPositions();
+    // }
+    if (!m_dynamic_objects[1].object.update(_deltaTime, static_bodies, dynamic_bodies)) {
+        m_dynamic_objects[1].object.updateRenderedPositions();
+        return false;
+    }
+    m_dynamic_objects[1].object.updateRenderedPositions();
 
     return true;
 }

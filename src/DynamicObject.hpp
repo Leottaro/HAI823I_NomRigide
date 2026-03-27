@@ -99,7 +99,7 @@ public:
     double getRestitutionCoefficient() { return m_restitution_coefficient; }
 
     // "3.1. Algorithm Overview" of ./articles/Position_Based_Dynamics.pdf
-    bool update(double _delta_time, const std::vector<StaticBody> &static_bodies);
+    bool update(double _delta_time, const std::vector<StaticBody> &static_bodies, const std::vector<DynamicObject*>& dynamic_bodies);
 
     void addVertex(const glm::dvec3 &_position, const glm::dvec3 &_velocity, double _mass, bool _fixed);
     void setVertexPosition(uint _pj, glm::dvec3 _position) { m_positions[_pj] = _position; }

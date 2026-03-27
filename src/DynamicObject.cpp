@@ -145,7 +145,7 @@ READ "3.1. Algorithm Overview" of ./articles/Position_Based_Dynamics.pdf
 // TODO: imgui solver settings
 #define SOLVER_ITERATIONS 100
 
-bool DynamicObject::update(double _delta_time, const std::vector<StaticBody> &static_bodies) {
+bool DynamicObject::update(double _delta_time, const std::vector<StaticBody> &static_bodies, const std::vector<DynamicObject*>& dynamic_bodies) {
     std::vector<glm::dvec3> new_positions(N); // p_i
 
     // (5) external forces (gravity, etc...) (for now, just gravity)
@@ -160,10 +160,84 @@ bool DynamicObject::update(double _delta_time, const std::vector<StaticBody> &st
         new_positions[pj] = m_fixed[pj] ? m_positions[pj] : m_positions[pj] + _delta_time * m_velocities[pj];
 
     // (8)
+    double collision_radius = 0.1;
     std::unordered_map<size_t, glm::dvec3> colliding_vertices;
     for (uint pj = 0; pj < N; pj++) {
         glm::dvec3 origin = m_positions[pj];
         glm::dvec3 direction = new_positions[pj] - m_positions[pj];
+
+        for (DynamicObject* other : dynamic_bodies) {
+
+            if (other == this || m_fixed[pj]) continue;
+
+            for (const glm::uvec2& edge : other->m_lines) {
+
+                glm::dvec3 a0 = other->m_positions[edge[0]];
+                glm::dvec3 a1 = other->m_positions[edge[1]];
+
+                glm::dvec3 d2 = a1 - a0;
+
+                glm::dvec3 r = origin - a0;
+
+                double a_dot = glm::dot(direction, direction); // ditance^2 entre poisition et new_position
+                double e_dot = glm::dot(d2, d2); // distance^2 entre les 2 points de l'arête
+                double f = glm::dot(d2, r);
+
+                double s, t; // origin + s * direction et a0 + t * d2 points les plus proches sur les deux segments
+
+                if (a_dot <= 1e-8 && e_dot <= 1e-8) continue; // si les deux segments sont trop petits
+
+                if (a_dot <= 1e-8) { // si le mouvement du point est trop petit
+                    s = 0.0;
+                    t = glm::clamp(f / e_dot, 0.0, 1.0);
+                } else {
+                    double c = glm::dot(direction, r);
+
+                    if (e_dot <= 1e-8) { // si l'arête est trop petite
+                        t = 0.0;
+                        s = glm::clamp(-c / a_dot, 0.0, 1.0);
+                    } else {
+                        double b_dot = glm::dot(direction, d2);
+                        double denom = a_dot * e_dot - b_dot * b_dot;
+
+                        if (denom != 0.0) // si les segments ne sont pas parallèles
+                            s = glm::clamp((b_dot * f - c * e_dot) / denom, 0.0, 1.0);
+                        else
+                            s = 0.0;
+
+                        t = (b_dot * s + f) / e_dot;
+
+                        if (t < 0.0) { // si t est en dehors de l'arête, on le clamp sur 0 ou 1 et on recalcule s
+                            t = 0.0;
+                            s = glm::clamp(-c / a_dot, 0.0, 1.0);
+                        } else if (t > 1.0) { // si t est en dehors de l'arête, on le clamp sur 0 ou 1 et on recalcule s
+                            t = 1.0;
+                            s = glm::clamp((b_dot - c) / a_dot, 0.0, 1.0);
+                        }
+                    }
+                }
+
+                glm::dvec3 closest_p = origin + s * direction; // plus proche sur le mouvement du vertex
+                glm::dvec3 closest_e = a0 + t * d2; // plus proche sur l'arête
+
+                glm::dvec3 delta = closest_p - closest_e;
+                double dist = glm::length(delta);
+
+                if (dist < collision_radius && dist > 1e-8) {
+
+                    //glm::dvec3 normal = glm::normalize(delta);
+                    glm::vec3 normal = glm::dvec3(0., 1., 0.);
+                    glm::dvec3 contact = closest_e;
+
+                    // if(normal.y < 0.) {
+                    //     std::cout << normal.x << " " << normal.y << " " << normal.z << std::endl;
+                    // }
+
+                    addCollisionConstraint(pj, contact, normal, 1.0);
+                    colliding_vertices.insert({pj, normal});
+                }
+            }
+        }
 
         for (const StaticBody &static_body : static_bodies) {
             const std::vector<glm::vec3> &mesh_positions = static_body.m_mesh->vertexPositions();
@@ -279,7 +353,89 @@ bool DynamicObject::update(double _delta_time, const std::vector<StaticBody> &st
                 addEdgeCollisionConstraint(e0, e1, min_t, closest_intersection, closest_normal, 1.0);
             }
         }
+
+        // double m_collision_radius = 0.05f;
+        // for (DynamicObject* other : dynamic_bodies) {
+
+        //     if (other == this) continue;
+
+        //     for (uint i = 0; i < N; i++) {
+        //         if (m_fixed[i]) continue;
+
+        //         glm::dvec3 p0 = m_positions[i];     // position ancienne
+        //         glm::dvec3 p1 = new_positions[i];   // position nouvelle
+
+        //         for (const glm::uvec2& edge : other->m_lines) {
+
+        //             glm::dvec3 a = other->m_positions[edge[0]];
+        //             glm::dvec3 b = other->m_positions[edge[1]];
+
+        //             // -------- SEGMENT vs SEGMENT distance --------
+        //             glm::dvec3 d1 = p1 - p0;
+        //             glm::dvec3 d2 = b - a;
+        //             glm::dvec3 r = p0 - a;
+
+        //             double a_dot = glm::dot(d1, d1);
+        //             double e_dot = glm::dot(d2, d2);
+        //             double f = glm::dot(d2, r);
+
+        //             double s, t;
+
+        //             if (a_dot <= 1e-8 && e_dot <= 1e-8) continue;
+
+        //             if (a_dot <= 1e-8) {
+        //                 s = 0.0;
+        //                 t = glm::clamp(f / e_dot, 0.0, 1.0);
+        //             } else {
+        //                 double c = glm::dot(d1, r);
+        //                 if (e_dot <= 1e-8) {
+        //                     t = 0.0;
+        //                     s = glm::clamp(-c / a_dot, 0.0, 1.0);
+        //                 } else {
+        //                     double b_dot = glm::dot(d1, d2);
+        //                     double denom = a_dot * e_dot - b_dot * b_dot;
+
+        //                     if (denom != 0.0)
+        //                         s = glm::clamp((b_dot * f - c * e_dot) / denom, 0.0, 1.0);
+        //                     else
+        //                         s = 0.0;
+
+        //                     t = (b_dot * s + f) / e_dot;
+
+        //                     if (t < 0.0) {
+        //                         t = 0.0;
+        //                         s = glm::clamp(-c / a_dot, 0.0, 1.0);
+        //                     } else if (t > 1.0) {
+        //                         t = 1.0;
+        //                         s = glm::clamp((b_dot - c) / a_dot, 0.0, 1.0);
+        //                     }
+        //                 }
+        //             }
+
+        //             glm::dvec3 closest_p = p0 + s * d1;
+        //             glm::dvec3 closest_e = a + t * d2;
+
+        //             glm::dvec3 delta = closest_p - closest_e;
+        //             double dist = glm::length(delta);
+
+        //             if (dist < m_collision_radius && dist > 1e-8) {
+
+        //                 glm::dvec3 normal = glm::normalize(delta);
+        //                 glm::dvec3 contact = closest_e;
+
+        //                 addCollisionConstraint(i, contact, normal, 1.0);
+        //                 colliding_vertices.insert({i, normal});
+
+        //                 if(normal.y > 0.) {
+        //                     std::cout << normal.x << " " << normal.y << " " << normal.z << std::endl;
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
     }
+
+
 
     // (9)-(11)
     for (uint i = 0; i < SOLVER_ITERATIONS; i++) {
@@ -313,10 +469,14 @@ bool DynamicObject::update(double _delta_time, const std::vector<StaticBody> &st
             for (uint i = 0; i < m_cardinalities[ci]; i++) {
                 denominator += length2(gradients[i]);
             }
-            if (denominator != denominator || denominator == 0.) {
+            if(denominator == 0.) {
+                continue;
+            }
+            if (denominator != denominator) {
                 std::cerr << "invalid denominator : " << denominator << std::endl;
                 return false;
             }
+        
             double s = function_value / denominator;
 
             // add the deltas

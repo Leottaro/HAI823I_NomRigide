@@ -69,20 +69,26 @@ int main(void) {
 
     Transformation floor_transfo;
     floor_transfo.setTranslation(glm::vec3(0.f, -3.f, 0.f));
-    floor_transfo.setScale(glm::vec3(10.f, 4.f, 50.f));
-    floor_transfo.setEulerAngles(glm::vec3(M_PIf / 8.f, 0.f, 0.f));
+    floor_transfo.setScale(glm::vec3(10.f, 1.f, 50.f));
+    floor_transfo.setEulerAngles(glm::vec3(0.f, 0.f, 0.f));
     // scene.addStaticBody("sol", 0, floor_transfo);
 
-    size_t size = 10;
-    Mesh object_mesh;
-    object_mesh.setCubeSphere(size);
-    Transformation dynamic_body_transformation(glm::vec3(0.f, 3.f, 0.f), glm::vec3(1.f), glm::vec3(0.f));
-    DynamicObject dynamic_body = DynamicObject::bodyFromMesh(StaticBody(&object_mesh, &dynamic_body_transformation), .5f, .5f, 0.f, 0.f);
-    dynamic_body.setVertexFixed(0, true);
-    // dynamic_body.setVertexFixed(size - 1, true);
-    // dynamic_body.setVertexFixed((size - 1) * size, true);
-    // dynamic_body.setVertexFixed(size * size - 1, true);
-    scene.addDynamicObject("boule", dynamic_body);
+    size_t size = 5;
+    Mesh grid;
+    grid.setSimpleGrid(size, size);
+    Transformation grille_transformation(glm::vec3(-2.f, 0.f, -2.f), glm::vec3(4.f), glm::vec3(0.f));
+    DynamicObject grille = DynamicObject::bodyFromMesh(StaticBody(&grid, &grille_transformation), 1.f, 1.f, 0.f, 0.f);
+    grille.setVertexFixed(0, true);
+    grille.setVertexFixed(size - 1, true);
+    grille.setVertexFixed((size - 1) * size, true);
+    grille.setVertexFixed(size * size - 1, true);
+    scene.addDynamicObject("grille", grille);
+
+    Mesh sphere;
+    sphere.setCubeSphere(size);
+    Transformation boule_transformation(glm::vec3(0.f, 3.f, 0.f), glm::vec3(1.f), glm::vec3(0.f));
+    DynamicObject boule = DynamicObject::bodyFromMesh(StaticBody(&sphere, &boule_transformation), .5f, .5f, 0.f, 0.f);
+    scene.addDynamicObject("boule", boule);
 
     scene.init();
     scene.resetObjects();
@@ -135,10 +141,11 @@ int main(void) {
         cursor_worldpos = applyTransformation(glm::vec3(2.f * (cursor_pos.x / window_width) - 1.f, 1.f - 2.f * (cursor_pos.y / window_height), camera.m_near_far.x), 1.f, glm::inverse(camera.getViewMatrix()) * glm::inverse(camera.getProjectionMatrix()));
         scene.updateInteractions(window, camera.m_position, cursor_worldpos);
         if (run_simulation) {
-            if (!scene.updateSimulation(deltaTime)) {
+            if (!scene.updateSimulation(0.016666f)) {
                 run_simulation = false;
             }
-            dynamic_body.updateRenderedPositions();
+            // grille.updateRenderedPositions();
+            // boule.updateRenderedPositions();
         }
         camera.update(window, deltaTime, cursor_vel, scroll, disable_mouse_actions);
 
