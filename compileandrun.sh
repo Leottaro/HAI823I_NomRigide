@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-mode=${1:-debug}
+mode=${1:-opt}
 
 case "$mode" in
     debug)

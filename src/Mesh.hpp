@@ -35,8 +35,6 @@ class Mesh {
     GLuint m_uvs_VBO;
     GLuint m_triangles_EBO;
 
-    void centerAndScaleToUnit();
-
 public:
     virtual ~Mesh();
 
@@ -60,7 +58,7 @@ public:
     inline const std::vector<glm::uvec3> &triangleIndices() const { return m_triangles; }
     inline std::vector<glm::uvec3> &triangleIndices() { return m_triangles; }
 
-    /// Compute the parameters of a sphere which bounds the mesh
+    void centerAndScaleToUnit();
     void computeBoundingSphere(glm::vec3 &center, float &radius) const;
 
     void recomputePerVertexNormals(bool angleBased = false);

@@ -4,7 +4,6 @@
 // GLM
 #include <glm/ext.hpp>
 #include <glm/glm.hpp>
-#include <glm/ext.hpp>
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/string_cast.hpp>
 
@@ -71,17 +70,12 @@ int main(void) {
     floor_transfo.setTranslation(glm::vec3(0.f, -3.f, 0.f));
     floor_transfo.setScale(glm::vec3(10.f, 4.f, 50.f));
     floor_transfo.setEulerAngles(glm::vec3(M_PIf / 8.f, 0.f, 0.f));
-    // scene.addStaticBody("sol", 0, floor_transfo);
+    scene.addStaticBody("sol", 0, floor_transfo);
 
-    size_t size = 10;
     Mesh object_mesh;
-    object_mesh.setCubeSphere(size);
+    object_mesh.loadOFF("ressources/models/bunny2.off");
     Transformation dynamic_body_transformation(glm::vec3(0.f, 3.f, 0.f), glm::vec3(1.f), glm::vec3(0.f));
-    DynamicObject dynamic_body = DynamicObject::bodyFromMesh(StaticBody(&object_mesh, &dynamic_body_transformation), .5f, .5f, 0.f, 0.f);
-    dynamic_body.setVertexFixed(0, true);
-    // dynamic_body.setVertexFixed(size - 1, true);
-    // dynamic_body.setVertexFixed((size - 1) * size, true);
-    // dynamic_body.setVertexFixed(size * size - 1, true);
+    DynamicObject dynamic_body = DynamicObject::bodyFromMesh(StaticBody(&object_mesh, &dynamic_body_transformation), 0.9f, 0.9f, 1.f, 1.f);
     scene.addDynamicObject("boule", dynamic_body);
 
     scene.init();
@@ -138,7 +132,6 @@ int main(void) {
             if (!scene.updateSimulation(deltaTime)) {
                 run_simulation = false;
             }
-            dynamic_body.updateRenderedPositions();
         }
         camera.update(window, deltaTime, cursor_vel, scroll, disable_mouse_actions);
 
@@ -175,7 +168,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
     // cout << "key:" << key << " scancode:" << scancode << " action:" << action << " mods:" << mods << endl;
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
         glfwSetWindowShouldClose(window, GLFW_TRUE);
-    } else if ((key == GLFW_KEY_W || key == GLFW_KEY_Z) && action == GLFW_PRESS) {
+    } else if (key == GLFW_KEY_Z && action == GLFW_PRESS) {
         if (polygon_mode == GL_FILL) {
             polygon_mode = GL_LINE;
         } else if (polygon_mode == GL_LINE) {
