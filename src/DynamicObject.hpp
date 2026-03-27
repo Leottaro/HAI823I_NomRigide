@@ -130,6 +130,7 @@ public:
     // Object interaction
 private:
     uint grabbed_point = UINT32_MAX;
+    bool grabbed_fixed = false;
     void findNearestPointToLine(const glm::dvec3 &_position, const glm::dvec3 &_direction, uint &point, double &distance, glm::dvec3 &projection) const;
 
 public:

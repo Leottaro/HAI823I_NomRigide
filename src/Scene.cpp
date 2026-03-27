@@ -49,8 +49,10 @@ bool Scene::updateInterface() {
 bool Scene::updateInteractions(GLFWwindow *_window, const glm::dvec3 &_camera_pos, const glm::dvec3 &_cursor_worldpos) {
     bool res = false;
     for (DynamicObjectDesc &object_desc : m_dynamic_objects) {
-        if (object_desc.object.updateInteractions(_window, _camera_pos, _cursor_worldpos))
+        if (object_desc.object.updateInteractions(_window, _camera_pos, _cursor_worldpos)) {
+            object_desc.object.updateRenderedPositions();
             res = true;
+        }
     }
     return res;
 }

@@ -578,13 +578,18 @@ void DynamicObject::findNearestPointToLine(const glm::dvec3 &_position, const gl
 
 bool DynamicObject::updateInteractions(GLFWwindow *_window, const glm::dvec3 &_camera_pos, const glm::dvec3 &_cursor_worldpos) {
     if (glfwGetMouseButton(_window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_RELEASE || glfwGetKey(_window, GLFW_KEY_LEFT_SHIFT) == GLFW_RELEASE) {
-        grabbed_point = UINT32_MAX;
+        if (grabbed_point != UINT32_MAX) {
+            std::cout << "finished grabbing point " << grabbed_point << "..." << std::endl;
+            setVertexFixed(grabbed_point, grabbed_fixed);
+            grabbed_point = UINT32_MAX;
+            return true;
+        }
         return false;
     }
 
     glm::dvec3 cursor_direction = glm::normalize(_cursor_worldpos - _camera_pos);
     if (grabbed_point != UINT32_MAX) {
-        // std::cout << "grabbing point " << grabbed_point << "..." << std::endl;
+        std::cout << "grabbing point " << grabbed_point << "..." << std::endl;
         m_positions[grabbed_point] = projectPointOnLine(_camera_pos, cursor_direction, m_positions[grabbed_point]);
         return true;
     }
@@ -594,9 +599,11 @@ bool DynamicObject::updateInteractions(GLFWwindow *_window, const glm::dvec3 &_c
     glm::dvec3 projection;
     findNearestPointToLine(_camera_pos, cursor_direction, point, distance, projection);
     if (distance < 0.3) {
-        // std::cout << "grabbing point " << point << " with distance " << distance << std::endl;
-        m_positions[point] = projection;
+        std::cout << "grabbing point " << point << " with distance " << distance << std::endl;
         grabbed_point = point;
+        m_positions[grabbed_point] = projection;
+        grabbed_fixed = m_fixed[grabbed_point];
+        setVertexFixed(grabbed_point, true);
         return true;
     }
 
