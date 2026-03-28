@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <string>
+#include <unordered_set>
 
 #include "DynamicObject.hpp"
 #include "ShaderProgram.hpp"
@@ -9,12 +10,19 @@
 struct StaticBodyDesc {
     std::string name;
     uint mesh_i;
-    Transformation transfo;
+    Transformation *transfo;
 };
 
-struct DynamicObjectDesc {
-    std::string name;
-    DynamicObject object;
+struct DynamicObjectDesc : StaticBodyDesc {
+    float distance_stiffness;
+    float angle_stiffness;
+    float volume_stiffness;
+    float volume_pressure;
+
+    std::unordered_set<uint> fixed_vertices = {};
+    float ambient_friction_coefficient = 0.01;
+    float friction_coefficient = 0.5;
+    float restitution_coefficient = 0.5;
 };
 
 // struct DynamicObjectDesc {
@@ -31,25 +39,36 @@ struct DynamicObjectDesc {
 class Scene {
 private:
     std::vector<Mesh> m_meshes = {};
-    std::vector<StaticBodyDesc> m_pre_static_bodies = {};
-    std::vector<StaticBodyDesc> m_static_bodies = {};
 
-    std::vector<DynamicObjectDesc> m_pre_dynamic_objects = {};
-    std::vector<DynamicObjectDesc> m_dynamic_objects;
-    bool m_should_rerender = false;
+    // static bodies
+    std::vector<StaticBodyDesc> m_static_bodies_desc = {};
+    std::vector<Transformation> m_static_transformations = {};
+    std::vector<StaticBody> m_static_bodies = {};
+
+    // dynamic objects
+    std::vector<DynamicObjectDesc> m_dynamic_objects_desc = {};
+    std::vector<DynamicObject> m_dynamic_objects;
 
 public:
+    uint solver_iterations = 100;
+    bool do_fixed_delta_time = false;
+    double fixed_delta_time = 1.e-6;
+
     inline void addMesh(const Mesh &_mesh) { m_meshes.push_back(_mesh); }
     inline const Mesh &getMesh(uint i) const { return m_meshes[i]; }
 
-    inline std::vector<StaticBodyDesc> &getStaticBodiesDesc() { return m_static_bodies; }
-    inline void addStaticBody(const std::string &_name, uint _mesh_i, const Transformation &_transfo) { m_pre_static_bodies.push_back({_name, _mesh_i, _transfo}); }
+    inline std::vector<StaticBodyDesc> &getStaticBodiesDesc() { return m_static_bodies_desc; }
+    inline void addStaticBody(const StaticBodyDesc &_desc) { m_static_bodies_desc.push_back(_desc); }
 
-    inline std::vector<DynamicObjectDesc> &getDynamicObjects() { return m_dynamic_objects; }
-    inline void addDynamicObject(const std::string &_name, const DynamicObject &_object) { m_pre_dynamic_objects.push_back({_name, _object}); }
+    inline std::vector<DynamicObjectDesc> &getDynamicObjectsDesc() { return m_dynamic_objects_desc; }
+    inline void addDynamicObject(const DynamicObjectDesc &_desc) { m_dynamic_objects_desc.push_back(_desc); }
 
     void resetObjects();
+
     bool updateInterface();
+    void staticBodyInterface(StaticBodyDesc &object);
+    void dynamicObjectInterface(DynamicObjectDesc &object);
+
     bool updateInteractions(GLFWwindow *_window, const glm::dvec3 &_camera_pos, const glm::dvec3 &_cursor_worldpos);
     bool updateSimulation(float _deltaTime);
 

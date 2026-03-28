@@ -9,11 +9,10 @@
 #include "Transformation.hpp"
 
 #define CAMERA_TYPES_N 3
-#define CAMERA_TYPES "Free\0Orbital\0AutoSpin"
+#define CAMERA_TYPES "Free\0Orbital\0"
 enum CameraType {
     CameraFree,
     CameraOrbital,
-    CameraAutoSpin,
 };
 
 class Camera {

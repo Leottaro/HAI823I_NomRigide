@@ -142,10 +142,7 @@ READ "3.1. Algorithm Overview" of ./articles/Position_Based_Dynamics.pdf
 (17)  endloop
 */
 
-// TODO: imgui solver settings
-#define SOLVER_ITERATIONS 100
-
-bool DynamicObject::update(double _delta_time, const std::vector<StaticBody> &static_bodies) {
+bool DynamicObject::update(double _delta_time, uint _solver_iterations, const std::vector<StaticBody> &static_bodies) {
     std::vector<glm::dvec3> new_positions(N); // p_i
 
     // (5) external forces (gravity, etc...) (for now, just gravity)
@@ -207,7 +204,7 @@ bool DynamicObject::update(double _delta_time, const std::vector<StaticBody> &st
                     double n_squared = std::pow(glm::distance(p2, p1), 2);
                     double dot = glm::dot(direction, project_on_plane - p1);
                     double dot_over_one = dot / n_squared;
-                    double r = std::max(0., std::min(1., dot_over_one));
+                    double r = std::clamp(dot_over_one, 0., 1.);
                     return p1 + direction * r;
                 };
 
@@ -282,7 +279,7 @@ bool DynamicObject::update(double _delta_time, const std::vector<StaticBody> &st
     }
 
     // (9)-(11)
-    for (uint i = 0; i < SOLVER_ITERATIONS; i++) {
+    for (uint i = 0; i < _solver_iterations; i++) {
         for (uint ci = 0; ci < M + Mcoll; ci++) {
             // gather function input (and total weight)
             std::vector<glm::dvec3> affected_points(m_cardinalities[ci]);
@@ -323,7 +320,7 @@ bool DynamicObject::update(double _delta_time, const std::vector<StaticBody> &st
             for (uint i = 0; i < m_cardinalities[ci]; i++) {
                 uint pj = m_indices[ci][i];
                 glm::dvec3 delta_pj = -s * (double(m_cardinalities[ci]) * m_weights[pj] / total_weigths) * gradients[i];
-                double k_prime = 1. - std::pow(1. - m_stiffnesses[ci], 1. / SOLVER_ITERATIONS);
+                double k_prime = 1. - std::pow(1. - m_stiffnesses[ci], 1. / _solver_iterations);
                 new_positions[pj] += k_prime * delta_pj;
             }
         }
@@ -579,7 +576,7 @@ void DynamicObject::findNearestPointToLine(const glm::dvec3 &_position, const gl
 bool DynamicObject::updateInteractions(GLFWwindow *_window, const glm::dvec3 &_camera_pos, const glm::dvec3 &_cursor_worldpos) {
     if (glfwGetMouseButton(_window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_RELEASE || glfwGetKey(_window, GLFW_KEY_LEFT_SHIFT) == GLFW_RELEASE) {
         if (grabbed_point != UINT32_MAX) {
-            std::cout << "finished grabbing point " << grabbed_point << "..." << std::endl;
+            // std::cout << "finished grabbing point " << grabbed_point << "..." << std::endl;
             setVertexFixed(grabbed_point, grabbed_fixed);
             grabbed_point = UINT32_MAX;
             return true;
@@ -589,7 +586,7 @@ bool DynamicObject::updateInteractions(GLFWwindow *_window, const glm::dvec3 &_c
 
     glm::dvec3 cursor_direction = glm::normalize(_cursor_worldpos - _camera_pos);
     if (grabbed_point != UINT32_MAX) {
-        std::cout << "grabbing point " << grabbed_point << "..." << std::endl;
+        // std::cout << "grabbing point " << grabbed_point << "..." << std::endl;
         m_positions[grabbed_point] = projectPointOnLine(_camera_pos, cursor_direction, m_positions[grabbed_point]);
         return true;
     }
@@ -599,7 +596,7 @@ bool DynamicObject::updateInteractions(GLFWwindow *_window, const glm::dvec3 &_c
     glm::dvec3 projection;
     findNearestPointToLine(_camera_pos, cursor_direction, point, distance, projection);
     if (distance < 0.3) {
-        std::cout << "grabbing point " << point << " with distance " << distance << std::endl;
+        // std::cout << "grabbing point " << point << " with distance " << distance << std::endl;
         grabbed_point = point;
         m_positions[grabbed_point] = projection;
         grabbed_fixed = m_fixed[grabbed_point];

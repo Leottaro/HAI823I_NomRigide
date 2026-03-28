@@ -36,7 +36,7 @@
 using namespace std;
 
 // TODO: SINGLETON
-GLuint window_width = 800, window_height = 600;
+GLuint window_width = 1280, window_height = 720;
 glm::vec2 cursor_pos = glm::vec2(0, 0);
 glm::vec3 cursor_worldpos = glm::vec3(0, 0, 0);
 glm::vec2 cursor_vel = glm::vec2(0, 0);
@@ -57,9 +57,6 @@ int main(void) {
     ShaderProgram dynamic_shader = ShaderProgram("ressources/shaders/dynamic_vertex.glsl", "ressources/shaders/dynamic_fragment.glsl");
     dynamic_shader.link();
 
-    // TODO: SCENE
-
-    // std::vector<StaticBody> static_bodies;
     Scene scene = Scene();
 
     Mesh floor;
@@ -71,18 +68,19 @@ int main(void) {
     floor_transfo.setTranslation(glm::vec3(0.f, -3.f, 0.f));
     floor_transfo.setScale(glm::vec3(10.f, 4.f, 50.f));
     floor_transfo.setEulerAngles(glm::vec3(M_PIf / 8.f, 0.f, 0.f));
-    // scene.addStaticBody("sol", 0, floor_transfo);
+    scene.addStaticBody({"sol", 0, &floor_transfo});
 
     size_t size = 10;
     Mesh object_mesh;
-    object_mesh.setCubeSphere(size);
+    object_mesh.setCube(size);
+    scene.addMesh(object_mesh);
+
     Transformation dynamic_body_transformation(glm::vec3(0.f, 3.f, 0.f), glm::vec3(1.f), glm::vec3(0.f));
-    DynamicObject dynamic_body = DynamicObject::bodyFromMesh(StaticBody(&object_mesh, &dynamic_body_transformation), .5f, .5f, 0.f, 0.f);
-    dynamic_body.setVertexFixed(0, true);
+    scene.addDynamicObject({"boule", 1, &dynamic_body_transformation, .75f, .75f, .75f, .75f});
+    // dynamic_body.setVertexFixed(0, true);
     // dynamic_body.setVertexFixed(size - 1, true);
     // dynamic_body.setVertexFixed((size - 1) * size, true);
     // dynamic_body.setVertexFixed(size * size - 1, true);
-    scene.addDynamicObject("boule", dynamic_body);
 
     scene.init();
     scene.resetObjects();
@@ -138,7 +136,6 @@ int main(void) {
             if (!scene.updateSimulation(deltaTime)) {
                 run_simulation = false;
             }
-            dynamic_body.updateRenderedPositions();
         }
         camera.update(window, deltaTime, cursor_vel, scroll, disable_mouse_actions);
 
@@ -175,7 +172,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
     // cout << "key:" << key << " scancode:" << scancode << " action:" << action << " mods:" << mods << endl;
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
         glfwSetWindowShouldClose(window, GLFW_TRUE);
-    } else if ((key == GLFW_KEY_W || key == GLFW_KEY_Z) && action == GLFW_PRESS) {
+    } else if (key == GLFW_KEY_Z && action == GLFW_PRESS) {
         if (polygon_mode == GL_FILL) {
             polygon_mode = GL_LINE;
         } else if (polygon_mode == GL_LINE) {
