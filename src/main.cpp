@@ -57,23 +57,19 @@ int main(void) {
     ShaderProgram dynamic_shader = ShaderProgram("ressources/shaders/dynamic_vertex.glsl", "ressources/shaders/dynamic_fragment.glsl");
     dynamic_shader.link();
 
+    // TODO: add/remove objects in imgui ?
     Scene scene = Scene();
 
-    Mesh floor;
-    floor.setSimpleGrid(2, 2);
-    floor.setCube(2);
-    scene.addMesh(floor);
+    size_t size = 10;
+    scene.addMesh(CubeMesh{2});
+    // scene.addMesh(CubeMesh{size});
+    scene.addMesh(LoadedMesh{"ressources/models/monkey.off"});
 
     Transformation floor_transfo;
     floor_transfo.setTranslation(glm::vec3(0.f, -3.f, 0.f));
     floor_transfo.setScale(glm::vec3(10.f, 4.f, 50.f));
     floor_transfo.setEulerAngles(glm::vec3(M_PIf / 8.f, 0.f, 0.f));
     scene.addStaticBody({"sol", 0, &floor_transfo});
-
-    size_t size = 10;
-    Mesh object_mesh;
-    object_mesh.setCube(size);
-    scene.addMesh(object_mesh);
 
     Transformation dynamic_body_transformation(glm::vec3(0.f, 3.f, 0.f), glm::vec3(1.f), glm::vec3(0.f));
     scene.addDynamicObject({"boule", 1, &dynamic_body_transformation, .75f, .75f, .75f, .75f});
@@ -82,12 +78,10 @@ int main(void) {
     // dynamic_body.setVertexFixed((size - 1) * size, true);
     // dynamic_body.setVertexFixed(size * size - 1, true);
 
-    scene.init();
     scene.resetObjects();
 
     // TODO: init textures
     // TODO: setup lights
-    // TODO: interface
 
     // timings
     float deltaTime = 0.0f;
@@ -129,7 +123,6 @@ int main(void) {
             disable_mouse_actions = true;
 
         // OBJECTS UPDATE
-        // TODO: interactions ?
         cursor_worldpos = applyTransformation(glm::vec3(2.f * (cursor_pos.x / window_width) - 1.f, 1.f - 2.f * (cursor_pos.y / window_height), camera.m_near_far.x), 1.f, glm::inverse(camera.getViewMatrix()) * glm::inverse(camera.getProjectionMatrix()));
         scene.updateInteractions(window, camera.m_position, cursor_worldpos);
         if (run_simulation) {

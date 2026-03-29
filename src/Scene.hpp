@@ -25,19 +25,10 @@ struct DynamicObjectDesc : StaticBodyDesc {
     float restitution_coefficient = 0.5;
 };
 
-// struct DynamicObjectDesc {
-//     Mesh *mesh;
-//     Transformation *transfo;
-//     char *name;
-//     float distance_stiffness;
-//     float angle_stiffness;
-
-//     DynamicObjectDesc(Mesh *mesh, Transformation *transfo, char *name, float distance_stiffness, float angle_stiffness)
-//         : mesh(mesh), transfo(transfo), name(name), distance_stiffness(distance_stiffness), angle_stiffness(angle_stiffness) {}
-// };
-
 class Scene {
 private:
+    // meshes
+    std::vector<MeshType> m_meshes_type = {};
     std::vector<Mesh> m_meshes = {};
 
     // static bodies
@@ -54,25 +45,28 @@ public:
     bool do_fixed_delta_time = false;
     double fixed_delta_time = 1.e-6;
 
-    inline void addMesh(const Mesh &_mesh) { m_meshes.push_back(_mesh); }
-    inline const Mesh &getMesh(uint i) const { return m_meshes[i]; }
+    inline void addMesh(const MeshType &_type) { m_meshes_type.push_back(_type); }
+    inline std::vector<MeshType> &getMeshesType() { return m_meshes_type; }
+    inline std::vector<Mesh> &getCurrentMeshes() { return m_meshes; }
 
-    inline std::vector<StaticBodyDesc> &getStaticBodiesDesc() { return m_static_bodies_desc; }
     inline void addStaticBody(const StaticBodyDesc &_desc) { m_static_bodies_desc.push_back(_desc); }
+    inline std::vector<StaticBodyDesc> &getStaticBodiesDesc() { return m_static_bodies_desc; }
+    inline std::vector<StaticBody> &getCurrentStaticBodies() { return m_static_bodies; }
 
-    inline std::vector<DynamicObjectDesc> &getDynamicObjectsDesc() { return m_dynamic_objects_desc; }
     inline void addDynamicObject(const DynamicObjectDesc &_desc) { m_dynamic_objects_desc.push_back(_desc); }
+    inline std::vector<DynamicObjectDesc> &getDynamicObjectsDesc() { return m_dynamic_objects_desc; }
+    inline std::vector<DynamicObject> &getCurrentDynamicObjects() { return m_dynamic_objects; }
 
     void resetObjects();
 
     bool updateInterface();
-    void staticBodyInterface(StaticBodyDesc &object);
-    void dynamicObjectInterface(DynamicObjectDesc &object);
+    void meshTypeInterface(uint _mesh_i);
+    void staticBodyInterface(StaticBodyDesc &_object);
+    void dynamicObjectInterface(DynamicObjectDesc &_object);
 
     bool updateInteractions(GLFWwindow *_window, const glm::dvec3 &_camera_pos, const glm::dvec3 &_cursor_worldpos);
     bool updateSimulation(float _deltaTime);
 
-    void init();
     void render(const ShaderProgram &_dynamic_shader, const ShaderProgram &_mesh_shader, const glm::mat4 &_projection, const glm::mat4 &_view) const;
     void clear();
 };
