@@ -33,8 +33,9 @@ private:
 
     // static bodies
     std::vector<StaticBodyDesc> m_static_bodies_desc = {};
-    std::vector<Transformation> m_static_transformations = {};
+    std::vector<bool> m_static_realtime_reset = {};
     std::vector<StaticBody> m_static_bodies = {};
+    std::vector<Transformation> m_static_transformations = {};
 
     // dynamic objects
     std::vector<DynamicObjectDesc> m_dynamic_objects_desc = {};
@@ -57,12 +58,15 @@ public:
     inline std::vector<DynamicObjectDesc> &getDynamicObjectsDesc() { return m_dynamic_objects_desc; }
     inline std::vector<DynamicObject> &getCurrentDynamicObjects() { return m_dynamic_objects; }
 
+    void resetMesh(uint _i);
+    void resetStaticBody(uint _i);
+    void resetDynamicObject(uint _i);
     void resetObjects();
 
     bool updateInterface();
-    void meshTypeInterface(uint _mesh_i);
-    void staticBodyInterface(StaticBodyDesc &_object);
-    void dynamicObjectInterface(DynamicObjectDesc &_object);
+    void meshTypeInterface(uint _i);
+    void staticBodyInterface(uint _i);
+    void dynamicObjectInterface(uint _i);
 
     bool updateInteractions(GLFWwindow *_window, const glm::dvec3 &_camera_pos, const glm::dvec3 &_cursor_worldpos);
     bool updateSimulation(float _deltaTime);
