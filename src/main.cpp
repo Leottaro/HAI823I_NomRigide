@@ -60,9 +60,7 @@ int main(void) {
     // TODO: add/remove objects in imgui ?
     Scene scene = Scene();
 
-    size_t size = 10;
     scene.addMesh(CubeMesh{2});
-    // scene.addMesh(CubeMesh{size});
     scene.addMesh(LoadedMesh{"ressources/models/monkey.off"});
 
     Transformation *floor_transfo = scene.addStaticBody(StaticBodyDesc("sol", 0));

@@ -2,6 +2,7 @@
 
 #include <variant>
 #include <iostream>
+#include <unordered_map>
 
 void Scene::resetMesh(uint _i) {
     m_meshes[_i].clear();
@@ -36,6 +37,7 @@ void Scene::resetObjects() {
         resetStaticBody(i);
 
     m_dynamic_objects.resize(m_dynamic_objects_desc.size());
+    m_dynamic_fixed_input_buffers.resize(m_dynamic_objects_desc.size());
     for (uint i = 0; i < m_dynamic_objects_desc.size(); i++)
         resetDynamicObject(i);
 
@@ -203,6 +205,40 @@ void Scene::dynamicObjectInterface(uint _i) {
     ImGui::DragFloat(("angle stiffness##dynamic" + object.name).c_str(), &object.angle_stiffness, 0.001f, 0.f, 1.f);
     ImGui::DragFloat(("volume stiffness##dynamic" + object.name).c_str(), &object.volume_stiffness, 0.001f, 0.f, 1.f);
     ImGui::DragFloat(("volume pressure##dynamic" + object.name).c_str(), &object.volume_pressure, 0.001f, 0.f, 1.f);
+
+    ImGui::Spacing();
+    ImGui::Text("Fixed Vertices: ");
+
+    // Input field to add new fixed vertex
+    if (ImGui::Button(("Add##fixed" + object.name).c_str())) {
+        uint pj = static_cast<uint>(m_dynamic_fixed_input_buffers[_i]);
+        object.fixed_vertices.insert(pj);
+        m_dynamic_objects[_i].setVertexFixed(pj, true);
+        m_dynamic_fixed_input_buffers[_i] = 0;
+    }
+    ImGui::SameLine();
+    if (ImGui::InputInt(("Add vertex index##dynamic" + object.name).c_str(), &m_dynamic_fixed_input_buffers[_i], 1, 1)) {
+        m_dynamic_fixed_input_buffers[_i] = std::max(0, m_dynamic_fixed_input_buffers[_i]);
+    }
+
+    // Display and allow removal of fixed vertices
+    ImGui::Text("Fixed vertices:");
+    ImGui::Indent();
+    std::vector<uint> vertices_to_remove;
+    for (uint pj : object.fixed_vertices) {
+        ImGui::BulletText("%d", pj);
+        ImGui::SameLine();
+        if (ImGui::SmallButton(("remove##vertex" + std::to_string(pj) + "##" + object.name).c_str())) {
+            vertices_to_remove.push_back(pj);
+        }
+    }
+    for (uint pj : vertices_to_remove) {
+        m_dynamic_objects[_i].setVertexFixed(pj, false);
+        object.fixed_vertices.erase(pj);
+    }
+    ImGui::Unindent();
+
+    ImGui::Spacing();
 }
 
 bool Scene::updateInterface() {

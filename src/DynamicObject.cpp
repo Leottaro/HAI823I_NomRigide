@@ -620,17 +620,17 @@ void DynamicObject::initRendering() {
 
     glGenBuffers(1, &m_lines_EBO);
     updateRenderedConstraints();
-
-    glBindVertexArray(0);
 }
 
 void DynamicObject::updateRenderedPositions() {
+    glBindVertexArray(m_VAO);
     std::vector<glm::vec3> positions_float(m_positions.begin(), m_positions.end());
     glBindBuffer(GL_ARRAY_BUFFER, m_positions_VBO);
     glBufferData(GL_ARRAY_BUFFER, positions_float.size() * sizeof(glm::vec3), positions_float.data(), GL_DYNAMIC_DRAW);
 }
 
 void DynamicObject::updateRenderedConstraints() {
+    glBindVertexArray(m_VAO);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_lines_EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_lines.size() * sizeof(glm::uvec2), m_lines.data(), GL_STATIC_DRAW);
 }

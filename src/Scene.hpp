@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include <unordered_set>
+#include <unordered_map>
 
 #include "DynamicObject.hpp"
 #include "ShaderProgram.hpp"
@@ -26,10 +27,12 @@ struct DynamicObjectDesc {
     float volume_pressure;
 
     Transformation transfo{};
-    std::unordered_set<uint> fixed_vertices{};
     float ambient_friction_coefficient{0.01};
     float friction_coefficient{0.5};
     float restitution_coefficient{0.5};
+
+    std::unordered_set<uint> fixed_vertices{0};
+    bool real_time_fixed{false};
 
     DynamicObjectDesc(const std::string &_name, uint _mesh_i, float _distance_stiffness, float _angle_stiffness, float _volume_stiffness, float _volume_pressure) : name(_name), mesh_i(_mesh_i), distance_stiffness(_distance_stiffness), angle_stiffness(_angle_stiffness), volume_stiffness(_volume_stiffness), volume_pressure(_volume_pressure) {}
 };
@@ -53,6 +56,7 @@ private:
     // uint m_dynamic_objects_count = 0;
     std::vector<DynamicObjectDesc> m_dynamic_objects_desc = {};
     std::string m_new_dynamic_name;
+    std::vector<int> m_dynamic_fixed_input_buffers;
     std::vector<DynamicObject> m_dynamic_objects;
 
 public:
