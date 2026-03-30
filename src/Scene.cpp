@@ -101,12 +101,42 @@ void Scene::meshTypeInterface(uint _mesh_i) {
                 resetDynamicObject(i);
     }
 
+    ImGui::SameLine();
+    if (ImGui::Button(("remove##" + std::to_string(_mesh_i)).c_str())) {
+        m_meshes_type.erase(m_meshes_type.begin()+_mesh_i);
+        m_meshes.erase(m_meshes.begin()+_mesh_i);
+
+        for (uint i = 0; i < m_static_bodies_desc.size(); i++) {
+            if (m_static_bodies_desc[i].mesh_i == _mesh_i) {
+                m_static_bodies_desc.erase(m_static_bodies_desc.begin() + i);
+                m_static_bodies.erase(m_static_bodies.begin() + i);
+            } else if (m_static_bodies_desc[i].mesh_i > _mesh_i) {
+                m_static_bodies_desc[i].mesh_i--;
+            }
+        }
+        
+        for (uint i = 0; i < m_dynamic_objects_desc.size(); i++) {
+            if (m_dynamic_objects_desc[i].mesh_i == _mesh_i) {
+                m_dynamic_objects_desc.erase(m_dynamic_objects_desc.begin() + i);
+                m_dynamic_objects.erase(m_dynamic_objects.begin() + i);
+            } else if (m_dynamic_objects_desc[i].mesh_i > _mesh_i) {
+                m_dynamic_objects_desc[i].mesh_i--;
+            }
+        }
+    }
+
     ImGui::Unindent();
 }
 
 void Scene::staticBodyInterface(uint _i) {
     StaticBodyDesc &object = m_static_bodies_desc[_i];
     ImGui::Text("%s: ", object.name.c_str());
+
+    ImGui::SameLine();
+    if (ImGui::Button(("remove##" + std::to_string(_i)).c_str())) {
+        m_static_bodies_desc.erase(m_static_bodies_desc.begin()+_i);
+        m_static_bodies.erase(m_static_bodies.begin()+_i);
+    }
 
     ImGui::SameLine();
     bool real_time_reset = m_static_realtime_reset[_i];
@@ -140,6 +170,13 @@ void Scene::staticBodyInterface(uint _i) {
 void Scene::dynamicObjectInterface(uint _i) {
     DynamicObjectDesc &object = m_dynamic_objects_desc[_i];
     ImGui::Text("%s: ", object.name.c_str());
+
+    ImGui::SameLine();
+    if (ImGui::Button(("remove##" + std::to_string(_i)).c_str())) {
+        m_dynamic_objects_desc.erase(m_dynamic_objects_desc.begin()+_i);
+        m_dynamic_objects.erase(m_dynamic_objects.begin()+_i);
+    }
+
 
     ImGui::SameLine();
     if (ImGui::Button(("apply##" + object.name).c_str())) {
