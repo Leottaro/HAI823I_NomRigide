@@ -65,14 +65,16 @@ int main(void) {
     // scene.addMesh(CubeMesh{size});
     scene.addMesh(LoadedMesh{"ressources/models/monkey.off"});
 
-    Transformation floor_transfo;
-    floor_transfo.setTranslation(glm::vec3(0.f, -3.f, 0.f));
-    floor_transfo.setScale(glm::vec3(10.f, 4.f, 50.f));
-    floor_transfo.setEulerAngles(glm::vec3(M_PIf / 8.f, 0.f, 0.f));
-    scene.addStaticBody({"sol", 0, &floor_transfo});
+    Transformation *floor_transfo = scene.addStaticBody(StaticBodyDesc("sol", 0));
+    floor_transfo->setTranslation(glm::vec3(0.f, -3.f, 0.f));
+    floor_transfo->setScale(glm::vec3(10.f, 4.f, 50.f));
+    floor_transfo->setEulerAngles(glm::vec3(M_PIf / 8.f, 0.f, 0.f));
 
-    Transformation dynamic_body_transformation(glm::vec3(0.f, 3.f, 0.f), glm::vec3(1.f), glm::vec3(0.f));
-    scene.addDynamicObject({"boule", 1, &dynamic_body_transformation, .75f, .75f, .75f, .75f});
+    Transformation *dynamic_body_transformation = scene.addDynamicObject(DynamicObjectDesc("boule", 1, .75f, .75f, .75f, .75f));
+    dynamic_body_transformation->setTranslation(glm::vec3(0.f, 3.f, 0.f));
+    dynamic_body_transformation->setScale(glm::vec3(1.f));
+    dynamic_body_transformation->setEulerAngles(glm::vec3(0.f));
+
     // dynamic_body.setVertexFixed(0, true);
     // dynamic_body.setVertexFixed(size - 1, true);
     // dynamic_body.setVertexFixed((size - 1) * size, true);

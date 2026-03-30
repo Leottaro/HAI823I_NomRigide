@@ -9,13 +9,12 @@ void Scene::resetMesh(uint _i) {
     m_meshes[_i].init();
 }
 void Scene::resetStaticBody(uint _i) {
-    m_static_bodies[_i].m_mesh = &m_meshes[m_static_bodies_desc[_i].mesh_i];
-    m_static_transformations[_i] = *m_static_bodies_desc[_i].transfo;
-    m_static_bodies[_i].m_transformation = &m_static_transformations[_i];
+    m_static_bodies_mesh_i[_i] = m_static_bodies_desc[_i].mesh_i;
+    m_static_bodies_transfo[_i] = m_static_bodies_desc[_i].transfo;
 }
 void Scene::resetDynamicObject(uint _i) {
     m_dynamic_objects[_i].clear();
-    m_dynamic_objects[_i] = DynamicObject::bodyFromMesh({&m_meshes[m_dynamic_objects_desc[_i].mesh_i], m_dynamic_objects_desc[_i].transfo}, m_dynamic_objects_desc[_i].distance_stiffness, m_dynamic_objects_desc[_i].angle_stiffness, m_dynamic_objects_desc[_i].volume_stiffness, m_dynamic_objects_desc[_i].volume_pressure);
+    m_dynamic_objects[_i] = DynamicObject::bodyFromMesh({&m_meshes[m_dynamic_objects_desc[_i].mesh_i], &m_dynamic_objects_desc[_i].transfo}, m_dynamic_objects_desc[_i].distance_stiffness, m_dynamic_objects_desc[_i].angle_stiffness, m_dynamic_objects_desc[_i].volume_stiffness, m_dynamic_objects_desc[_i].volume_pressure);
     for (uint pj : m_dynamic_objects_desc[_i].fixed_vertices) {
         m_dynamic_objects[_i].setVertexFixed(pj, true);
     }
@@ -31,9 +30,8 @@ void Scene::resetObjects() {
     for (uint i = 0; i < m_meshes_type.size(); i++)
         resetMesh(i);
 
-    m_static_bodies.resize(m_static_bodies_desc.size());
-    m_static_transformations.resize(m_static_bodies_desc.size());
-    m_static_realtime_reset.resize(m_static_bodies_desc.size());
+    m_static_bodies_mesh_i.resize(m_static_bodies_desc.size());
+    m_static_bodies_transfo.resize(m_static_bodies_desc.size());
     for (uint i = 0; i < m_static_bodies_desc.size(); i++)
         resetStaticBody(i);
 
@@ -48,7 +46,7 @@ void Scene::meshTypeInterface(uint _mesh_i) {
     ImGui::Text("%d:", _mesh_i);
     ImGui::SameLine();
     int _type_int = meshTypeToInt(m_meshes_type[_mesh_i]);
-    if (ImGui::Combo(("type##" + std::to_string(_mesh_i)).c_str(), &_type_int, ALL_MESH_TYPES) && _type_int != meshTypeToInt(m_meshes_type[_mesh_i])) {
+    if (ImGui::Combo(("type##mesh" + std::to_string(_mesh_i)).c_str(), &_type_int, ALL_MESH_TYPES) && _type_int != meshTypeToInt(m_meshes_type[_mesh_i])) {
         m_meshes_type[_mesh_i] = meshTypeFromInt(_type_int);
     }
 
@@ -60,38 +58,38 @@ void Scene::meshTypeInterface(uint _mesh_i) {
                 char path_buffer[256];
                 std::strncpy(path_buffer, mesh_spec.path.c_str(), sizeof(path_buffer) - 1);
                 path_buffer[sizeof(path_buffer) - 1] = '\0';
-                if (ImGui::InputText(("path##" + std::to_string(_mesh_i)).c_str(), path_buffer, sizeof(path_buffer))) {
+                if (ImGui::InputText(("path##mesh" + std::to_string(_mesh_i)).c_str(), path_buffer, sizeof(path_buffer))) {
                     mesh_spec.path = path_buffer;
                 }
             } else if constexpr (std::is_same_v<T, SingleTriangleMesh>) {
             } else if constexpr (std::is_same_v<T, SimpleGridMesh>) {
                 glm::ivec2 dimensions(mesh_spec.nx, mesh_spec.nz);
-                if (ImGui::DragInt2(("x,z##" + std::to_string(_mesh_i)).c_str(), glm::value_ptr(dimensions), 0.01, 2, INT32_MAX)) {
+                if (ImGui::DragInt2(("x,z##mesh" + std::to_string(_mesh_i)).c_str(), glm::value_ptr(dimensions), 0.01, 2, INT32_MAX)) {
                     mesh_spec.nx = std::max(2, dimensions.x);
                     mesh_spec.nz = std::max(2, dimensions.y);
                 }
             } else if constexpr (std::is_same_v<T, SimpleTerrainMesh>) {
                 glm::ivec2 dimensions(mesh_spec.nx, mesh_spec.nz);
-                if (ImGui::DragInt2(("x,z##" + std::to_string(_mesh_i)).c_str(), glm::value_ptr(dimensions), 0.01, 2, INT32_MAX)) {
+                if (ImGui::DragInt2(("x,z##mesh" + std::to_string(_mesh_i)).c_str(), glm::value_ptr(dimensions), 0.01, 2, INT32_MAX)) {
                     mesh_spec.nx = std::max(2, dimensions.x);
                     mesh_spec.nz = std::max(2, dimensions.y);
                 }
-                ImGui::DragFloat2(("y range##" + std::to_string(_mesh_i)).c_str(), glm::value_ptr(mesh_spec.y_range), 0.001, -FLT_MAX, FLT_MAX);
+                ImGui::DragFloat2(("y range##mesh" + std::to_string(_mesh_i)).c_str(), glm::value_ptr(mesh_spec.y_range), 0.001, -FLT_MAX, FLT_MAX);
             } else if constexpr (std::is_same_v<T, CubeMesh>) {
                 int details = mesh_spec.n;
-                if (ImGui::DragInt(("details##" + std::to_string(_mesh_i)).c_str(), &details, 0.01, 2, INT32_MAX)) {
+                if (ImGui::DragInt(("details##mesh" + std::to_string(_mesh_i)).c_str(), &details, 0.01, 2, INT32_MAX)) {
                     mesh_spec.n = std::max(2, details);
                 }
             } else if constexpr (std::is_same_v<T, CubeSphereMesh>) {
                 int details = mesh_spec.n;
-                if (ImGui::DragInt(("details##" + std::to_string(_mesh_i)).c_str(), &details, 0.01, 3, INT32_MAX)) {
+                if (ImGui::DragInt(("details##mesh" + std::to_string(_mesh_i)).c_str(), &details, 0.01, 3, INT32_MAX)) {
                     mesh_spec.n = std::max(3, details);
                 }
             }
         },
         m_meshes_type[_mesh_i]);
 
-    if (ImGui::Button(("apply##" + std::to_string(_mesh_i)).c_str())) {
+    if (ImGui::Button(("apply##mesh" + std::to_string(_mesh_i)).c_str())) {
         resetMesh(_mesh_i);
         for (uint i = 0; i < m_static_bodies_desc.size(); i++)
             if (m_static_bodies_desc[i].mesh_i == _mesh_i)
@@ -102,19 +100,20 @@ void Scene::meshTypeInterface(uint _mesh_i) {
     }
 
     ImGui::SameLine();
-    if (ImGui::Button(("remove##" + std::to_string(_mesh_i)).c_str())) {
-        m_meshes_type.erase(m_meshes_type.begin()+_mesh_i);
-        m_meshes.erase(m_meshes.begin()+_mesh_i);
+    if (ImGui::Button(("remove##mesh" + std::to_string(_mesh_i)).c_str())) {
+        m_meshes_type.erase(m_meshes_type.begin() + _mesh_i);
+        m_meshes.erase(m_meshes.begin() + _mesh_i);
 
         for (uint i = 0; i < m_static_bodies_desc.size(); i++) {
             if (m_static_bodies_desc[i].mesh_i == _mesh_i) {
                 m_static_bodies_desc.erase(m_static_bodies_desc.begin() + i);
-                m_static_bodies.erase(m_static_bodies.begin() + i);
+                m_static_bodies_mesh_i.erase(m_static_bodies_mesh_i.begin() + i);
+                m_static_bodies_transfo.erase(m_static_bodies_transfo.begin() + i);
             } else if (m_static_bodies_desc[i].mesh_i > _mesh_i) {
                 m_static_bodies_desc[i].mesh_i--;
             }
         }
-        
+
         for (uint i = 0; i < m_dynamic_objects_desc.size(); i++) {
             if (m_dynamic_objects_desc[i].mesh_i == _mesh_i) {
                 m_dynamic_objects_desc.erase(m_dynamic_objects_desc.begin() + i);
@@ -133,37 +132,35 @@ void Scene::staticBodyInterface(uint _i) {
     ImGui::Text("%s: ", object.name.c_str());
 
     ImGui::SameLine();
-    if (ImGui::Button(("remove##" + std::to_string(_i)).c_str())) {
-        m_static_bodies_desc.erase(m_static_bodies_desc.begin()+_i);
-        m_static_bodies.erase(m_static_bodies.begin()+_i);
+    if (ImGui::Button(("remove##static" + std::to_string(_i)).c_str())) {
+        m_static_bodies_desc.erase(m_static_bodies_desc.begin() + _i);
+        m_static_bodies_mesh_i.erase(m_static_bodies_mesh_i.begin() + _i);
+        m_static_bodies_transfo.erase(m_static_bodies_transfo.begin() + _i);
     }
 
     ImGui::SameLine();
-    bool real_time_reset = m_static_realtime_reset[_i];
-    ImGui::BeginDisabled(real_time_reset);
-    bool is_apply_pressed = ImGui::Button(("apply##" + object.name).c_str());
+    ImGui::BeginDisabled(m_static_bodies_desc[_i].real_time);
+    bool is_apply_pressed = ImGui::Button(("apply##static" + object.name).c_str());
     ImGui::EndDisabled();
     ImGui::SameLine();
-    if (ImGui::Checkbox(("real time apply##" + object.name).c_str(), &real_time_reset)) {
-        m_static_realtime_reset[_i] = real_time_reset;
-    }
+    ImGui::Checkbox(("real time apply##static" + object.name).c_str(), &m_static_bodies_desc[_i].real_time);
 
-    if (is_apply_pressed || real_time_reset) {
+    if (is_apply_pressed || m_static_bodies_desc[_i].real_time) {
         resetStaticBody(_i);
     }
 
     int mi = object.mesh_i;
-    if (ImGui::InputInt(("mesh i##" + object.name).c_str(), &mi, 1, 1)) {
+    if (ImGui::InputInt(("mesh i##static" + object.name).c_str(), &mi, 1, 1)) {
         object.mesh_i = std::clamp(mi, 0, int(m_meshes.size() - 1));
     }
 
     ImGui::Spacing();
-    ImGui::DragFloat3(("Position##" + object.name).c_str(), glm::value_ptr(object.transfo->getTranslation()), .01f, -FLT_MAX, FLT_MAX);
-    ImGui::DragFloat3(("Scale##" + object.name).c_str(), glm::value_ptr(object.transfo->getScale()), .01f, -FLT_MAX, FLT_MAX);
-    glm::vec3 ea_degree = glm::degrees(object.transfo->getEulerAngles());
-    if (ImGui::DragFloat3(("Pitch Yaw Roll##" + object.name).c_str(), glm::value_ptr(ea_degree), .5f, -360.f, 360.f)) {
-        object.transfo->setEulerAngles(glm::radians(ea_degree));
-        object.transfo->updateRotation();
+    ImGui::DragFloat3(("Position##static" + object.name).c_str(), glm::value_ptr(object.transfo.getTranslation()), .01f, -FLT_MAX, FLT_MAX);
+    ImGui::DragFloat3(("Scale##static" + object.name).c_str(), glm::value_ptr(object.transfo.getScale()), .01f, -FLT_MAX, FLT_MAX);
+    glm::vec3 ea_degree = glm::degrees(object.transfo.getEulerAngles());
+    if (ImGui::DragFloat3(("Pitch Yaw Roll##static" + object.name).c_str(), glm::value_ptr(ea_degree), .5f, -360.f, 360.f)) {
+        object.transfo.setEulerAngles(glm::radians(ea_degree));
+        object.transfo.updateRotation();
     }
 }
 
@@ -172,41 +169,40 @@ void Scene::dynamicObjectInterface(uint _i) {
     ImGui::Text("%s: ", object.name.c_str());
 
     ImGui::SameLine();
-    if (ImGui::Button(("remove##" + std::to_string(_i)).c_str())) {
-        m_dynamic_objects_desc.erase(m_dynamic_objects_desc.begin()+_i);
-        m_dynamic_objects.erase(m_dynamic_objects.begin()+_i);
+    if (ImGui::Button(("remove##dynamic" + std::to_string(_i)).c_str())) {
+        m_dynamic_objects_desc.erase(m_dynamic_objects_desc.begin() + _i);
+        m_dynamic_objects.erase(m_dynamic_objects.begin() + _i);
     }
 
-
     ImGui::SameLine();
-    if (ImGui::Button(("apply##" + object.name).c_str())) {
+    if (ImGui::Button(("apply##dynamic" + object.name).c_str())) {
         resetDynamicObject(_i);
     }
 
     int mi = object.mesh_i;
-    if (ImGui::InputInt(("mesh i##" + object.name).c_str(), &mi, 1, 1)) {
+    if (ImGui::InputInt(("mesh i##dynamic" + object.name).c_str(), &mi, 1, 1)) {
         object.mesh_i = std::clamp(mi, 0, int(m_meshes.size() - 1));
     }
 
     ImGui::Spacing();
-    ImGui::DragFloat3(("Position##" + object.name).c_str(), glm::value_ptr(object.transfo->getTranslation()), .01f, -FLT_MAX, FLT_MAX);
-    ImGui::DragFloat3(("Scale##" + object.name).c_str(), glm::value_ptr(object.transfo->getScale()), .01f, -FLT_MAX, FLT_MAX);
-    glm::vec3 ea_degree = glm::degrees(object.transfo->getEulerAngles());
-    if (ImGui::DragFloat3(("Pitch Yaw Roll##" + object.name).c_str(), glm::value_ptr(ea_degree), .5f, -360.f, 360.f)) {
-        object.transfo->setEulerAngles(glm::radians(ea_degree));
-        object.transfo->updateRotation();
+    ImGui::DragFloat3(("Position##dynamic" + object.name).c_str(), glm::value_ptr(object.transfo.getTranslation()), .01f, -FLT_MAX, FLT_MAX);
+    ImGui::DragFloat3(("Scale##dynamic" + object.name).c_str(), glm::value_ptr(object.transfo.getScale()), .01f, -FLT_MAX, FLT_MAX);
+    glm::vec3 ea_degree = glm::degrees(object.transfo.getEulerAngles());
+    if (ImGui::DragFloat3(("Pitch Yaw Roll##dynamic" + object.name).c_str(), glm::value_ptr(ea_degree), .5f, -360.f, 360.f)) {
+        object.transfo.setEulerAngles(glm::radians(ea_degree));
+        object.transfo.updateRotation();
     }
 
     ImGui::Spacing();
-    ImGui::DragFloat(("Ambiant friction##" + object.name).c_str(), &object.ambient_friction_coefficient, .01f, 0.f, 1.f);
-    ImGui::DragFloat(("Friction##" + object.name).c_str(), &object.friction_coefficient, .01f, 0.f, 1.f);
-    ImGui::DragFloat(("Restitution##" + object.name).c_str(), &object.restitution_coefficient, .01f, 0.f, 1.f);
+    ImGui::DragFloat(("Ambiant friction##dynamic" + object.name).c_str(), &object.ambient_friction_coefficient, .01f, 0.f, 1.f);
+    ImGui::DragFloat(("Friction##dynamic" + object.name).c_str(), &object.friction_coefficient, .01f, 0.f, 1.f);
+    ImGui::DragFloat(("Restitution##dynamic" + object.name).c_str(), &object.restitution_coefficient, .01f, 0.f, 1.f);
 
     ImGui::Spacing();
-    ImGui::DragFloat(("distance stiffness##" + object.name).c_str(), &object.distance_stiffness, 0.001f, 0.f, 1.f);
-    ImGui::DragFloat(("angle stiffness##" + object.name).c_str(), &object.angle_stiffness, 0.001f, 0.f, 1.f);
-    ImGui::DragFloat(("volume stiffness##" + object.name).c_str(), &object.volume_stiffness, 0.001f, 0.f, 1.f);
-    ImGui::DragFloat(("volume pressure##" + object.name).c_str(), &object.volume_pressure, 0.001f, 0.f, 1.f);
+    ImGui::DragFloat(("distance stiffness##dynamic" + object.name).c_str(), &object.distance_stiffness, 0.001f, 0.f, 1.f);
+    ImGui::DragFloat(("angle stiffness##dynamic" + object.name).c_str(), &object.angle_stiffness, 0.001f, 0.f, 1.f);
+    ImGui::DragFloat(("volume stiffness##dynamic" + object.name).c_str(), &object.volume_stiffness, 0.001f, 0.f, 1.f);
+    ImGui::DragFloat(("volume pressure##dynamic" + object.name).c_str(), &object.volume_pressure, 0.001f, 0.f, 1.f);
 }
 
 bool Scene::updateInterface() {
@@ -231,30 +227,62 @@ bool Scene::updateInterface() {
         ImGui::Spacing();
         ImGui::SeparatorText("Meshes");
         ImGui::Spacing();
+        int mesh_type_int = meshTypeToInt(m_new_mesh_type);
+        if (ImGui::Combo("##add_mesh", &mesh_type_int, ALL_MESH_TYPES) && mesh_type_int != meshTypeToInt(m_new_mesh_type)) {
+            m_new_mesh_type = meshTypeFromInt(mesh_type_int);
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Add##mesh")) {
+            m_meshes_type.push_back(m_new_mesh_type);
+            m_meshes.push_back(Mesh());
+            for (uint i = 0; i < m_meshes_type.size(); i++)
+                resetMesh(i);
+        }
         for (uint i = 0; i < m_meshes_type.size(); i++) {
-            if (i > 0) {
-                ImGui::Spacing();
-                ImGui::Separator();
-                ImGui::Spacing();
-            }
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
             meshTypeInterface(i);
         }
 
         ImGui::Spacing();
         ImGui::SeparatorText("Static Bodies");
         ImGui::Spacing();
+        char new_static_name_buffer[256];
+        std::strncpy(new_static_name_buffer, m_new_static_name.c_str(), sizeof(new_static_name_buffer) - 1);
+        new_static_name_buffer[sizeof(new_static_name_buffer) - 1] = '\0';
+        if (ImGui::InputText("##newstaticname", new_static_name_buffer, sizeof(new_static_name_buffer))) {
+            m_new_static_name = new_static_name_buffer;
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Add##static")) {
+            m_static_bodies_desc.push_back(StaticBodyDesc(m_new_static_name, 0));
+            m_static_bodies_mesh_i.push_back(0);
+            m_static_bodies_transfo.push_back({});
+            resetStaticBody(m_static_bodies_desc.size() - 1);
+        }
         for (uint i = 0; i < m_static_bodies_desc.size(); i++) {
-            if (i > 0) {
-                ImGui::Spacing();
-                ImGui::Separator();
-                ImGui::Spacing();
-            }
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
             staticBodyInterface(i);
         }
 
         ImGui::Spacing();
         ImGui::SeparatorText("Dynamic Objects");
         ImGui::Spacing();
+        char new_dynamic_name_buffer[256];
+        std::strncpy(new_dynamic_name_buffer, m_new_dynamic_name.c_str(), sizeof(new_dynamic_name_buffer) - 1);
+        new_dynamic_name_buffer[sizeof(new_dynamic_name_buffer) - 1] = '\0';
+        if (ImGui::InputText("##newdynamicname", new_dynamic_name_buffer, sizeof(new_dynamic_name_buffer))) {
+            m_new_dynamic_name = new_dynamic_name_buffer;
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Add##dynamic")) {
+            m_dynamic_objects_desc.push_back(DynamicObjectDesc(m_new_dynamic_name, 0, 1.f, 1.f, 1.f, 1.f));
+            m_dynamic_objects.push_back(DynamicObject());
+            resetStaticBody(m_dynamic_objects_desc.size() - 1);
+        }
         for (uint i = 0; i < m_dynamic_objects_desc.size(); i++) {
             if (i > 0) {
                 ImGui::Spacing();
@@ -280,11 +308,14 @@ bool Scene::updateInteractions(GLFWwindow *_window, const glm::dvec3 &_camera_po
 }
 
 bool Scene::updateSimulation(float _deltaTime) {
-    if (do_fixed_delta_time) {
-        _deltaTime = fixed_delta_time;
+    std::vector<StaticBody> static_bodies(m_static_bodies_desc.size());
+    for (uint i = 0; i < m_static_bodies_desc.size(); i++) {
+        static_bodies[i].m_mesh = &m_meshes[m_static_bodies_mesh_i[i]];
+        static_bodies[i].m_transformation = &m_static_bodies_transfo[i];
     }
+
     for (DynamicObject &obj : m_dynamic_objects) {
-        if (!obj.update(_deltaTime, solver_iterations, m_static_bodies)) {
+        if (!obj.update(do_fixed_delta_time ? fixed_delta_time : _deltaTime, solver_iterations, static_bodies)) {
             obj.updateRenderedPositions();
             return false;
         }
@@ -306,13 +337,13 @@ void Scene::render(const ShaderProgram &_dynamic_shader, const ShaderProgram &_m
     // STATIC OBJECTS RENDERING
     _mesh_shader.use();
     _mesh_shader.set("projection", _projection);
-    for (const StaticBody &static_body : m_static_bodies) {
-        glm::mat4 model = static_body.m_transformation->computeTransformationMatrix();
+    for (uint i = 0; i < m_static_bodies_desc.size(); i++) {
+        glm::mat4 model = m_static_bodies_transfo[i].computeTransformationMatrix();
         glm::mat4 model_view = _view * model;
         glm::mat4 normal_mat = glm::transpose(glm::inverse(model_view));
         _mesh_shader.set("model_view", model_view);
         _mesh_shader.set("normal_mat", normal_mat);
-        static_body.m_mesh->render();
+        m_meshes[m_static_bodies_mesh_i[i]].render();
     }
 }
 
