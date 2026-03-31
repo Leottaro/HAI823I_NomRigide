@@ -72,6 +72,7 @@ class DynamicObject {
 
     void addCollisionConstraint(uint _p0, glm::dvec3 _intersection, glm::dvec3 _normal, double _stiffness);
     void addEdgeCollisionConstraint(uint _p0, uint _p1, double _alpha, glm::dvec3 _surface_point, glm::dvec3 _normal, double _stiffness);
+    void addStaticPointDynamicTriangleConstraint( uint _p0, uint _p1, uint _p2, glm::dvec3 _static_point, glm::dvec3 _barycentrics, glm::dvec3 _normal, double _stiffness);
 
 public:
     // GETTERS
@@ -130,9 +131,11 @@ private:
 
     GLuint m_lines_EBO;
     std::vector<glm::uvec2> m_lines;
+    std::vector<glm::uvec3> m_triangles;
 
 public:
     void addDrawLine(uint _p0, uint _p1) { m_lines.push_back(glm::uvec2(_p0, _p1)); };
+    void addTriangle(uint _p0, uint _p1, uint _p2) { m_triangles.push_back(glm::uvec3(_p0, _p1, _p2)); };
 
     void initRendering();
     void updateRenderedPositions();

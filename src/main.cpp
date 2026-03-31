@@ -48,25 +48,30 @@ int main(void) {
     dynamic_shader.link();
 
     // TODO: SCENE
-    Camera camera(glm::vec3(), 8., glm::vec2(-M_PI_4 * 0.5, 0.));
+    Camera camera(glm::vec3(0.f,0.f,0.f), 8., glm::vec2(-M_PI_4 * 0.5, 0.f));
 
     std::vector<StaticBody> static_bodies;
 
-    Mesh floor;
-    floor.setSimpleGrid(2, 2);
-    floor.setCube(2);
-    floor.init();
-    Transformation floor_transfo;
-    floor_transfo.setTranslation(glm::vec3(0.f, -3.f, 0.f));
-    floor_transfo.setScale(glm::vec3(10.f, 4.f, 50.f));
-    floor_transfo.setEulerAngles(glm::vec3(M_PIf / 8.f, 0.f, 0.f));
-    static_bodies.push_back(StaticBody(&floor, &floor_transfo));
+    Mesh cube_mesh;
+    cube_mesh.setSimpleGrid(2, 2);
+    cube_mesh.setCube(2);
+    cube_mesh.init();
+    Transformation cube1_transfo;
+    cube1_transfo.setTranslation(glm::vec3(0.f, -1.f, 0.f));
+    cube1_transfo.setScale(glm::vec3(1.f, 1.f, 1.f));
+    cube1_transfo.setEulerAngles(glm::vec3(M_PI_4, 0.f, M_PI_4));
+    static_bodies.push_back(StaticBody(&cube_mesh, &cube1_transfo));
 
     size_t size = 10;
     Mesh object_mesh;
-    object_mesh.setCubeSphere(size);
-    Transformation rigid_object_transformation(glm::vec3(0.f, 3.f, 0.f), glm::vec3(1.f), glm::vec3(0.f));
-    DynamicObject rigid_object = DynamicObject::bodyFromMesh(StaticBody(&object_mesh, &rigid_object_transformation), 1.f, 1.f);
+    object_mesh.setSimpleGrid(size, size);
+    Transformation rigid_object_transformation(glm::vec3(-2.f, 0.f, -2.f), glm::vec3(5.f, 5.f, 5.f), glm::vec3(0.f));
+    DynamicObject rigid_object = DynamicObject::bodyFromMesh(StaticBody(&object_mesh, &rigid_object_transformation), 1.f, 0.3f);
+
+    rigid_object.setVertexFixed(0, true);
+    rigid_object.setVertexFixed(size - 1, true);
+    rigid_object.setVertexFixed((size - 1) * size, true);
+    rigid_object.setVertexFixed(size * size - 1, true);
 
     // rigid_object.setVertexFixed(0, true);
     // rigid_object.setVertexFixed(size - 1, true);
@@ -105,7 +110,8 @@ int main(void) {
             rigid_object.updateRenderedPositions();
             // run_simulation = false;
         }
-        camera.update(window, deltaTime, rigid_object.getPositions()[0], cursor_vel, scroll);
+        camera.update(window, deltaTime, glm::vec3(), cursor_vel, scroll);
+        // camera.update(window, deltaTime, rigid_object.getPositions()[0], cursor_vel, scroll);
 
         // Update uniforms
         glm::mat4 projection = camera.getProjectionMatrix();
@@ -142,7 +148,7 @@ int main(void) {
     rigid_object.clear();
 
     mesh_shader.~ShaderProgram();
-    floor.clear();
+    cube_mesh.clear();
 
     glfwTerminate();
 

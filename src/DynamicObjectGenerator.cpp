@@ -60,8 +60,8 @@ DynamicObject DynamicObject::bodyFromMesh(const StaticBody &_static_body, float 
         addEdgeIfNeeded(a, b);
         addEdgeIfNeeded(a, c);
         addEdgeIfNeeded(b, c);
+        object.addTriangle(a, b, c);
     }
-
     // BENDING CONSTRAINTS
 
     std::map<std::pair<uint, uint>, std::vector<uint>> edgeToOpposite;
