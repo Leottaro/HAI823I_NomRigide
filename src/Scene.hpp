@@ -26,6 +26,7 @@ struct DynamicObjectDesc {
     float volume_stiffness;
     float volume_pressure;
 
+    DynamicRenderType render_type{DynamicRenderType::Auto};
     Transformation transfo{};
     float ambient_friction_coefficient{0.01};
     float friction_coefficient{0.5};

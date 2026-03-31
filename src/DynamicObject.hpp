@@ -41,6 +41,15 @@ enum ConstraintType {
     INEQUALITY_CONSTRAINT,
 };
 
+#define DYNAMIC_RENDER_TYPES_N 4
+#define IMGUI_DYNAMIC_RENDER_TYPES "PointRender\0LineRender\0TriangleRender\0Auto\0"
+enum DynamicRenderType {
+    PointRender,
+    LineRender,
+    TriangleRender,
+    Auto,
+};
+
 class DynamicObject {
     // Verticies
     uint N = 0;                           // number of vertices
@@ -142,14 +151,14 @@ private:
     GLuint m_positions_VBO;
 
     GLuint m_lines_EBO;
+    GLuint m_triangles_EBO;
     std::vector<glm::uvec2> m_lines;
+    std::vector<glm::uvec3> m_triangles;
 
 public:
-    void addDrawLine(uint _p0, uint _p1) { m_lines.push_back(glm::uvec2(_p0, _p1)); };
-
     void initRendering();
     void updateRenderedPositions();
     void updateRenderedConstraints();
-    void render() const;
+    void render(DynamicRenderType _type = DynamicRenderType::Auto) const;
     void clear();
 };

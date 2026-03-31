@@ -9,7 +9,7 @@
 #include "Transformation.hpp"
 
 #define CAMERA_TYPES_N 2
-#define CAMERA_TYPES "Free\0Orbital\0"
+#define IMGUI_CAMERA_TYPES "Free\0Orbital\0"
 enum CameraType {
     CameraFree,
     CameraOrbital,

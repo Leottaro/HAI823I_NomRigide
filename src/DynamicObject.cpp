@@ -619,6 +619,7 @@ void DynamicObject::initRendering() {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
     glGenBuffers(1, &m_lines_EBO);
+    glGenBuffers(1, &m_triangles_EBO);
     updateRenderedConstraints();
 }
 
@@ -633,14 +634,35 @@ void DynamicObject::updateRenderedConstraints() {
     glBindVertexArray(m_VAO);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_lines_EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_lines.size() * sizeof(glm::uvec2), m_lines.data(), GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_triangles_EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_triangles.size() * sizeof(glm::uvec3), m_triangles.data(), GL_STATIC_DRAW);
 }
 
-void DynamicObject::render() const {
+void DynamicObject::render(DynamicRenderType _type) const {
     glBindVertexArray(m_VAO); // Activate the VAO storing geometry data
-    if (m_lines.empty()) {
+    switch (_type) {
+    case PointRender:
         glDrawArrays(GL_POINTS, 0, m_positions.size());
-    } else {
+        break;
+    case LineRender:
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_lines_EBO);
         glDrawElements(GL_LINES, m_lines.size() * 2, GL_UNSIGNED_INT, 0);
+        break;
+    case TriangleRender:
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_triangles_EBO);
+        glDrawElements(GL_TRIANGLES, m_triangles.size() * 3, GL_UNSIGNED_INT, 0);
+        break;
+    case Auto:
+        if (!m_triangles.empty()) {
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_triangles_EBO);
+            glDrawElements(GL_TRIANGLES, m_triangles.size() * 3, GL_UNSIGNED_INT, 0);
+        } else if (!m_lines.empty()) {
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_lines_EBO);
+            glDrawElements(GL_LINES, m_lines.size() * 2, GL_UNSIGNED_INT, 0);
+        } else {
+            glDrawArrays(GL_POINTS, 0, m_positions.size());
+        }
+        break;
     }
 }
 
@@ -660,6 +682,7 @@ void DynamicObject::clear() {
     m_stiffnesses.clear();
     m_types.clear();
     m_lines.clear();
+    m_triangles.clear();
 
     if (m_VAO) {
         glDeleteVertexArrays(1, &m_VAO);
@@ -672,5 +695,9 @@ void DynamicObject::clear() {
     if (m_lines_EBO) {
         glDeleteBuffers(1, &m_lines_EBO);
         m_lines_EBO = 0;
+    }
+    if (m_triangles_EBO) {
+        glDeleteBuffers(1, &m_triangles_EBO);
+        m_triangles_EBO = 0;
     }
 }

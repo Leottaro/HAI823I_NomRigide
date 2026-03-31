@@ -44,8 +44,8 @@ struct CubeSphereMesh {
 };
 struct SingleTriangleMesh {};
 
-#define NB_MESH_TYPES 6
-#define ALL_MESH_TYPES "LoadedMesh\0SingleTriangleMesh\0SimpleGridMesh\0SimpleTerrainMesh\0CubeMesh\0CubeSphereMesh\0"
+#define MESH_TYPES_N 6
+#define IMGUI_MESH_TYPES "LoadedMesh\0SingleTriangleMesh\0SimpleGridMesh\0SimpleTerrainMesh\0CubeMesh\0CubeSphereMesh\0"
 using MeshType = std::variant<
     LoadedMesh,
     SingleTriangleMesh,

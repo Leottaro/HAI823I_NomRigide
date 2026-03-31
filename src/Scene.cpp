@@ -48,7 +48,7 @@ void Scene::meshTypeInterface(uint _mesh_i) {
     ImGui::Text("%d:", _mesh_i);
     ImGui::SameLine();
     int _type_int = meshTypeToInt(m_meshes_type[_mesh_i]);
-    if (ImGui::Combo(("type##mesh" + std::to_string(_mesh_i)).c_str(), &_type_int, ALL_MESH_TYPES) && _type_int != meshTypeToInt(m_meshes_type[_mesh_i])) {
+    if (ImGui::Combo(("type##mesh" + std::to_string(_mesh_i)).c_str(), &_type_int, IMGUI_MESH_TYPES) && _type_int != meshTypeToInt(m_meshes_type[_mesh_i])) {
         m_meshes_type[_mesh_i] = meshTypeFromInt(_type_int);
     }
 
@@ -207,8 +207,13 @@ void Scene::dynamicObjectInterface(uint _i) {
     ImGui::DragFloat(("volume pressure##dynamic" + object.name).c_str(), &object.volume_pressure, 0.001f, 0.f, 1.f);
 
     ImGui::Spacing();
-    ImGui::Text("Fixed Vertices: ");
+    int render_type_int = int(object.render_type);
+    if (ImGui::Combo(("render type##dynamic" + object.name).c_str(), &render_type_int, IMGUI_DYNAMIC_RENDER_TYPES)) {
+        object.render_type = DynamicRenderType(render_type_int);
+    }
 
+    ImGui::Spacing();
+    ImGui::Text("Fixed Vertices: ");
     // Input field to add new fixed vertex
     if (ImGui::Button(("Add##fixed" + object.name).c_str())) {
         uint pj = static_cast<uint>(m_dynamic_fixed_input_buffers[_i]);
@@ -264,7 +269,7 @@ bool Scene::updateInterface() {
         ImGui::SeparatorText("Meshes");
         ImGui::Spacing();
         int mesh_type_int = meshTypeToInt(m_new_mesh_type);
-        if (ImGui::Combo("##add_mesh", &mesh_type_int, ALL_MESH_TYPES) && mesh_type_int != meshTypeToInt(m_new_mesh_type)) {
+        if (ImGui::Combo("##add_mesh", &mesh_type_int, IMGUI_MESH_TYPES) && mesh_type_int != meshTypeToInt(m_new_mesh_type)) {
             m_new_mesh_type = meshTypeFromInt(mesh_type_int);
         }
         ImGui::SameLine();
@@ -315,7 +320,7 @@ bool Scene::updateInterface() {
         }
         ImGui::SameLine();
         if (ImGui::Button("Add##dynamic")) {
-            m_dynamic_objects_desc.push_back(DynamicObjectDesc(m_new_dynamic_name, 0, 1.f, 1.f, 1.f, 1.f));
+            m_dynamic_objects_desc.push_back(DynamicObjectDesc(m_new_dynamic_name, 0, .9f, .9f, .9f, 1.f));
             m_dynamic_objects.push_back(DynamicObject());
             resetStaticBody(m_dynamic_objects_desc.size() - 1);
         }
@@ -366,8 +371,8 @@ void Scene::render(const ShaderProgram &_dynamic_shader, const ShaderProgram &_m
     _dynamic_shader.use();
     _dynamic_shader.set("projection", _projection);
     _dynamic_shader.set("view", _view);
-    for (const DynamicObject &object : m_dynamic_objects) {
-        object.render();
+    for (uint i = 0; i < m_dynamic_objects_desc.size(); i++) {
+        m_dynamic_objects[i].render(m_dynamic_objects_desc[i].render_type);
     }
 
     // STATIC OBJECTS RENDERING

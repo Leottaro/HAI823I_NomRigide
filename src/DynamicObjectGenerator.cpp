@@ -47,7 +47,7 @@ DynamicObject DynamicObject::bodyFromMesh(const StaticBody &_static_body, float 
         if (seen_edges.find(key) == seen_edges.end()) {
             seen_edges.insert(key);
             object.addDistanceConstraint(v0, v1, _distance_stiffness);
-            object.addDrawLine(v0, v1);
+            object.m_lines.push_back(glm::vec2(v0, v1));
         }
     };
 
@@ -56,6 +56,7 @@ DynamicObject DynamicObject::bodyFromMesh(const StaticBody &_static_body, float 
         const uint a = positions_map.at(mesh_triangles[i][0]);
         const uint b = positions_map.at(mesh_triangles[i][1]);
         const uint c = positions_map.at(mesh_triangles[i][2]);
+        object.m_triangles.push_back(glm::uvec3(a, b, c));
 
         addEdgeIfNeeded(a, b);
         addEdgeIfNeeded(a, c);
@@ -85,11 +86,6 @@ DynamicObject DynamicObject::bodyFromMesh(const StaticBody &_static_body, float 
             uint p3 = opposites[1];
 
             object.addBendingConstraint(p0, p1, p2, p3, _angle_stiffness);
-            object.addDrawLine(p0, p1);
-            object.addDrawLine(p1, p2);
-            object.addDrawLine(p0, p2);
-            object.addDrawLine(p0, p3);
-            object.addDrawLine(p1, p3);
         }
     }
 

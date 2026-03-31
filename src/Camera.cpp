@@ -26,7 +26,7 @@ bool Camera::updateInterface() {
 
         // Camera Type Selection
         int current_type = static_cast<int>(m_type);
-        if (ImGui::Combo("Camera Type", &current_type, CAMERA_TYPES)) {
+        if (ImGui::Combo("Camera Type", &current_type, IMGUI_CAMERA_TYPES)) {
             m_type = CameraType(current_type);
             switch (m_type) {
             case CameraFree:
