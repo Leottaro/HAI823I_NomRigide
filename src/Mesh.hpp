@@ -22,6 +22,40 @@
 #include "Transformation.hpp"
 #include <vector>
 #include <string>
+#include <variant>
+
+struct LoadedMesh {
+    std::string path{""};
+};
+struct SimpleGridMesh {
+    size_t nx{2};
+    size_t nz{2};
+};
+struct SimpleTerrainMesh {
+    size_t nx{2};
+    size_t nz{2};
+    glm::vec2 y_range{0., 0.1};
+};
+struct CubeMesh {
+    size_t n{2};
+};
+struct CubeSphereMesh {
+    size_t n{3};
+};
+struct SingleTriangleMesh {};
+
+#define NB_MESH_TYPES 6
+#define ALL_MESH_TYPES "LoadedMesh\0SingleTriangleMesh\0SimpleGridMesh\0SimpleTerrainMesh\0CubeMesh\0CubeSphereMesh\0"
+using MeshType = std::variant<
+    LoadedMesh,
+    SingleTriangleMesh,
+    SimpleGridMesh,
+    SimpleTerrainMesh,
+    CubeMesh,
+    CubeSphereMesh>;
+MeshType meshTypeFromInt(int _i);
+int meshTypeToInt(const MeshType &_type);
+std::string meshTypeToString(const MeshType &_type);
 
 class Mesh {
     std::vector<glm::vec3> m_positions;
@@ -40,7 +74,26 @@ public:
 
     // INITIALIZERS
     Mesh() {}
-    Mesh(const std::string &filename) { loadOFF(filename); }
+    Mesh(const MeshType &_type) {
+        std::visit(
+            [this](const auto &mesh_spec) {
+                using T = std::decay_t<decltype(mesh_spec)>;
+                if constexpr (std::is_same_v<T, LoadedMesh>) {
+                    loadOFF(mesh_spec.path);
+                } else if constexpr (std::is_same_v<T, SingleTriangleMesh>) {
+                    setSingleTriangle();
+                } else if constexpr (std::is_same_v<T, SimpleGridMesh>) {
+                    setSimpleGrid(mesh_spec.nx, mesh_spec.nz);
+                } else if constexpr (std::is_same_v<T, SimpleTerrainMesh>) {
+                    setSimpleTerrain(mesh_spec.nx, mesh_spec.nz, mesh_spec.y_range);
+                } else if constexpr (std::is_same_v<T, CubeMesh>) {
+                    setCube(mesh_spec.n);
+                } else if constexpr (std::is_same_v<T, CubeSphereMesh>) {
+                    setCubeSphere(mesh_spec.n);
+                }
+            },
+            _type);
+    }
     void loadOFF(const std::string &filename);
     void setSingleTriangle();
     void setSimpleGrid(size_t _nx, size_t _nz);                                           // Create a grid where x and z varies in [0;1]

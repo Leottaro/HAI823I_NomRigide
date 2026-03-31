@@ -36,9 +36,6 @@ bool Camera::updateInterface() {
                 m_front = glm::normalize(*m_center - m_position);
                 m_orientation = Transformation::EuclidianToEuler(m_front);
                 break;
-            case CameraAutoSpin:
-                m_orientation = glm::vec2(-M_PI_4f * 0.5f, 0.f);
-                break;
             }
             updateData();
         }
@@ -103,9 +100,6 @@ void Camera::updateKeyboardInput(GLFWwindow *_window, float _deltaTime) {
             m_front = glm::normalize(*m_center - m_position);
             m_orientation = Transformation::EuclidianToEuler(m_front);
             break;
-        case CameraAutoSpin:
-            m_orientation = glm::vec2(-M_PI_4f * 0.5f, 0.f);
-            break;
         }
     }
 
@@ -154,12 +148,6 @@ void Camera::updateMouseInput(GLFWwindow *_window, float _deltaTime, const glm::
         // re update angle
         m_front = *m_center - m_position;
         m_orientation = Transformation::EuclidianToEuler(m_front);
-        break;
-    case CameraAutoSpin:
-        m_distance_to_center = glm::max(m_distance_to_center * (1.f - _scroll.y * m_zoom_rate), 1.e-4f);
-        m_orientation.y += rotation_speed;
-        updateData();
-        m_position = *m_center - m_distance_to_center * m_front;
         break;
     }
 }

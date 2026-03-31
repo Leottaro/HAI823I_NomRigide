@@ -108,7 +108,7 @@ public:
         m_euler_angles = glm::vec3(
             glm::clamp(m_euler_angles.x, -M_PI_2_SAFE, M_PI_2_SAFE), // Pitch clamp
             Transformation::clipAnglePI(m_euler_angles.y),           // Yaw clip
-            m_euler_angles.z);
+            m_euler_angles.z);                                       // Roll
     }
 
     inline glm::mat4 computeTransformationMatrix() const {

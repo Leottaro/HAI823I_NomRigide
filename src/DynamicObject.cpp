@@ -142,10 +142,7 @@ READ "3.1. Algorithm Overview" of ./articles/Position_Based_Dynamics.pdf
 (17)  endloop
 */
 
-// TODO: imgui solver settings
-#define SOLVER_ITERATIONS 100
-
-bool DynamicObject::update(double _delta_time, const std::vector<StaticBody> &static_bodies) {
+bool DynamicObject::update(double _delta_time, uint _solver_iterations, const std::vector<StaticBody> &static_bodies) {
     std::vector<glm::dvec3> new_positions(N); // p_i
 
     // (5) external forces (gravity, etc...) (for now, just gravity)
@@ -207,7 +204,7 @@ bool DynamicObject::update(double _delta_time, const std::vector<StaticBody> &st
                     double n_squared = std::pow(glm::distance(p2, p1), 2);
                     double dot = glm::dot(direction, project_on_plane - p1);
                     double dot_over_one = dot / n_squared;
-                    double r = std::max(0., std::min(1., dot_over_one));
+                    double r = std::clamp(dot_over_one, 0., 1.);
                     return p1 + direction * r;
                 };
 
@@ -282,7 +279,7 @@ bool DynamicObject::update(double _delta_time, const std::vector<StaticBody> &st
     }
 
     // (9)-(11)
-    for (uint i = 0; i < SOLVER_ITERATIONS; i++) {
+    for (uint i = 0; i < _solver_iterations; i++) {
         for (uint ci = 0; ci < M + Mcoll; ci++) {
             // gather function input (and total weight)
             std::vector<glm::dvec3> affected_points(m_cardinalities[ci]);
@@ -323,7 +320,7 @@ bool DynamicObject::update(double _delta_time, const std::vector<StaticBody> &st
             for (uint i = 0; i < m_cardinalities[ci]; i++) {
                 uint pj = m_indices[ci][i];
                 glm::dvec3 delta_pj = -s * (double(m_cardinalities[ci]) * m_weights[pj] / total_weigths) * gradients[i];
-                double k_prime = 1. - std::pow(1. - m_stiffnesses[ci], 1. / SOLVER_ITERATIONS);
+                double k_prime = 1. - std::pow(1. - m_stiffnesses[ci], 1. / _solver_iterations);
                 new_positions[pj] += k_prime * delta_pj;
             }
         }
@@ -623,17 +620,17 @@ void DynamicObject::initRendering() {
 
     glGenBuffers(1, &m_lines_EBO);
     updateRenderedConstraints();
-
-    glBindVertexArray(0);
 }
 
 void DynamicObject::updateRenderedPositions() {
+    glBindVertexArray(m_VAO);
     std::vector<glm::vec3> positions_float(m_positions.begin(), m_positions.end());
     glBindBuffer(GL_ARRAY_BUFFER, m_positions_VBO);
     glBufferData(GL_ARRAY_BUFFER, positions_float.size() * sizeof(glm::vec3), positions_float.data(), GL_DYNAMIC_DRAW);
 }
 
 void DynamicObject::updateRenderedConstraints() {
+    glBindVertexArray(m_VAO);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_lines_EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_lines.size() * sizeof(glm::uvec2), m_lines.data(), GL_STATIC_DRAW);
 }
