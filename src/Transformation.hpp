@@ -23,14 +23,27 @@ constexpr glm::vec3 VEC_RIGHT(1.f, 0.f, 0.f);
 constexpr glm::vec3 VEC_UP(0.f, 1.f, 0.f);
 constexpr glm::vec3 VEC_FRONT(0.f, 0.f, 1.f);
 
-inline glm::vec3 applyTransformation(const glm::vec3 &vec, float w, const glm::mat4 &transfo) {
-    glm::vec4 temp = transfo * glm::vec4(vec.x, vec.y, vec.z, w);
-    return temp.w == 0. ? glm::vec3(temp.x, temp.y, temp.z) : glm::vec3(temp.x, temp.y, temp.z) / temp.w;
+template <typename T>
+inline glm::vec<3, T, glm::packed_highp> applyTransformation(const glm::vec<3, T, glm::packed_highp> &vec, T w, const glm::mat<4, 4, T, glm::packed_highp> &transfo) {
+    glm::vec<4, T, glm::packed_highp> temp = transfo * glm::vec4(vec.x, vec.y, vec.z, w);
+    return temp.w == 0. ? glm::vec<3, T, glm::packed_highp>(temp.x, temp.y, temp.z) : glm::vec<3, T, glm::packed_highp>(temp.x, temp.y, temp.z) / temp.w;
 }
 
 template <typename T>
-inline glm::vec<3, T, glm::packed_highp> projectPointOnLine(const glm::vec<3, T, glm::packed_highp> &_origin, const glm::vec<3, T, glm::packed_highp> &_direction, const glm::vec<3, T, glm::packed_highp> &_point) {
-    return _origin + _direction * glm::dot(_direction, _point - _origin);
+inline glm::vec<3, T, glm::packed_highp> projectVectorOnPlane(const glm::vec<3, T, glm::packed_highp> &_vec, const glm::vec<3, T, glm::packed_highp> &_normal) {
+    return glm::cross(glm::normalize(_normal), glm::cross(_vec, glm::normalize(_normal)));
+}
+template <typename T>
+inline glm::vec<3, T, glm::packed_highp> projectPointOnPlane(const glm::vec<3, T, glm::packed_highp> &_point, const glm::vec<3, T, glm::packed_highp> &_origin, const glm::vec<3, T, glm::packed_highp> &_normal) {
+    return _origin + projectVectorOnPlane(_point - _origin, _normal);
+}
+template <typename T>
+inline glm::vec<3, T, glm::packed_highp> projectVectorOnLine(const glm::vec<3, T, glm::packed_highp> &_vec, const glm::vec<3, T, glm::packed_highp> &_direction) {
+    return glm::dot(_vec, _direction) * _direction;
+}
+template <typename T>
+inline glm::vec<3, T, glm::packed_highp> projectPointOnLine(const glm::vec<3, T, glm::packed_highp> &_point, const glm::vec<3, T, glm::packed_highp> &_origin, const glm::vec<3, T, glm::packed_highp> &_direction) {
+    return _origin + projectVectorOnLine(_point - _origin, _direction);
 }
 
 class Transformation {

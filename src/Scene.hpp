@@ -32,7 +32,7 @@ struct DynamicObjectDesc {
     float friction_coefficient{0.5};
     float restitution_coefficient{0.5};
 
-    std::unordered_set<uint> fixed_vertices{0};
+    std::unordered_set<uint> fixed_vertices{};
     bool real_time_fixed{false};
 
     DynamicObjectDesc(const std::string &_name, uint _mesh_i, float _distance_stiffness, float _angle_stiffness, float _volume_stiffness, float _volume_pressure) : name(_name), mesh_i(_mesh_i), distance_stiffness(_distance_stiffness), angle_stiffness(_angle_stiffness), volume_stiffness(_volume_stiffness), volume_pressure(_volume_pressure) {}

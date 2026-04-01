@@ -24,7 +24,7 @@ void Mesh::setSimpleGrid(size_t _nx, size_t _nz) {
         float z = float(iz) / (_nz - 1);
         for (size_t ix = 0; ix < _nx; ix++) {
             float x = float(ix) / (_nx - 1);
-            glm::vec3 position = glm::vec3(x, 0., z);
+            glm::vec3 position = glm::vec3(x - 0.5f, 0.f, z - 0.5f);
             glm::vec2 uv = glm::vec2(x, z);
 
             size_t v0 = iz * _nx + ix;

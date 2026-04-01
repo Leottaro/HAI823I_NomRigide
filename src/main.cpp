@@ -71,11 +71,6 @@ int main(void) {
     dynamic_body_transformation->setScale(glm::vec3(1.f));
     dynamic_body_transformation->setEulerAngles(glm::vec3(0.f));
 
-    // dynamic_body.setVertexFixed(0, true);
-    // dynamic_body.setVertexFixed(size - 1, true);
-    // dynamic_body.setVertexFixed((size - 1) * size, true);
-    // dynamic_body.setVertexFixed(size * size - 1, true);
-
     scene.resetObjects();
 
     // TODO: init textures
@@ -163,7 +158,9 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
     // cout << "key:" << key << " scancode:" << scancode << " action:" << action << " mods:" << mods << endl;
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
         glfwSetWindowShouldClose(window, GLFW_TRUE);
-    } else if (key == GLFW_KEY_Z && action == GLFW_PRESS) {
+    }
+
+    if (key == GLFW_KEY_Z && action == GLFW_PRESS) {
         if (polygon_mode == GL_FILL) {
             polygon_mode = GL_LINE;
         } else if (polygon_mode == GL_LINE) {
@@ -172,7 +169,9 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
             polygon_mode = GL_FILL;
         }
         glPolygonMode(GL_FRONT_AND_BACK, polygon_mode);
-    } else if (key == GLFW_KEY_SPACE) {
+    }
+
+    if (key == GLFW_KEY_SPACE) {
         if (action == GLFW_PRESS) {
             if (!space_key_pressed) {
                 space_key_pressed = true;

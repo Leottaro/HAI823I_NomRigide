@@ -338,6 +338,13 @@ bool Scene::updateInterface() {
 }
 
 bool Scene::updateInteractions(GLFWwindow *_window, const glm::dvec3 &_camera_pos, const glm::dvec3 &_cursor_worldpos) {
+    static bool r_was_pressed = false;
+    bool r_is_pressed = glfwGetKey(_window, GLFW_KEY_R) == GLFW_PRESS;
+    if (r_is_pressed && !r_was_pressed) {
+        resetObjects();
+    }
+    r_was_pressed = r_is_pressed;
+
     bool res = false;
     for (DynamicObject &object : m_dynamic_objects) {
         if (object.updateInteractions(_window, _camera_pos, _cursor_worldpos)) {
