@@ -58,17 +58,17 @@ int main(void) {
 
     Scene scene = Scene();
 
-    uint tissue_size = 20;
+    uint tissue_size = 3;
     scene.addMesh(CubeMesh{2});
     scene.addMesh(SimpleGridMesh{tissue_size, tissue_size});
 
     Transformation *floor_transfo = scene.addStaticBody(StaticBodyDesc("sol", 0));
-    floor_transfo->setTranslation(glm::vec3(0.f, -1.f, 0.f));
-    floor_transfo->setScale(1.f);
+    floor_transfo->setTranslation(glm::vec3(-1.5f, -.5f, -1.5f));
+    floor_transfo->setScale(.1f);
     floor_transfo->setEulerAngles(glm::vec3(M_PI_4, 0.f, M_PI_4));
 
-    DynamicObjectDesc dynamic_body_desc("tissue", 1, .9f, .9f, 0.f, 1.f);
-    dynamic_body_desc.fixed_vertices = {0, tissue_size - 1, tissue_size * (tissue_size - 1), tissue_size * tissue_size - 1};
+    DynamicObjectDesc dynamic_body_desc("tissue", 1, .5f, .5f, 0.f, 1.f);
+    dynamic_body_desc.fixed_vertices = {0};
     dynamic_body_desc.render_type = DynamicRenderType::LineRender;
     Transformation *dynamic_body_transformation = scene.addDynamicObject(dynamic_body_desc);
     // dynamic_body_transformation->setTranslation(glm::vec3(0.f));

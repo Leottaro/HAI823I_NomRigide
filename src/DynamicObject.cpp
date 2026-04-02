@@ -158,13 +158,6 @@ bool DynamicObject::update(double _delta_time, uint _solver_iterations, const st
 
     // (8)
     std::unordered_map<size_t, glm::dvec3> colliding_vertices;
-    auto accum = [&](uint idx, glm::dvec3 n) {
-        auto it = colliding_vertices.find(idx);
-        if (it == colliding_vertices.end())
-            colliding_vertices[idx] = n;
-        else
-            it->second = glm::normalize(it->second + n);
-    };
     for (uint pj = 0; pj < N; pj++) {
         glm::dvec3 origin = m_positions[pj];
         glm::dvec3 direction = new_positions[pj] - m_positions[pj];
@@ -295,10 +288,10 @@ bool DynamicObject::update(double _delta_time, uint _solver_iterations, const st
             closest_normal = glm::normalize(closest_normal);
             furthest_normal = glm::normalize(furthest_normal);
             addEdgeCollisionConstraint(e0, e1, min_t, closest_intersection, closest_normal, max_t, furthest_intersection, furthest_normal);
-            colliding_vertices.insert({e0, (1.0 - min_t) * closest_normal});
-            colliding_vertices.insert({e1, min_t * closest_normal});
-            colliding_vertices.insert({e0, (1.0 - max_t) * furthest_normal});
-            colliding_vertices.insert({e1, max_t * furthest_normal});
+            colliding_vertices.insert({e0, 0.5 * (1.0 - min_t) * closest_normal});
+            colliding_vertices.insert({e0, 0.5 * (1.0 - max_t) * furthest_normal});
+            colliding_vertices.insert({e1, 0.5 * min_t * closest_normal});
+            colliding_vertices.insert({e1, 0.5 * max_t * furthest_normal});
             // accum(e0, closest_normal);
             // accum(e1, closest_normal);
         }
@@ -370,9 +363,9 @@ bool DynamicObject::update(double _delta_time, uint _solver_iterations, const st
                 if (proximity || cross_frame) {
                     addStaticPointDynamicTriangleConstraint(p0, p1, p2, static_point, barycentrics, push_normal);
                     // Accumulate collision normals per vertex (average if multiple collisions)
-                    accum(p0, push_normal);
-                    accum(p1, push_normal);
-                    accum(p2, push_normal);
+                    colliding_vertices.insert({p0, push_normal / 3.});
+                    colliding_vertices.insert({p1, push_normal / 3.});
+                    colliding_vertices.insert({p2, push_normal / 3.});
                 }
             }
         }
@@ -434,6 +427,8 @@ bool DynamicObject::update(double _delta_time, uint _solver_iterations, const st
 
     // (16)
     for (auto [pj, collision_normal] : colliding_vertices) {
+        collision_normal = glm::normalize(collision_normal);
+
         // Decompose velocity into normal and tangential components
         double v_dot_n = glm::dot(m_velocities[pj], collision_normal);
         glm::dvec3 v_normal = v_dot_n * collision_normal;
