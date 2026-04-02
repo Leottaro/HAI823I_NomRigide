@@ -12,7 +12,7 @@ struct Vec3Less {
     }
 };
 
-DynamicObject DynamicObject::bodyFromMesh(const StaticBody &_static_body, float _distance_stifness, float _angle_stifness) {
+DynamicObject DynamicObject::bodyFromMesh(const StaticBody &_static_body, float _distance_stiffness, float _angle_stiffness, float _volume_stiffness, float _volume_pressure) {
     const glm::mat4 tranformation = _static_body.m_transformation->computeTransformationMatrix();
     DynamicObject object;
 
@@ -39,15 +39,15 @@ DynamicObject DynamicObject::bodyFromMesh(const StaticBody &_static_body, float 
     // DISTANCES CONSTRAINTS
 
     std::unordered_set<uint64_t> seen_edges;
-    const auto addEdgeIfNeeded = [&object, &seen_edges, _distance_stifness](uint a, uint b) {
+    const auto addEdgeIfNeeded = [&object, &seen_edges, _distance_stiffness](uint a, uint b) {
         const uint v0 = (a < b) ? a : b;
         const uint v1 = (a < b) ? b : a;
         const uint64_t key = (static_cast<uint64_t>(v0) << 32) | static_cast<uint64_t>(v1);
 
         if (seen_edges.find(key) == seen_edges.end()) {
             seen_edges.insert(key);
-            object.addDistanceConstraint(v0, v1, _distance_stifness);
-            object.addDrawLine(v0, v1);
+            object.addDistanceConstraint(v0, v1, _distance_stiffness);
+            object.m_lines.push_back(glm::vec2(v0, v1));
         }
     };
 
@@ -56,11 +56,13 @@ DynamicObject DynamicObject::bodyFromMesh(const StaticBody &_static_body, float 
         const uint a = positions_map.at(mesh_triangles[i][0]);
         const uint b = positions_map.at(mesh_triangles[i][1]);
         const uint c = positions_map.at(mesh_triangles[i][2]);
+        object.m_triangles.push_back(glm::uvec3(a, b, c));
 
         addEdgeIfNeeded(a, b);
         addEdgeIfNeeded(a, c);
         addEdgeIfNeeded(b, c);
-        object.addTriangle(a, b, c);
+
+        object.m_triangles.push_back(glm::uvec3(a, b, c));
     }
     // BENDING CONSTRAINTS
 
@@ -84,14 +86,26 @@ DynamicObject DynamicObject::bodyFromMesh(const StaticBody &_static_body, float 
             uint p2 = opposites[0];
             uint p3 = opposites[1];
 
-            object.addBendingConstraint(p0, p1, p2, p3, _angle_stifness);
-            object.addDrawLine(p0, p1);
-            object.addDrawLine(p1, p2);
-            object.addDrawLine(p0, p2);
-            object.addDrawLine(p0, p3);
-            object.addDrawLine(p1, p3);
+            object.addBendingConstraint(p0, p1, p2, p3, _angle_stiffness);
         }
     }
+
+    // VOLUME CONSTRAINT
+    if (_volume_stiffness <= 0.f || _volume_pressure <= 0.f) {
+        return object;
+    }
+
+    std::vector<glm::uvec3> remapped_triangles;
+    remapped_triangles.reserve(mesh_triangles.size());
+
+    for (const auto &tri : mesh_triangles) {
+        remapped_triangles.push_back(glm::uvec3(
+            positions_map.at(tri[0]),
+            positions_map.at(tri[1]),
+            positions_map.at(tri[2])));
+    }
+
+    object.addVolumeConstraint(remapped_triangles, _volume_stiffness, _volume_pressure);
 
     return object;
 }

@@ -4,8 +4,8 @@
 #include <GL/glew.h>
 
 // GLM
-#include <glm/glm.hpp>
 #include <glm/ext.hpp>
+#include <glm/glm.hpp>
 
 // GLFW
 #include <GLFW/glfw3.h>
@@ -19,15 +19,17 @@
 #include <imgui_impl_opengl3.h>
 
 // USUAL INCLUDES
-#include "Mesh.hpp"
-#include "Transformation.hpp"
 #include <functional>
 #include <vector>
+
+#include "Mesh.hpp"
+#include "Transformation.hpp"
 
 struct StaticBody {
     Mesh *m_mesh;
     Transformation *m_transformation;
 
+    StaticBody() : m_mesh(nullptr), m_transformation(nullptr) {}
     StaticBody(Mesh *_mesh, Transformation *_transformation) : m_mesh(_mesh), m_transformation(_transformation) {}
 };
 
@@ -37,6 +39,15 @@ typedef std::function<std::vector<glm::dvec3>(const std::vector<glm::dvec3> &)> 
 enum ConstraintType {
     EQUALITY_CONSTRAINT,
     INEQUALITY_CONSTRAINT,
+};
+
+#define DYNAMIC_RENDER_TYPES_N 4
+#define IMGUI_DYNAMIC_RENDER_TYPES "PointRender\0LineRender\0TriangleRender\0Auto\0"
+enum DynamicRenderType {
+    PointRender,
+    LineRender,
+    TriangleRender,
+    Auto,
 };
 
 class DynamicObject {
@@ -70,9 +81,9 @@ class DynamicObject {
         m_masses.resize(N);
     }
 
-    void addCollisionConstraint(uint _p0, glm::dvec3 _intersection, glm::dvec3 _normal, double _stiffness);
-    void addEdgeCollisionConstraint(uint _p0, uint _p1, double _alpha, glm::dvec3 _surface_point, glm::dvec3 _normal, double _stiffness);
-    void addStaticPointDynamicTriangleConstraint( uint _p0, uint _p1, uint _p2, glm::dvec3 _static_point, glm::dvec3 _barycentrics, glm::dvec3 _normal, double _stiffness);
+    void addCollisionConstraint(uint _p0, glm::dvec3 _intersection, glm::dvec3 _normal);                                                                           // Point to Triangle collision
+    void addEdgeCollisionConstraint(uint _p0, uint _p1, double _t1, glm::dvec3 _point1, glm::dvec3 _normal1, double _t2, glm::dvec3 _point2, glm::dvec3 _normal2); // Edge to Edge collision
+    void addStaticPointDynamicTriangleConstraint(uint _p0, uint _p1, uint _p2, glm::dvec3 _static_point, glm::dvec3 _barycentrics, glm::dvec3 _normal);            // Point to Face collision
 
 public:
     // GETTERS
@@ -91,14 +102,14 @@ public:
     const std::vector<ConstraintType> &getTypes() const { return m_types; };
 
     void setAmbientFrictionCoefficient(double _coeff) { m_ambient_friction_coefficient = _coeff; }
-    double getAmbientFrictionCoefficient() { return m_ambient_friction_coefficient; }
     void setFrictionCoefficient(double _coeff) { m_friction_coefficient = _coeff; }
-    double getFrictionCoefficient() { return m_friction_coefficient; }
     void setRestitutionCoefficient(double _coeff) { m_restitution_coefficient = _coeff; }
+    double getAmbientFrictionCoefficient() { return m_ambient_friction_coefficient; }
+    double getFrictionCoefficient() { return m_friction_coefficient; }
     double getRestitutionCoefficient() { return m_restitution_coefficient; }
 
     // "3.1. Algorithm Overview" of ./articles/Position_Based_Dynamics.pdf
-    bool update(double _delta_time, const std::vector<StaticBody> &static_bodies);
+    bool update(double _delta_time, uint _solver_iterations, const std::vector<StaticBody> &static_bodies);
 
     void addVertex(const glm::dvec3 &_position, const glm::dvec3 &_velocity, double _mass, bool _fixed);
     void setVertexPosition(uint _pj, glm::dvec3 _position) { m_positions[_pj] = _position; }
@@ -118,28 +129,37 @@ public:
     void addDistanceConstraint(uint _p0, uint _p1, double _stiffness); // the targeted distance is set to the current distance between p0 and p1
     void addBendingConstraint(uint _p0, uint _p1, uint _p2, uint _p3, double _stiffness, double _targeted_angle);
     void addBendingConstraint(uint _p0, uint _p1, uint _p2, uint _p3, double _stiffness); // the targeted angle is set to the current angle between p0,p2,p1 normal and p0,p3,p1 normal
+    void addVolumeConstraint(std::vector<glm::uvec3> _indices, double _stiffness, double _pressure, double _targeted_volume);
+    void addVolumeConstraint(std::vector<glm::uvec3> _indices, double _stiffness, double _pressure);
 
     // Objects creation
-    static DynamicObject bodyFromMesh(const StaticBody &_static_body, float _distance_stifness, float _angle_stifness);
-    static DynamicObject rigidBodyFromMesh(const StaticBody &_static_body) { return bodyFromMesh(_static_body, 1.f, 1.f); }
+    static DynamicObject bodyFromMesh(const StaticBody &_static_body, float _distance_stiffness, float _angle_stiffness, float _volume_stiffness, float _volume_pressure);
+    static DynamicObject bodyFromMesh(const StaticBody &_static_body, float _stiffness) { return bodyFromMesh(_static_body, _stiffness, _stiffness, 1.f, 0.f); }
+    static DynamicObject rigidBodyFromMesh(const StaticBody &_static_body) { return bodyFromMesh(_static_body, 1.f, 1.f, 1.f, 0.f); }
+
+    // Object interaction
+private:
+    uint grabbed_point = UINT32_MAX;
+    bool grabbed_fixed = false;
+    void findNearestPointToLine(const glm::dvec3 &_position, const glm::dvec3 &_direction, uint &point, double &distance, glm::dvec3 &projection) const;
+
+public:
+    bool updateInteractions(GLFWwindow *_window, const glm::dvec3 &_camera_pos, const glm::dvec3 &_cursor_worldpos);
 
     // OpenGL interface
-
 private:
     GLuint m_VAO;
     GLuint m_positions_VBO;
 
     GLuint m_lines_EBO;
+    GLuint m_triangles_EBO;
     std::vector<glm::uvec2> m_lines;
     std::vector<glm::uvec3> m_triangles;
 
 public:
-    void addDrawLine(uint _p0, uint _p1) { m_lines.push_back(glm::uvec2(_p0, _p1)); };
-    void addTriangle(uint _p0, uint _p1, uint _p2) { m_triangles.push_back(glm::uvec3(_p0, _p1, _p2)); };
-
     void initRendering();
     void updateRenderedPositions();
     void updateRenderedConstraints();
-    void render();
+    void render(DynamicRenderType _type = DynamicRenderType::Auto) const;
     void clear();
 };

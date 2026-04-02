@@ -1,9 +1,72 @@
 #define _USE_MATH_DEFINES
 
 #include "Mesh.hpp"
+
+#include <filesystem>
 #include <fstream>
 
 using namespace std;
+
+MeshType meshTypeFromInt(int _i) {
+    switch (_i) {
+    case 0:
+        return LoadedMesh{};
+    case 1:
+        return SingleTriangleMesh{};
+    case 2:
+        return SimpleGridMesh{};
+    case 3:
+        return SimpleTerrainMesh{};
+    case 4:
+        return CubeMesh{};
+    case 5:
+        return CubeSphereMesh{};
+    default:
+        return SingleTriangleMesh{};
+    }
+}
+
+int meshTypeToInt(const MeshType &_type) {
+    return std::visit(
+        [](const auto &mesh_spec) {
+            using T = std::decay_t<decltype(mesh_spec)>;
+            if constexpr (std::is_same_v<T, LoadedMesh>) {
+                return 0;
+            } else if constexpr (std::is_same_v<T, SingleTriangleMesh>) {
+                return 1;
+            } else if constexpr (std::is_same_v<T, SimpleGridMesh>) {
+                return 2;
+            } else if constexpr (std::is_same_v<T, SimpleTerrainMesh>) {
+                return 3;
+            } else if constexpr (std::is_same_v<T, CubeMesh>) {
+                return 4;
+            } else if constexpr (std::is_same_v<T, CubeSphereMesh>) {
+                return 5;
+            }
+        },
+        _type);
+}
+
+std::string meshTypeToString(const MeshType &_type) {
+    return std::visit(
+        [](const auto &mesh_spec) {
+            using T = std::decay_t<decltype(mesh_spec)>;
+            if constexpr (std::is_same_v<T, LoadedMesh>) {
+                return std::filesystem::path(mesh_spec.path).stem().string();
+            } else if constexpr (std::is_same_v<T, SingleTriangleMesh>) {
+                return std::string("SingleTriangle");
+            } else if constexpr (std::is_same_v<T, SimpleGridMesh>) {
+                return std::string("SimpleGrid");
+            } else if constexpr (std::is_same_v<T, SimpleTerrainMesh>) {
+                return std::string("SimpleTerrain");
+            } else if constexpr (std::is_same_v<T, CubeMesh>) {
+                return std::string("Cube");
+            } else if constexpr (std::is_same_v<T, CubeSphereMesh>) {
+                return std::string("CubeSphere");
+            }
+        },
+        _type);
+}
 
 Mesh::~Mesh() {
     clear();
@@ -99,7 +162,7 @@ void Mesh::recomputePerVertexNormals(bool angleBased) {
         m_normals[t[2]] += n_t;
     }
     for (unsigned int nIt = 0; nIt < m_normals.size(); ++nIt) {
-        glm::normalize(m_normals[nIt]);
+        m_normals[nIt] = glm::normalize(m_normals[nIt]);
     }
 }
 
@@ -153,7 +216,7 @@ void Mesh::init() {
     glBindVertexArray(0);
 }
 
-void Mesh::render() {
+void Mesh::render() const {
     glBindVertexArray(m_VAO); // Activate the VAO storing geometry data
     glDrawElements(GL_TRIANGLES, m_triangles.size() * 3, GL_UNSIGNED_INT, 0);
 }

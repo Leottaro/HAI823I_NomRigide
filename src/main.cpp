@@ -2,8 +2,10 @@
 #include <GL/glew.h>
 
 // GLM
-#include <glm/glm.hpp>
 #include <glm/ext.hpp>
+#include <glm/glm.hpp>
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/string_cast.hpp>
 
 // GLFW
 #include <GLFW/glfw3.h>
@@ -17,24 +19,31 @@
 #include <imgui_impl_opengl3.h>
 
 // USUAL INCLUDES
-#include "ShaderProgram.hpp"
-#include "Camera.hpp"
-#include "Mesh.hpp"
-#include "DynamicObject.hpp"
-#include <stdio.h>
 #include <execinfo.h>
+#include <stdio.h>
+
+#include <iomanip>
 #include <iostream>
+#include <sstream>
+
+#include "Camera.hpp"
+#include "DynamicObject.hpp"
+#include "Mesh.hpp"
+#include "Scene.hpp"
+#include "ShaderProgram.hpp"
 
 using namespace std;
 
 // TODO: SINGLETON
-GLuint window_width = 800, window_height = 600;
+GLuint window_width = 1280, window_height = 720;
 glm::vec2 cursor_pos = glm::vec2(0, 0);
+glm::vec3 cursor_worldpos = glm::vec3(0, 0, 0);
 glm::vec2 cursor_vel = glm::vec2(0, 0);
 glm::vec2 scroll = glm::vec2(0, 0);
 int polygon_mode = GL_FILL;
 GLFWwindow *window;
 
+Camera camera;
 bool run_simulation = false;
 
 void globalInit();
@@ -47,40 +56,29 @@ int main(void) {
     ShaderProgram dynamic_shader = ShaderProgram("ressources/shaders/dynamic_vertex.glsl", "ressources/shaders/dynamic_fragment.glsl");
     dynamic_shader.link();
 
-    // TODO: SCENE
-    Camera camera(glm::vec3(0.f,0.f,0.f), 8., glm::vec2(-M_PI_4 * 0.5, 0.f));
+    Scene scene = Scene();
 
-    std::vector<StaticBody> static_bodies;
+    uint tissue_size = 20;
+    scene.addMesh(CubeMesh{2});
+    scene.addMesh(SimpleGridMesh{tissue_size, tissue_size});
 
-    Mesh cube_mesh;
-    cube_mesh.setSimpleGrid(2, 2);
-    cube_mesh.setCube(2);
-    cube_mesh.init();
-    Transformation cube1_transfo;
-    cube1_transfo.setTranslation(glm::vec3(0.f, -1.f, 0.f));
-    cube1_transfo.setScale(glm::vec3(1.f, 1.f, 1.f));
-    cube1_transfo.setEulerAngles(glm::vec3(M_PI_4, 0.f, M_PI_4));
-    static_bodies.push_back(StaticBody(&cube_mesh, &cube1_transfo));
+    Transformation *floor_transfo = scene.addStaticBody(StaticBodyDesc("sol", 0));
+    floor_transfo->setTranslation(glm::vec3(0.f, -1.f, 0.f));
+    floor_transfo->setScale(1.f);
+    floor_transfo->setEulerAngles(glm::vec3(M_PI_4, 0.f, M_PI_4));
 
-    size_t size = 10;
-    Mesh object_mesh;
-    object_mesh.setSimpleGrid(size, size);
-    Transformation rigid_object_transformation(glm::vec3(-2.f, 0.f, -2.f), glm::vec3(5.f, 5.f, 5.f), glm::vec3(0.f));
-    DynamicObject rigid_object = DynamicObject::bodyFromMesh(StaticBody(&object_mesh, &rigid_object_transformation), 1.f, 0.3f);
+    DynamicObjectDesc dynamic_body_desc("tissue", 1, .9f, .9f, 0.f, 1.f);
+    dynamic_body_desc.fixed_vertices = {0, tissue_size - 1, tissue_size * (tissue_size - 1), tissue_size * tissue_size - 1};
+    dynamic_body_desc.render_type = DynamicRenderType::LineRender;
+    Transformation *dynamic_body_transformation = scene.addDynamicObject(dynamic_body_desc);
+    // dynamic_body_transformation->setTranslation(glm::vec3(0.f));
+    dynamic_body_transformation->setScale(5.f);
+    // dynamic_body_transformation->setEulerAngles(glm::vec3(0.f));
 
-    rigid_object.setVertexFixed(0, true);
-    rigid_object.setVertexFixed(size - 1, true);
-    rigid_object.setVertexFixed((size - 1) * size, true);
-    rigid_object.setVertexFixed(size * size - 1, true);
-
-    // rigid_object.setVertexFixed(0, true);
-    // rigid_object.setVertexFixed(size - 1, true);
-    rigid_object.initRendering();
+    scene.resetObjects();
 
     // TODO: init textures
     // TODO: setup lights
-    // TODO: real-time interactions
-    // TODO: interface
 
     // timings
     float deltaTime = 0.0f;
@@ -91,6 +89,18 @@ int main(void) {
         glfwSwapBuffers(window);
         glfwPollEvents();
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        std::stringstream title;
+        title << "ImGui OpenGL3 example";
+
+        if (deltaTime == 0)
+            title << " inf";
+        else
+            title << " FPS: " << std::fixed << std::setprecision(0) << (1.0 / deltaTime);
+
+        if (!run_simulation)
+            title << " (paused)";
+
+        glfwSetWindowTitle(window, title.str().c_str());
 
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
@@ -102,38 +112,25 @@ int main(void) {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
+        // INTERFACES
+        bool disable_mouse_actions = false;
+        if (camera.updateInterface())
+            disable_mouse_actions = true;
+        if (scene.updateInterface())
+            disable_mouse_actions = true;
+
         // OBJECTS UPDATE
+        cursor_worldpos = applyTransformation(glm::vec3(2.f * (cursor_pos.x / window_width) - 1.f, 1.f - 2.f * (cursor_pos.y / window_height), camera.m_near_far.x), 1.f, glm::inverse(camera.getViewMatrix()) * glm::inverse(camera.getProjectionMatrix()));
+        scene.updateInteractions(window, camera.m_position, cursor_worldpos);
         if (run_simulation) {
-            if (!rigid_object.update(deltaTime, static_bodies)) {
+            if (!scene.updateSimulation(deltaTime)) {
                 run_simulation = false;
             }
-            rigid_object.updateRenderedPositions();
-            // run_simulation = false;
         }
-        camera.update(window, deltaTime, glm::vec3(), cursor_vel, scroll);
-        // camera.update(window, deltaTime, rigid_object.getPositions()[0], cursor_vel, scroll);
+        camera.update(window, deltaTime, cursor_vel, scroll, disable_mouse_actions);
 
-        // Update uniforms
-        glm::mat4 projection = camera.getProjectionMatrix();
-        glm::mat4 view = camera.getViewMatrix();
-
-        // DYNAMIC OBJECTS RENDERING
-        dynamic_shader.use();
-        dynamic_shader.set("view", view);
-        dynamic_shader.set("projection", projection);
-        rigid_object.render();
-
-        // STATIC OBJECTS RENDERING
-        mesh_shader.use();
-        mesh_shader.set("projection", projection);
-        for (const StaticBody &static_body : static_bodies) {
-            glm::mat4 model = static_body.m_transformation->computeTransformationMatrix();
-            glm::mat4 model_view = view * model;
-            glm::mat4 normal_mat = glm::transpose(glm::inverse(model_view));
-            mesh_shader.set("model_view", model_view);
-            mesh_shader.set("normal_mat", normal_mat);
-            static_body.m_mesh->render();
-        }
+        // RENDERING
+        scene.render(dynamic_shader, mesh_shader, camera.getProjectionMatrix(), camera.getViewMatrix());
 
         // ImGui Render
         ImGui::Render();
@@ -144,11 +141,9 @@ int main(void) {
         cursor_vel = glm::vec2(0.);
     } while (glfwWindowShouldClose(window) == GLFW_FALSE);
 
+    scene.clear();
     dynamic_shader.~ShaderProgram();
-    rigid_object.clear();
-
     mesh_shader.~ShaderProgram();
-    cube_mesh.clear();
 
     glfwTerminate();
 
@@ -167,7 +162,9 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
     // cout << "key:" << key << " scancode:" << scancode << " action:" << action << " mods:" << mods << endl;
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
         glfwSetWindowShouldClose(window, GLFW_TRUE);
-    } else if ((key == GLFW_KEY_W || key == GLFW_KEY_Z) && action == GLFW_PRESS) {
+    }
+
+    if (key == GLFW_KEY_Z && action == GLFW_PRESS) {
         if (polygon_mode == GL_FILL) {
             polygon_mode = GL_LINE;
         } else if (polygon_mode == GL_LINE) {
@@ -176,7 +173,9 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
             polygon_mode = GL_FILL;
         }
         glPolygonMode(GL_FRONT_AND_BACK, polygon_mode);
-    } else if (key == GLFW_KEY_SPACE) {
+    }
+
+    if (key == GLFW_KEY_SPACE) {
         if (action == GLFW_PRESS) {
             if (!space_key_pressed) {
                 space_key_pressed = true;
@@ -190,7 +189,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 
 void mouse_button_callback(GLFWwindow *window, int button, int action, int mods) {
     // cout << "mouse button:" << button << " action:" << action << " mods:" << mods << endl;
-    if (button == GLFW_MOUSE_BUTTON_LEFT) {
+    if (button == GLFW_MOUSE_BUTTON_LEFT && mods == 0) {
         glfwSetInputMode(window, GLFW_CURSOR, action == GLFW_PRESS ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
     }
 }
@@ -200,6 +199,7 @@ void cursor_pos_callback(GLFWwindow *window, double xpos, double ypos) {
     cursor_vel.y = ypos - cursor_pos.y;
     cursor_pos.x = xpos;
     cursor_pos.y = ypos;
+
     // cout << "cursor_pos: (" << cursor_pos.x << ", " << cursor_pos.y << ")\tcursor_vel: (" << cursor_vel.x << ", " << cursor_vel.y << ")" << endl;
 }
 
@@ -242,7 +242,6 @@ void initOpenGL() {
 }
 
 void globalInit() {
-
 #if defined(__linux__)
     glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
 #endif

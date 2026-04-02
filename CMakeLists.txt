@@ -32,6 +32,9 @@ set(APP_SOURCES
 
     src/DynamicObject.hpp
     src/DynamicObject.cpp
+
+    src/Scene.hpp
+    src/Scene.cpp
 )
 
 add_executable(${APP_TARGET_DEBUG} ${APP_SOURCES})
@@ -44,12 +47,12 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     target_compile_options(${APP_TARGET_OPT} PRIVATE
         -Wall
         -O3
-        -Ofast
+        # -Ofast
         -march=native
         -mtune=native
-        -flto
+        # -flto
         -funroll-loops
-        -ffast-math
+        # -ffast-math
         -DNDEBUG
     )
     target_link_options(${APP_TARGET_OPT} PRIVATE -flto)
