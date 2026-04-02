@@ -105,14 +105,18 @@ void Camera::updateKeyboardInput(GLFWwindow *_window, float _deltaTime) {
 
     if (m_type == CameraFree) {
         float translation_speed = _deltaTime * m_translation_speed;
-        if (glfwGetKey(_window, GLFW_KEY_W) == GLFW_PRESS) {
-            m_position += m_front * translation_speed;
-        } else if (glfwGetKey(_window, GLFW_KEY_S) == GLFW_PRESS) {
-            m_position -= m_front * translation_speed;
-        } else if (glfwGetKey(_window, GLFW_KEY_A) == GLFW_PRESS) {
-            m_position -= m_right * translation_speed;
-        } else if (glfwGetKey(_window, GLFW_KEY_D) == GLFW_PRESS) {
-            m_position += m_right * translation_speed;
+        glm::vec3 movement(0.);
+        if (glfwGetKey(_window, GLFW_KEY_W) == GLFW_PRESS)
+            movement += m_front;
+        if (glfwGetKey(_window, GLFW_KEY_S) == GLFW_PRESS)
+            movement -= m_front;
+        if (glfwGetKey(_window, GLFW_KEY_A) == GLFW_PRESS)
+            movement -= m_right;
+        if (glfwGetKey(_window, GLFW_KEY_D) == GLFW_PRESS)
+            movement += m_right;
+
+        if (movement != VEC_ZERO) {
+            m_position += translation_speed * glm::normalize(movement);
         }
     }
 

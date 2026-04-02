@@ -36,6 +36,11 @@ DynamicObject DynamicObject::bodyFromMesh(const StaticBody &_static_body, float 
         }
     }
 
+    double individual_vertex_mass = 1. / object.N;
+    for (uint pj = 0; pj < object.N; pj++) {
+        object.setVertexMass(pj, individual_vertex_mass);
+    }
+
     // DISTANCES CONSTRAINTS
 
     std::unordered_set<uint64_t> seen_edges;
@@ -61,8 +66,9 @@ DynamicObject DynamicObject::bodyFromMesh(const StaticBody &_static_body, float 
         addEdgeIfNeeded(a, b);
         addEdgeIfNeeded(a, c);
         addEdgeIfNeeded(b, c);
-    }
 
+        object.m_triangles.push_back(glm::uvec3(a, b, c));
+    }
     // BENDING CONSTRAINTS
 
     std::map<std::pair<uint, uint>, std::vector<uint>> edgeToOpposite;

@@ -7,14 +7,18 @@
 #include <unordered_map>
 
 bool computeBarycentrics(const glm::dvec3 &v0, const glm::dvec3 &v1, const glm::dvec3 &v2, const glm::dvec3 &normal, const glm::dvec3 &p, glm::dvec3 &barycentrics) {
-    double total_area = glm::length(normal); // this is actually the 2 times the area but it doesn't matter for the barycentric coordinates
-    barycentrics.x = glm::length(glm::cross(v1 - p, v2 - p)) / total_area - 1.e-8;
-    barycentrics.y = glm::length(glm::cross(p - v0, v2 - v0)) / total_area - 1.e-8;
-    barycentrics.z = glm::length(glm::cross(v1 - v0, p - v0)) / total_area - 1.e-8;
-    if (barycentrics.x < 0. || 1. < barycentrics.x ||
-        barycentrics.y < 0. || 1. < barycentrics.y ||
-        barycentrics.z < 0. || 1. < barycentrics.z ||
-        barycentrics.x + barycentrics.y + barycentrics.z < 0. || 1. < barycentrics.x + barycentrics.y + barycentrics.z) {
+    double total_area_sq = glm::length2(normal);
+    if (total_area_sq < 1e-16)
+        return false;
+
+    // Signed barycentric coordinates
+    barycentrics.x = glm::dot(glm::cross(v1 - p, v2 - p), normal) / total_area_sq;
+    barycentrics.y = glm::dot(glm::cross(v2 - p, v0 - p), normal) / total_area_sq;
+    barycentrics.z = glm::dot(glm::cross(v0 - p, v1 - p), normal) / total_area_sq;
+
+    if (barycentrics.x < -1e-5 || 1. + 1e-5 < barycentrics.x ||
+        barycentrics.y < -1e-5 || 1. + 1e-5 < barycentrics.y ||
+        barycentrics.z < -1e-5 || 1. + 1e-5 < barycentrics.z) {
         return false;
     }
 
@@ -235,6 +239,7 @@ bool DynamicObject::update(double _delta_time, uint _solver_iterations, const st
             }
         }
     }
+
     for (const glm::uvec2 &edge : m_lines) {
         uint e0 = edge[0];
         uint e1 = edge[1];
@@ -283,10 +288,86 @@ bool DynamicObject::update(double _delta_time, uint _solver_iterations, const st
             closest_normal = glm::normalize(closest_normal);
             furthest_normal = glm::normalize(furthest_normal);
             addEdgeCollisionConstraint(e0, e1, min_t, closest_intersection, closest_normal, max_t, furthest_intersection, furthest_normal);
-            colliding_vertices.insert({e0, (1.0 - min_t) * closest_normal});
-            colliding_vertices.insert({e1, min_t * closest_normal});
-            colliding_vertices.insert({e0, (1.0 - max_t) * furthest_normal});
-            colliding_vertices.insert({e1, max_t * furthest_normal});
+            colliding_vertices.insert({e0, 0.5 * (1.0 - min_t) * closest_normal});
+            colliding_vertices.insert({e0, 0.5 * (1.0 - max_t) * furthest_normal});
+            colliding_vertices.insert({e1, 0.5 * min_t * closest_normal});
+            colliding_vertices.insert({e1, 0.5 * max_t * furthest_normal});
+            // accum(e0, closest_normal);
+            // accum(e1, closest_normal);
+        }
+    }
+    for (const StaticBody &static_body : static_bodies) {
+        const std::vector<glm::vec3> &static_positions = static_body.m_mesh->vertexPositions();
+        glm::mat4 transformation = static_body.m_transformation->computeTransformationMatrix();
+
+        for (size_t i = 0; i < static_positions.size(); i++) {
+            glm::dvec3 static_point = applyTransformation(static_positions[i], 1.f, transformation);
+
+            for (const glm::uvec3 &triangle : m_triangles) {
+                uint p0 = triangle[0];
+                uint p1 = triangle[1];
+                uint p2 = triangle[2];
+
+                glm::dvec3 v0 = new_positions[p0];
+                glm::dvec3 v1 = new_positions[p1];
+                glm::dvec3 v2 = new_positions[p2];
+
+                glm::dvec3 unnormalized_normal = glm::cross(v1 - v0, v2 - v0);
+                if (glm::length(unnormalized_normal) < 1e-8)
+                    continue;
+                glm::dvec3 normal = glm::normalize(unnormalized_normal);
+
+                // signed distance from static point to the new triangle plane
+                double current_dist = glm::dot(static_point - v0, normal);
+                glm::dvec3 project_on_plane = static_point - normal * current_dist;
+
+                glm::dvec3 barycentrics;
+                bool is_inside = computeBarycentrics(v0, v1, v2, unnormalized_normal, project_on_plane, barycentrics);
+
+                // allow a margin for fast-moving edge crossings
+                if (!is_inside) {
+                    // too far from the triangle
+                    if (barycentrics.x < -0.1 || barycentrics.y < -0.1 || barycentrics.z < -0.1)
+                        continue;
+                    // clamp for constraint evaluation
+                    barycentrics.x = std::max(0.0, std::min(1.0, barycentrics.x));
+                    barycentrics.y = std::max(0.0, std::min(1.0, barycentrics.y));
+                    barycentrics.z = std::max(0.0, std::min(1.0, barycentrics.z));
+                    double s = barycentrics.x + barycentrics.y + barycentrics.z;
+                    barycentrics /= s;
+                }
+
+                // signed distance from static point to the old triangle plane
+                glm::dvec3 old_v0 = m_positions[p0];
+                glm::dvec3 old_v1 = m_positions[p1];
+                glm::dvec3 old_v2 = m_positions[p2];
+                glm::dvec3 old_unnorm_normal = glm::cross(old_v1 - old_v0, old_v2 - old_v0);
+                double old_dist = 0.0;
+                if (glm::length(old_unnorm_normal) > 1e-8) {
+                    glm::dvec3 old_normal = glm::normalize(old_unnorm_normal);
+                    old_dist = glm::dot(static_point - old_v0, old_normal);
+                } else {
+                    old_dist = current_dist;
+                }
+
+                // decide push direction
+                double side_sign = (old_dist * current_dist < 0.0) ? old_dist : current_dist;
+                glm::dvec3 push_normal = (side_sign > 0.0) ? -normal : normal;
+
+                double thickness = 0.02;
+                // proximity
+                bool proximity = std::abs(current_dist) < thickness * 1.5;
+                // simpple continue collision detection
+                bool cross_frame = (old_dist * current_dist < 0.0) && std::abs(old_dist) > 1e-4;
+
+                if (proximity || cross_frame) {
+                    addStaticPointDynamicTriangleConstraint(p0, p1, p2, static_point, barycentrics, push_normal);
+                    // Accumulate collision normals per vertex (average if multiple collisions)
+                    colliding_vertices.insert({p0, push_normal / 3.});
+                    colliding_vertices.insert({p1, push_normal / 3.});
+                    colliding_vertices.insert({p2, push_normal / 3.});
+                }
+            }
         }
     }
 
@@ -346,6 +427,8 @@ bool DynamicObject::update(double _delta_time, uint _solver_iterations, const st
 
     // (16)
     for (auto [pj, collision_normal] : colliding_vertices) {
+        collision_normal = glm::normalize(collision_normal);
+
         // Decompose velocity into normal and tangential components
         double v_dot_n = glm::dot(m_velocities[pj], collision_normal);
         glm::dvec3 v_normal = v_dot_n * collision_normal;
@@ -381,11 +464,6 @@ void DynamicObject::addVertex(const glm::dvec3 &_position, const glm::dvec3 &_ve
     m_masses.push_back(_mass);
     m_weights.push_back(_fixed ? 0. : 1. / _mass);
     m_fixed.push_back(_fixed);
-}
-
-void DynamicObject::setVertexFixed(uint _pj, bool _fixed) {
-    m_fixed[_pj] = _fixed;
-    m_weights[_pj] = _fixed ? 0. : 1. / m_masses[_pj];
 }
 
 void DynamicObject::addConstraint(
@@ -536,6 +614,28 @@ void DynamicObject::addEdgeCollisionConstraint(uint _p0, uint _p1,
         return std::vector<glm::dvec3>{
             (1.0 - _t2) * _normal2,
             _t2 * _normal2};
+    });
+}
+
+void DynamicObject::addStaticPointDynamicTriangleConstraint(uint _p0, uint _p1, uint _p2, glm::dvec3 _static_point, glm::dvec3 _barycentrics, glm::dvec3 _normal) {
+    Mcoll++;
+    m_cardinalities.push_back(3);
+    m_indices.push_back({_p0, _p1, _p2});
+    m_stiffnesses.push_back(1.);
+    m_types.push_back(INEQUALITY_CONSTRAINT);
+
+    double thickness = 0.01;
+
+    m_functions.push_back([_static_point, _barycentrics, _normal, thickness](const std::vector<glm::dvec3> &_p) {
+        glm::dvec3 surface_pt = _barycentrics[0] * _p[0] + _barycentrics[1] * _p[1] + _barycentrics[2] * _p[2];
+        return glm::dot(surface_pt - _static_point, _normal) - thickness;
+    });
+
+    m_gradients.push_back([_barycentrics, _normal](const std::vector<glm::dvec3> &_p) {
+        return std::vector<glm::dvec3>{
+            _barycentrics[0] * _normal,
+            _barycentrics[1] * _normal,
+            _barycentrics[2] * _normal};
     });
 }
 

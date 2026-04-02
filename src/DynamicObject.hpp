@@ -76,46 +76,52 @@ class DynamicObject {
     // "3.5. Damping" of ./articles/Position_Based_Dynamics.pdf
     void dampVelocities(double k_damping = 1.); // k_damping = 1. -> rigid body
 
-    void fillMissingVertexInfos() {
+    inline void fillMissingVertexInfos() {
         m_velocities.resize(N);
         m_masses.resize(N);
     }
 
     void addCollisionConstraint(uint _p0, glm::dvec3 _intersection, glm::dvec3 _normal);                                                                           // Point to Triangle collision
     void addEdgeCollisionConstraint(uint _p0, uint _p1, double _t1, glm::dvec3 _point1, glm::dvec3 _normal1, double _t2, glm::dvec3 _point2, glm::dvec3 _normal2); // Edge to Edge collision
+    void addStaticPointDynamicTriangleConstraint(uint _p0, uint _p1, uint _p2, glm::dvec3 _static_point, glm::dvec3 _barycentrics, glm::dvec3 _normal);            // Point to Face collision
 
 public:
     // GETTERS
-    uint getN() const { return N; };
-    const std::vector<glm::dvec3> &getPositions() const { return m_positions; };
-    const std::vector<glm::dvec3> &getVelocities() const { return m_velocities; };
-    const std::vector<double> &getMasses() const { return m_masses; };
-    const std::vector<double> &getWeights() const { return m_weights; };
-    const std::vector<bool> &getFixed() const { return m_fixed; };
-    uint getM() const { return M; };
-    const std::vector<uint> &getCardinalities() const { return m_cardinalities; };
-    const std::vector<constraint_function> &getFunctions() const { return m_functions; };
-    const std::vector<gradient_function> &getGradients() const { return m_gradients; };
-    const std::vector<std::vector<uint>> &getIndices() const { return m_indices; };
-    const std::vector<double> &getStiffnesses() const { return m_stiffnesses; };
-    const std::vector<ConstraintType> &getTypes() const { return m_types; };
+    inline uint getN() const { return N; };
+    inline const std::vector<glm::dvec3> &getPositions() const { return m_positions; };
+    inline const std::vector<glm::dvec3> &getVelocities() const { return m_velocities; };
+    inline const std::vector<double> &getMasses() const { return m_masses; };
+    inline const std::vector<double> &getWeights() const { return m_weights; };
+    inline const std::vector<bool> &getFixed() const { return m_fixed; };
+    inline uint getM() const { return M; };
+    inline const std::vector<uint> &getCardinalities() const { return m_cardinalities; };
+    inline const std::vector<constraint_function> &getFunctions() const { return m_functions; };
+    inline const std::vector<gradient_function> &getGradients() const { return m_gradients; };
+    inline const std::vector<std::vector<uint>> &getIndices() const { return m_indices; };
+    inline const std::vector<double> &getStiffnesses() const { return m_stiffnesses; };
+    inline const std::vector<ConstraintType> &getTypes() const { return m_types; };
 
-    void setAmbientFrictionCoefficient(double _coeff) { m_ambient_friction_coefficient = _coeff; }
-    void setFrictionCoefficient(double _coeff) { m_friction_coefficient = _coeff; }
-    void setRestitutionCoefficient(double _coeff) { m_restitution_coefficient = _coeff; }
-    double getAmbientFrictionCoefficient() { return m_ambient_friction_coefficient; }
-    double getFrictionCoefficient() { return m_friction_coefficient; }
-    double getRestitutionCoefficient() { return m_restitution_coefficient; }
+    inline void setAmbientFrictionCoefficient(double _coeff) { m_ambient_friction_coefficient = _coeff; }
+    inline void setFrictionCoefficient(double _coeff) { m_friction_coefficient = _coeff; }
+    inline void setRestitutionCoefficient(double _coeff) { m_restitution_coefficient = _coeff; }
+    inline double getAmbientFrictionCoefficient() { return m_ambient_friction_coefficient; }
+    inline double getFrictionCoefficient() { return m_friction_coefficient; }
+    inline double getRestitutionCoefficient() { return m_restitution_coefficient; }
 
     // "3.1. Algorithm Overview" of ./articles/Position_Based_Dynamics.pdf
     bool update(double _delta_time, uint _solver_iterations, const std::vector<StaticBody> &static_bodies);
 
     void addVertex(const glm::dvec3 &_position, const glm::dvec3 &_velocity, double _mass, bool _fixed);
-    void setVertexPosition(uint _pj, glm::dvec3 _position) { m_positions[_pj] = _position; }
-    void setVertexVelocity(uint _pj, glm::dvec3 _velocity) { m_velocities[_pj] = _velocity; }
-    void setVertexMass(uint _pj, double _mass) { m_masses[_pj] = _mass; }
-    void setVertexWeight(uint _pj, double _weight) { m_weights[_pj] = _weight; }
-    void setVertexFixed(uint _pj, bool _fixed);
+    inline void setVertexPosition(uint _pj, glm::dvec3 _position) { m_positions[_pj] = _position; }
+    inline void setVertexVelocity(uint _pj, glm::dvec3 _velocity) { m_velocities[_pj] = _velocity; }
+    inline void setVertexMass(uint _pj, double _mass) {
+        m_masses[_pj] = _mass;
+        m_weights[_pj] = m_fixed[_pj] ? 0. : 1. / _mass;
+    }
+    inline void setVertexFixed(uint _pj, bool _fixed) {
+        m_fixed[_pj] = _fixed;
+        m_weights[_pj] = _fixed ? 0. : 1. / m_masses[_pj];
+    }
 
     void addConstraint(
         uint _cardinality,
