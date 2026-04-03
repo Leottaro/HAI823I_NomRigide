@@ -11,8 +11,8 @@ void Camera::updateData() {
     m_orientation.x = glm::clamp(m_orientation.x, -M_PI_2_SAFE, M_PI_2_SAFE);
     m_orientation.y = Transformation::clipAnglePI(m_orientation.y);
 
-    m_front = Transformation::EulerToEuclidian(m_orientation);
-    m_right = glm::cross(m_front, VEC_UP);
+    m_front = glm::normalize(Transformation::EulerToEuclidian(m_orientation));
+    m_right = glm::normalize(glm::cross(m_front, VEC_UP));
     m_real_up = glm::normalize(glm::cross(m_right, m_front));
 
     m_projection = glm::perspective(m_fovy, m_aspect_ratio, m_near_far.x, m_near_far.y);

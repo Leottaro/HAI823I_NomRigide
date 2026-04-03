@@ -5,6 +5,7 @@
 #include <unordered_set>
 #include <unordered_map>
 
+#include "Camera.hpp"
 #include "DynamicObject.hpp"
 #include "ShaderProgram.hpp"
 
@@ -33,6 +34,7 @@ struct DynamicObjectDesc {
     float restitution_coefficient{0.5};
 
     std::unordered_set<uint> fixed_vertices{};
+    float fixed_vertices_size{0.05};
     bool real_time_fixed{false};
 
     DynamicObjectDesc(const std::string &_name, uint _mesh_i, float _distance_stiffness, float _angle_stiffness, float _volume_stiffness, float _volume_pressure) : name(_name), mesh_i(_mesh_i), distance_stiffness(_distance_stiffness), angle_stiffness(_angle_stiffness), volume_stiffness(_volume_stiffness), volume_pressure(_volume_pressure) {}
@@ -95,6 +97,6 @@ public:
     bool updateInteractions(GLFWwindow *_window, const glm::dvec3 &_camera_pos, const glm::dvec3 &_cursor_worldpos);
     bool updateSimulation(float _deltaTime);
 
-    void render(const ShaderProgram &_dynamic_shader, const ShaderProgram &_mesh_shader, const glm::mat4 &_projection, const glm::mat4 &_view) const;
+    void render(const ShaderProgram &_dynamic_shader, const ShaderProgram &_mesh_shader, const ShaderProgram &_particle_shader, const Camera &_camera) const;
     void clear();
 };

@@ -55,6 +55,8 @@ int main(void) {
     mesh_shader.link();
     ShaderProgram dynamic_shader = ShaderProgram("ressources/shaders/dynamic_vertex.glsl", "ressources/shaders/dynamic_fragment.glsl");
     dynamic_shader.link();
+    ShaderProgram particle_shader = ShaderProgram("ressources/shaders/particle_vertex.glsl", "ressources/shaders/particle_fragment.glsl");
+    particle_shader.link();
 
     Scene scene = Scene();
 
@@ -68,6 +70,7 @@ int main(void) {
 
     DynamicObjectDesc dynamic_object_desc("boule", 1, .9f, .9f, .9f, 1.f);
     dynamic_object_desc.render_type = DynamicRenderType::LineRender;
+    dynamic_object_desc.fixed_vertices = {0};
     Transformation *dynamic_body_transformation = scene.addDynamicObject(dynamic_object_desc);
     dynamic_body_transformation->setTranslation(glm::vec3(0.f, 3.f, 0.f));
     dynamic_body_transformation->setScale(glm::vec3(1.f));
@@ -128,7 +131,7 @@ int main(void) {
         camera.update(window, deltaTime, cursor_vel, scroll, disable_mouse_actions);
 
         // RENDERING
-        scene.render(dynamic_shader, mesh_shader, camera.getProjectionMatrix(), camera.getViewMatrix());
+        scene.render(dynamic_shader, mesh_shader, particle_shader, camera);
 
         // ImGui Render
         ImGui::Render();
@@ -140,8 +143,9 @@ int main(void) {
     } while (glfwWindowShouldClose(window) == GLFW_FALSE);
 
     scene.clear();
-    dynamic_shader.~ShaderProgram();
     mesh_shader.~ShaderProgram();
+    dynamic_shader.~ShaderProgram();
+    particle_shader.~ShaderProgram();
 
     glfwTerminate();
 
@@ -235,6 +239,8 @@ void initOpenGL() {
     glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE); // Ensure we can capture the escape key being pressed below
     glClearColor(0.1f, 0.1f, 0.3f, 0.0f);                // Dark blue background
     glEnable(GL_DEPTH_TEST);                             // Enable depth test
+    glEnable(GL_BLEND);                                  // Enable color blending (for alpha)
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);   // Set a blending function
     glDepthFunc(GL_LESS);                                // Accept fragment if it closer to the camera than the former one
     glEnable(GL_CULL_FACE);                              // Cull triangles which normal is not towards the camera
 }

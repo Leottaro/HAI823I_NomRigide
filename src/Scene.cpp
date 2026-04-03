@@ -362,36 +362,57 @@ bool Scene::updateSimulation(float _deltaTime) {
         static_bodies[i].m_transformation = &m_static_bodies_transfo[i];
     }
 
-    for (DynamicObject &obj : m_dynamic_objects) {
-        if (!obj.update(do_fixed_delta_time ? fixed_delta_time : _deltaTime, solver_iterations, static_bodies)) {
-            obj.updateRenderedPositions();
+    for (uint i = 0; i < m_dynamic_objects_desc.size(); i++) {
+        bool no_error = m_dynamic_objects[i].update(do_fixed_delta_time ? fixed_delta_time : _deltaTime, solver_iterations, static_bodies);
+        m_dynamic_objects[i].updateRenderedPositions();
+        if (!no_error) {
             return false;
         }
-        obj.updateRenderedPositions();
     }
 
     return true;
 }
 
-void Scene::render(const ShaderProgram &_dynamic_shader, const ShaderProgram &_mesh_shader, const glm::mat4 &_projection, const glm::mat4 &_view) const {
+void Scene::render(const ShaderProgram &_dynamic_shader, const ShaderProgram &_mesh_shader, const ShaderProgram &_particle_shader, const Camera &_camera) const {
+    const glm::vec3 &front = _camera.getFront();
+    const glm::vec3 &right = _camera.getRight();
+    const glm::vec3 &up = _camera.getUp();
+
+    const glm::mat4 &projection = _camera.getProjectionMatrix();
+    const glm::mat4 &view = _camera.getViewMatrix();
+
     // DYNAMIC OBJECTS RENDERING
     _dynamic_shader.use();
-    _dynamic_shader.set("projection", _projection);
-    _dynamic_shader.set("view", _view);
+    _dynamic_shader.set("projection", projection);
+    _dynamic_shader.set("view", view);
     for (uint i = 0; i < m_dynamic_objects_desc.size(); i++) {
         m_dynamic_objects[i].render(m_dynamic_objects_desc[i].render_type);
     }
 
     // STATIC OBJECTS RENDERING
     _mesh_shader.use();
-    _mesh_shader.set("projection", _projection);
+    _mesh_shader.set("projection", projection);
     for (uint i = 0; i < m_static_bodies_desc.size(); i++) {
         glm::mat4 model = m_static_bodies_transfo[i].computeTransformationMatrix();
-        glm::mat4 model_view = _view * model;
+        glm::mat4 model_view = view * model;
         glm::mat4 normal_mat = glm::transpose(glm::inverse(model_view));
         _mesh_shader.set("model_view", model_view);
         _mesh_shader.set("normal_mat", normal_mat);
         m_meshes[m_static_bodies_mesh_i[i]].render();
+    }
+
+    // PARTICLES RENDERING
+    _particle_shader.use();
+    _particle_shader.set("projection", projection);
+    _particle_shader.set("view", view);
+    _particle_shader.set("right", right);
+    _particle_shader.set("up", up);
+
+    for (uint i = 0; i < m_dynamic_objects_desc.size(); i++) {
+        _particle_shader.set("particle_size", m_dynamic_objects_desc[i].fixed_vertices_size);
+        m_dynamic_objects[i].renderFixedVerices();
+        _particle_shader.set("particle_size", m_dynamic_objects_desc[i].fixed_vertices_size * 0.5f);
+        m_dynamic_objects[i].renderHoveredVertex();
     }
 }
 

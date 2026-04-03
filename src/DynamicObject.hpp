@@ -53,6 +53,7 @@ enum DynamicRenderType {
 class DynamicObject {
     // Verticies
     uint N = 0;                           // number of vertices
+    uint N_fixed = 0;                     // number of fixed vertices
     std::vector<glm::dvec3> m_positions;  // xi
     std::vector<glm::dvec3> m_velocities; // vi
     std::vector<double> m_masses;         // mi
@@ -119,6 +120,9 @@ public:
         m_weights[_pj] = m_fixed[_pj] ? 0. : 1. / _mass;
     }
     inline void setVertexFixed(uint _pj, bool _fixed) {
+        if (m_fixed[_pj] == _fixed)
+            return;
+        N_fixed += _fixed ? 1 : -1;
         m_fixed[_pj] = _fixed;
         m_weights[_pj] = _fixed ? 0. : 1. / m_masses[_pj];
     }
@@ -144,6 +148,7 @@ public:
 
     // Object interaction
 private:
+    uint hovered_point = UINT32_MAX;
     uint grabbed_point = UINT32_MAX;
     bool grabbed_fixed = false;
     void findNearestPointToLine(const glm::dvec3 &_position, const glm::dvec3 &_direction, uint &point, double &distance, glm::dvec3 &projection) const;
@@ -161,10 +166,16 @@ private:
     std::vector<glm::uvec2> m_lines;
     std::vector<glm::uvec3> m_triangles;
 
+    // fixed vertices particles
+    GLuint m_fixed_VAO;
+    GLuint m_fixed_positions_VBO;
+
 public:
     void initRendering();
     void updateRenderedPositions();
     void updateRenderedConstraints();
     void render(DynamicRenderType _type = DynamicRenderType::Auto) const;
+    void renderFixedVerices() const;
+    void renderHoveredVertex() const;
     void clear();
 };

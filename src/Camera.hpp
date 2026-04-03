@@ -51,10 +51,10 @@ public:
     bool updateInterface();
     void update(GLFWwindow *_window, float _deltaTime, const glm::vec2 &_cursor_vel, const glm::vec2 &_scroll, bool _disable_mouse_actions);
 
-    glm::vec3 getFront() const { return m_front; }
-    glm::vec3 getRight() const { return m_right; }
-    glm::vec3 getUp() const { return m_real_up; }
+    inline const glm::vec3 &getFront() const { return m_front; }
+    inline const glm::vec3 &getRight() const { return m_right; }
+    inline const glm::vec3 &getUp() const { return m_real_up; }
 
-    glm::mat4 getViewMatrix() const { return m_view; }
-    glm::mat4 getProjectionMatrix() const { return m_projection; }
+    inline const glm::mat4 &getViewMatrix() const { return m_view; }
+    inline const glm::mat4 &getProjectionMatrix() const { return m_projection; }
 };

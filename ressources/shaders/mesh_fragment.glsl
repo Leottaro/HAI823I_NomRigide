@@ -5,10 +5,10 @@ in vec3 f_position_world_space;
 in vec3 f_normal;
 in vec2 f_uv;
 
-out vec3 outColor;
+out vec4 outColor;
 
 void main() {
   // outColor = vec3(1.);
   // outColor = abs(f_normal);
-  outColor = (f_normal + vec3(1.)) / vec3(2.);
+  outColor = (vec4(f_normal, 1.) + vec4(1.)) / vec4(2.);
 }

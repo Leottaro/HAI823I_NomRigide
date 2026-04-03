@@ -64,10 +64,9 @@ void DynamicObject::dampVelocities(double k_damping) {
     }
 
     if (is_fixed) {
-        float air_friction = 0.001f;
         for (uint i = 0; i < N; i++) {
             if (!m_fixed[i]) {
-                m_velocities[i] *= (1.0f - air_friction);
+                m_velocities[i] *= (1.0f - m_ambient_friction_coefficient);
             }
         }
         return;
@@ -459,6 +458,7 @@ bool DynamicObject::update(double _delta_time, uint _solver_iterations, const st
 
 void DynamicObject::addVertex(const glm::dvec3 &_position, const glm::dvec3 &_velocity, double _mass, bool _fixed) {
     N++;
+    N_fixed += _fixed ? 1 : 0;
     m_positions.push_back(_position);
     m_velocities.push_back(_velocity);
     m_masses.push_back(_mass);
@@ -709,6 +709,16 @@ void DynamicObject::findNearestPointToLine(const glm::dvec3 &_position, const gl
 }
 
 bool DynamicObject::updateInteractions(GLFWwindow *_window, const glm::dvec3 &_camera_pos, const glm::dvec3 &_cursor_worldpos) {
+    // Hovering
+    glm::dvec3 cursor_direction = glm::normalize(_cursor_worldpos - _camera_pos);
+
+    uint point;
+    double distance;
+    glm::dvec3 projection;
+    findNearestPointToLine(_camera_pos, cursor_direction, point, distance, projection);
+    hovered_point = distance < 0.3 ? point : UINT32_MAX;
+
+    // Grabbing
     if (glfwGetMouseButton(_window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_RELEASE || glfwGetKey(_window, GLFW_KEY_LEFT_SHIFT) == GLFW_RELEASE) {
         if (grabbed_point != UINT32_MAX) {
             // std::cout << "finished grabbing point " << grabbed_point << "..." << std::endl;
@@ -719,17 +729,12 @@ bool DynamicObject::updateInteractions(GLFWwindow *_window, const glm::dvec3 &_c
         return false;
     }
 
-    glm::dvec3 cursor_direction = glm::normalize(_cursor_worldpos - _camera_pos);
     if (grabbed_point != UINT32_MAX) {
         // std::cout << "grabbing point " << grabbed_point << "..." << std::endl;
         m_positions[grabbed_point] = projectPointOnLine(m_positions[grabbed_point], _camera_pos, cursor_direction);
         return true;
     }
 
-    uint point;
-    double distance;
-    glm::dvec3 projection;
-    findNearestPointToLine(_camera_pos, cursor_direction, point, distance, projection);
     if (distance < 0.3) {
         // std::cout << "grabbing point " << point << " with distance " << distance << std::endl;
         grabbed_point = point;
@@ -745,24 +750,57 @@ bool DynamicObject::updateInteractions(GLFWwindow *_window, const glm::dvec3 &_c
 // OpenGL uinterface
 
 void DynamicObject::initRendering() {
+    // usual display
     glGenVertexArrays(1, &m_VAO);
     glBindVertexArray(m_VAO);
 
     glGenBuffers(1, &m_positions_VBO);
-    updateRenderedPositions();
+    glBindBuffer(GL_ARRAY_BUFFER, m_positions_VBO);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
     glGenBuffers(1, &m_lines_EBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_lines_EBO);
+
     glGenBuffers(1, &m_triangles_EBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_triangles_EBO);
+
+    // fixed particles
+    glGenVertexArrays(1, &m_fixed_VAO);
+    glBindVertexArray(m_fixed_VAO);
+
+    glGenBuffers(1, &m_fixed_positions_VBO);
+    glEnableVertexAttribArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, m_fixed_positions_VBO);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glVertexAttribDivisor(0, 1); // Advance once per instance
+
+    updateRenderedPositions();
     updateRenderedConstraints();
 }
 
 void DynamicObject::updateRenderedPositions() {
+    std::vector<glm::vec3> positions_float(N);
+
+    std::vector<glm::vec3> fixed_particles_positions_data;
+    std::vector<float> fixed_particles_sizes_data;
+    fixed_particles_positions_data.reserve(N_fixed);
+    fixed_particles_sizes_data.reserve(N_fixed);
+    for (uint pj = 0; pj < N; pj++) {
+        glm::vec3 float_pos = m_positions[pj];
+        positions_float[pj] = float_pos;
+        if (m_fixed[pj]) {
+            fixed_particles_positions_data.push_back(float_pos);
+        }
+    }
+
     glBindVertexArray(m_VAO);
-    std::vector<glm::vec3> positions_float(m_positions.begin(), m_positions.end());
     glBindBuffer(GL_ARRAY_BUFFER, m_positions_VBO);
     glBufferData(GL_ARRAY_BUFFER, positions_float.size() * sizeof(glm::vec3), positions_float.data(), GL_DYNAMIC_DRAW);
+
+    glBindVertexArray(m_fixed_VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_fixed_positions_VBO);
+    glBufferData(GL_ARRAY_BUFFER, fixed_particles_positions_data.size() * sizeof(glm::vec3), fixed_particles_positions_data.data(), GL_DYNAMIC_DRAW);
 }
 
 void DynamicObject::updateRenderedConstraints() {
@@ -801,8 +839,38 @@ void DynamicObject::render(DynamicRenderType _type) const {
     }
 }
 
+void DynamicObject::renderFixedVerices() const {
+    glBindVertexArray(m_fixed_VAO);
+    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, static_cast<GLsizei>(N_fixed));
+}
+
+void DynamicObject::renderHoveredVertex() const {
+    if (hovered_point == UINT32_MAX)
+        return;
+
+    glm::vec3 hovered_position = m_positions[hovered_point];
+
+    GLuint temp_VAO, temp_VBO;
+
+    glGenVertexArrays(1, &temp_VAO);
+    glBindVertexArray(temp_VAO);
+
+    // buffer Creation
+    glGenBuffers(1, &temp_VBO);
+    glEnableVertexAttribArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, temp_VBO);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glVertexAttribDivisor(0, 1); // Advance once per instance
+
+    // fill the buffer
+    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3), glm::value_ptr(hovered_position), GL_DYNAMIC_DRAW);
+
+    // render the buffer
+    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, static_cast<GLsizei>(1));
+}
+
 void DynamicObject::clear() {
-    N = 0;
+    N = N_fixed = 0;
     m_positions.clear();
     m_velocities.clear();
     m_masses.clear();
