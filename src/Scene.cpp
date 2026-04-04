@@ -19,7 +19,7 @@ void Scene::resetDynamicObject(uint _i) {
     for (uint pj : m_dynamic_objects_desc[_i].fixed_vertices) {
         m_dynamic_objects[_i].setVertexFixed(pj, true);
     }
-    m_dynamic_objects[_i].setAmbientFrictionCoefficient(m_dynamic_objects_desc[_i].ambient_friction_coefficient);
+    m_dynamic_objects[_i].setDampingCoefficient(m_dynamic_objects_desc[_i].damping_coefficient);
     m_dynamic_objects[_i].setFrictionCoefficient(m_dynamic_objects_desc[_i].friction_coefficient);
     m_dynamic_objects[_i].setRestitutionCoefficient(m_dynamic_objects_desc[_i].restitution_coefficient);
 
@@ -186,6 +186,17 @@ void Scene::dynamicObjectInterface(uint _i) {
         object.mesh_i = std::clamp(mi, 0, int(m_meshes.size() - 1));
     }
 
+    int preset_int = object.preset;
+    if (ImGui::Combo(("##dynamic" + object.name).c_str(), &preset_int, IMGUI_DYNAMIC_OBJECT_PRESEST)) {
+        object.preset = DynamicObjectDescPreset(preset_int);
+    }
+    if (object.preset != DynamicObjectDescPreset::CustomBody) {
+        ImGui::SameLine();
+        if (ImGui::Button("Apply preset")) {
+            object.applyPreset();
+        }
+    }
+
     ImGui::Spacing();
     ImGui::DragFloat3(("Position##dynamic" + object.name).c_str(), glm::value_ptr(object.transfo.getTranslation()), .01f, -FLT_MAX, FLT_MAX);
     ImGui::DragFloat3(("Scale##dynamic" + object.name).c_str(), glm::value_ptr(object.transfo.getScale()), .01f, -FLT_MAX, FLT_MAX);
@@ -196,7 +207,7 @@ void Scene::dynamicObjectInterface(uint _i) {
     }
 
     ImGui::Spacing();
-    ImGui::DragFloat(("Ambiant friction##dynamic" + object.name).c_str(), &object.ambient_friction_coefficient, .01f, 0.f, 1.f);
+    ImGui::DragFloat(("Damping##dynamic" + object.name).c_str(), &object.damping_coefficient, .01f, 0.f, 1.f);
     ImGui::DragFloat(("Friction##dynamic" + object.name).c_str(), &object.friction_coefficient, .01f, 0.f, 1.f);
     ImGui::DragFloat(("Restitution##dynamic" + object.name).c_str(), &object.restitution_coefficient, .01f, 0.f, 1.f);
 
@@ -227,7 +238,6 @@ void Scene::dynamicObjectInterface(uint _i) {
     }
 
     // Display and allow removal of fixed vertices
-    ImGui::Text("Fixed vertices:");
     ImGui::Indent();
     std::vector<uint> vertices_to_remove;
     for (uint pj : object.fixed_vertices) {
@@ -325,11 +335,9 @@ bool Scene::updateInterface() {
             resetStaticBody(m_dynamic_objects_desc.size() - 1);
         }
         for (uint i = 0; i < m_dynamic_objects_desc.size(); i++) {
-            if (i > 0) {
-                ImGui::Spacing();
-                ImGui::Separator();
-                ImGui::Spacing();
-            }
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
             dynamicObjectInterface(i);
         }
     }

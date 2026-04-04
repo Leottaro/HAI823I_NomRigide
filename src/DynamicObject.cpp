@@ -54,25 +54,7 @@ READ "3.5. Damping" of ./articles/Position_Based_Dynamics.pdf
 (8) vi ← vi + kdamping ∆vi
 (9) endfor
 */
-void DynamicObject::dampVelocities(double k_damping) {
-    bool is_fixed = false;
-    for (uint i = 0; i < N; i++) {
-        if (m_fixed[i]) {
-            is_fixed = true;
-            break;
-        }
-    }
-
-    if (is_fixed) {
-        float air_friction = 0.001f;
-        for (uint i = 0; i < N; i++) {
-            if (!m_fixed[i]) {
-                m_velocities[i] *= (1.0f - air_friction);
-            }
-        }
-        return;
-    }
-
+void DynamicObject::dampVelocities() {
     double total_mass = 0.;
     glm::dvec3 xcm = glm::dvec3(0.); // (1) : global linear velocity
     glm::dvec3 vcm = glm::dvec3(0.); // (2)
@@ -117,7 +99,7 @@ void DynamicObject::dampVelocities(double k_damping) {
             continue;
         glm::dvec3 ri = m_positions[i] - xcm;
         glm::dvec3 dvi = vcm + glm::cross(omega, ri) - m_velocities[i]; // (7)
-        m_velocities[i] += k_damping * dvi;                             // (8)
+        m_velocities[i] += m_damping_coefficient * dvi;                 // (8)
     }
 }
 
@@ -142,6 +124,8 @@ READ "3.1. Algorithm Overview" of ./articles/Position_Based_Dynamics.pdf
 (17)  endloop
 */
 
+double thickness = 0.02;
+
 bool DynamicObject::update(double _delta_time, uint _solver_iterations, const std::vector<StaticBody> &static_bodies) {
     std::vector<glm::dvec3> new_positions(N); // p_i
 
@@ -150,14 +134,21 @@ bool DynamicObject::update(double _delta_time, uint _solver_iterations, const st
         m_velocities[pj] = m_fixed[pj] ? m_velocities[pj] : m_velocities[pj] + _delta_time * glm::dvec3(0., -9.807, 0.);
 
     // (6)
-    dampVelocities(1.);
+    dampVelocities();
 
     // (7)
     for (uint pj = 0; pj < N; pj++)
         new_positions[pj] = m_fixed[pj] ? m_positions[pj] : m_positions[pj] + _delta_time * m_velocities[pj];
 
     // (8)
-    std::unordered_map<size_t, glm::dvec3> colliding_vertices;
+    std::unordered_map<uint, glm::dvec3> colliding_vertices;
+    const auto accumulate_collision = [&colliding_vertices](uint _pj, const glm::dvec3 &_normal) {
+        if (colliding_vertices.find(_pj) == colliding_vertices.end()) {
+            colliding_vertices.insert({_pj, _normal});
+        } else {
+            colliding_vertices[_pj] += _normal;
+        }
+    };
     for (uint pj = 0; pj < N; pj++) {
         glm::dvec3 origin = m_positions[pj];
         glm::dvec3 direction = new_positions[pj] - m_positions[pj];
@@ -229,13 +220,15 @@ bool DynamicObject::update(double _delta_time, uint _solver_iterations, const st
             if (0. <= min_t && min_t <= 1.) {
                 // WILL ENTER THE OBJECT
                 // std::cout << "POINT WILL ENTER: 0 <= " << min_t << " <= 1" << std::endl;
-                addCollisionConstraint(pj, closest_intersection, glm::normalize(closest_normal));
-                colliding_vertices.insert({pj, glm::normalize(closest_normal)});
+                closest_normal = glm::normalize(closest_normal);
+                addCollisionConstraint(pj, closest_intersection, closest_normal);
+                accumulate_collision(pj, closest_normal);
             } else if (min_t < 0. && max_t > 1.) {
                 // COMPLETLY INSIDE THE OBJECT
                 // std::cout << "POINT INSIDE: " << min_t << " < 0 && " << max_t << " > 1" << std::endl;
-                addCollisionConstraint(pj, closest_surface, glm::normalize(closest_surface_normal));
-                colliding_vertices.insert({pj, glm::normalize(closest_surface_normal)});
+                closest_surface_normal = glm::normalize(closest_surface_normal);
+                addCollisionConstraint(pj, closest_surface, closest_surface_normal);
+                accumulate_collision(pj, closest_surface_normal);
             }
         }
     }
@@ -288,12 +281,8 @@ bool DynamicObject::update(double _delta_time, uint _solver_iterations, const st
             closest_normal = glm::normalize(closest_normal);
             furthest_normal = glm::normalize(furthest_normal);
             addEdgeCollisionConstraint(e0, e1, min_t, closest_intersection, closest_normal, max_t, furthest_intersection, furthest_normal);
-            colliding_vertices.insert({e0, 0.5 * (1.0 - min_t) * closest_normal});
-            colliding_vertices.insert({e0, 0.5 * (1.0 - max_t) * furthest_normal});
-            colliding_vertices.insert({e1, 0.5 * min_t * closest_normal});
-            colliding_vertices.insert({e1, 0.5 * max_t * furthest_normal});
-            // accum(e0, closest_normal);
-            // accum(e1, closest_normal);
+            accumulate_collision(e0, 0.5 * glm::normalize((1.0 - min_t) * closest_normal + (1.0 - max_t) * furthest_normal));
+            accumulate_collision(e1, 0.5 * glm::normalize(min_t * closest_normal + max_t * furthest_normal));
         }
     }
     for (const StaticBody &static_body : static_bodies) {
@@ -354,7 +343,6 @@ bool DynamicObject::update(double _delta_time, uint _solver_iterations, const st
                 double side_sign = (old_dist * current_dist < 0.0) ? old_dist : current_dist;
                 glm::dvec3 push_normal = (side_sign > 0.0) ? -normal : normal;
 
-                double thickness = 0.02;
                 // proximity
                 bool proximity = std::abs(current_dist) < thickness * 1.5;
                 // simpple continue collision detection
@@ -363,9 +351,10 @@ bool DynamicObject::update(double _delta_time, uint _solver_iterations, const st
                 if (proximity || cross_frame) {
                     addStaticPointDynamicTriangleConstraint(p0, p1, p2, static_point, barycentrics, push_normal);
                     // Accumulate collision normals per vertex (average if multiple collisions)
-                    colliding_vertices.insert({p0, push_normal / 3.});
-                    colliding_vertices.insert({p1, push_normal / 3.});
-                    colliding_vertices.insert({p2, push_normal / 3.});
+                    push_normal /= 3.;
+                    accumulate_collision(p0, push_normal);
+                    accumulate_collision(p1, push_normal);
+                    accumulate_collision(p2, push_normal);
                 }
             }
         }
@@ -387,7 +376,7 @@ bool DynamicObject::update(double _delta_time, uint _solver_iterations, const st
             }
 
             if (total_weigths != total_weigths) {
-                std::cerr << "Nan total weights..." << std::endl;
+                std::cerr << total_weigths << " total weights... Is there a vertex with a zero mass ?" << std::endl;
                 return false;
             }
 
@@ -401,10 +390,14 @@ bool DynamicObject::update(double _delta_time, uint _solver_iterations, const st
             std::vector<glm::dvec3> gradients = m_gradients[ci](affected_points);
             double denominator = 0.;
             for (uint i = 0; i < m_cardinalities[ci]; i++) {
+                if (gradients[i] != gradients[i]) {
+                    std::cerr << glm::to_string(gradients[i]) << " gradients[i] for a " << CONSTAINT_DEBUG_NAMES[m_debug_types[ci]] << " constraint " << ci << " of cardinality " << m_cardinalities[ci] << "." << std::endl;
+                    return false;
+                }
                 denominator += glm::length2(gradients[i]);
             }
             if (denominator != denominator || denominator == 0.) {
-                std::cerr << "invalid denominator=" << denominator << " for constraint " << ci << " of cardinality " << m_cardinalities[ci] << ". You may need to lower the deltaTime!" << std::endl;
+                std::cerr << "invalid denominator=" << denominator << " for a " << CONSTAINT_DEBUG_NAMES[m_debug_types[ci]] << " constraint " << ci << " of cardinality " << m_cardinalities[ci] << ". You may need to lower the deltaTime!" << std::endl;
                 return false;
             }
             double s = function_value / denominator;
@@ -413,8 +406,16 @@ bool DynamicObject::update(double _delta_time, uint _solver_iterations, const st
             for (uint i = 0; i < m_cardinalities[ci]; i++) {
                 uint pj = m_indices[ci][i];
                 glm::dvec3 delta_pj = -s * (double(m_cardinalities[ci]) * m_weights[pj] / total_weigths) * gradients[i];
+                if (delta_pj != delta_pj) {
+                    std::cerr << delta_pj << " delta_pj for a " << CONSTAINT_DEBUG_NAMES[m_debug_types[ci]] << " constraint " << ci << " of cardinality " << m_cardinalities[ci] << "." << std::endl;
+                    return false;
+                }
                 double k_prime = 1. - std::pow(1. - m_stiffnesses[ci], 1. / _solver_iterations);
                 new_positions[pj] += k_prime * delta_pj;
+                if (new_positions[pj] != new_positions[pj]) {
+                    std::cerr << new_positions[pj] << " new_positions[pj] for a " << CONSTAINT_DEBUG_NAMES[m_debug_types[ci]] << " constraint " << ci << " of cardinality " << m_cardinalities[ci] << "." << std::endl;
+                    return false;
+                }
             }
         }
     }
@@ -423,6 +424,10 @@ bool DynamicObject::update(double _delta_time, uint _solver_iterations, const st
     for (uint pj = 0; pj < N; pj++) {
         m_velocities[pj] = (new_positions[pj] - m_positions[pj]) / _delta_time; // (13)
         m_positions[pj] = new_positions[pj];                                    // (14)
+        if (m_positions[pj] != m_positions[pj]) {
+            std::cerr << m_positions[pj] << " m_positions[pj]." << std::endl;
+            return false;
+        }
     }
 
     // (16)
@@ -443,6 +448,11 @@ bool DynamicObject::update(double _delta_time, uint _solver_iterations, const st
 
         // Reconstruct velocity
         m_velocities[pj] = v_normal + v_tangent;
+
+        if (m_velocities[pj] != m_velocities[pj]) {
+            std::cerr << m_velocities[pj] << " m_velocities[pj] after friction/restitution." << std::endl;
+            return false;
+        }
     }
 
     // cancel collision constraitns
@@ -451,6 +461,7 @@ bool DynamicObject::update(double _delta_time, uint _solver_iterations, const st
     m_indices.resize(M);
     m_stiffnesses.resize(M);
     m_types.resize(M);
+    m_debug_types.resize(M);
     m_functions.resize(M);
     m_gradients.resize(M);
 
@@ -480,6 +491,7 @@ void DynamicObject::addConstraint(
     m_indices.push_back(_indices);
     m_stiffnesses.push_back(_stiffness);
     m_types.push_back(_type);
+    m_debug_types.push_back(CUSTOM_CONSTRAINT);
 }
 
 void DynamicObject::addDistanceConstraint(uint _p0, uint _p1, double _stiffness, double _targeted_distance) {
@@ -488,6 +500,7 @@ void DynamicObject::addDistanceConstraint(uint _p0, uint _p1, double _stiffness,
     m_indices.push_back({_p0, _p1});
     m_stiffnesses.push_back(_stiffness);
     m_types.push_back(EQUALITY_CONSTRAINT);
+    m_debug_types.push_back(DISTANCE_CONSTRAINT);
 
     m_functions.push_back([_targeted_distance](const std::vector<glm::dvec3> &_p) {
         return glm::distance(_p[0], _p[1]) - _targeted_distance;
@@ -507,6 +520,7 @@ void DynamicObject::addBendingConstraint(uint _p0, uint _p1, uint _p2, uint _p3,
     m_indices.push_back({_p0, _p1, _p2, _p3});
     m_stiffnesses.push_back(_stiffness);
     m_types.push_back(EQUALITY_CONSTRAINT);
+    m_debug_types.push_back(BENDING_CONSTRAINT);
 
     m_functions.push_back([_targeted_angle](const std::vector<glm::dvec3> &_p) {
         glm::dvec3 e = glm::normalize(_p[1] - _p[0]); // arête commune
@@ -564,6 +578,7 @@ void DynamicObject::addCollisionConstraint(uint _p0, glm::dvec3 _intersection, g
     m_indices.push_back({_p0});
     m_stiffnesses.push_back(1.);
     m_types.push_back(INEQUALITY_CONSTRAINT);
+    m_debug_types.push_back(VERTEX_COLLISION_CONSTRAINT);
 
     m_functions.push_back([_intersection, _normal](const std::vector<glm::dvec3> &_p) {
         return glm::dot(_p[0] - _intersection, _normal);
@@ -576,19 +591,18 @@ void DynamicObject::addCollisionConstraint(uint _p0, glm::dvec3 _intersection, g
 void DynamicObject::addEdgeCollisionConstraint(uint _p0, uint _p1,
                                                double _t1, glm::dvec3 _point1, glm::dvec3 _normal1,
                                                double _t2, glm::dvec3 _point2, glm::dvec3 _normal2) {
-    double edge_radius = 0.05;
-
     // Create first contact constraint
     Mcoll++;
     m_cardinalities.push_back(2);
     m_indices.push_back({_p0, _p1});
     m_stiffnesses.push_back(1.0);
     m_types.push_back(INEQUALITY_CONSTRAINT);
+    m_debug_types.push_back(EDGE_COLLISION_CONSTRAINT);
 
-    m_functions.push_back([_t1, _point1, _normal1, edge_radius](const std::vector<glm::dvec3> &_p) {
+    m_functions.push_back([_t1, _point1, _normal1](const std::vector<glm::dvec3> &_p) {
         glm::dvec3 edge_pt = (1.0 - _t1) * _p[0] + _t1 * _p[1];
         double dist = glm::dot(edge_pt - _point1, _normal1);
-        return dist - edge_radius;
+        return dist - thickness;
     });
 
     m_gradients.push_back([_t1, _normal1](const std::vector<glm::dvec3> &_p) {
@@ -603,11 +617,12 @@ void DynamicObject::addEdgeCollisionConstraint(uint _p0, uint _p1,
     m_indices.push_back({_p0, _p1});
     m_stiffnesses.push_back(1.0);
     m_types.push_back(INEQUALITY_CONSTRAINT);
+    m_debug_types.push_back(EDGE_COLLISION_CONSTRAINT);
 
-    m_functions.push_back([_t2, _point2, _normal2, edge_radius](const std::vector<glm::dvec3> &_p) {
+    m_functions.push_back([_t2, _point2, _normal2](const std::vector<glm::dvec3> &_p) {
         glm::dvec3 edge_pt = (1.0 - _t2) * _p[0] + _t2 * _p[1];
         double dist = glm::dot(edge_pt - _point2, _normal2);
-        return dist - edge_radius;
+        return dist - thickness;
     });
 
     m_gradients.push_back([_t2, _normal2](const std::vector<glm::dvec3> &_p) {
@@ -623,10 +638,9 @@ void DynamicObject::addStaticPointDynamicTriangleConstraint(uint _p0, uint _p1, 
     m_indices.push_back({_p0, _p1, _p2});
     m_stiffnesses.push_back(1.);
     m_types.push_back(INEQUALITY_CONSTRAINT);
+    m_debug_types.push_back(TRAINGLE_COLLISION_CONSTRAINT);
 
-    double thickness = 0.01;
-
-    m_functions.push_back([_static_point, _barycentrics, _normal, thickness](const std::vector<glm::dvec3> &_p) {
+    m_functions.push_back([_static_point, _barycentrics, _normal](const std::vector<glm::dvec3> &_p) {
         glm::dvec3 surface_pt = _barycentrics[0] * _p[0] + _barycentrics[1] * _p[1] + _barycentrics[2] * _p[2];
         return glm::dot(surface_pt - _static_point, _normal) - thickness;
     });
@@ -647,6 +661,7 @@ void DynamicObject::addVolumeConstraint(std::vector<glm::uvec3> _indices, double
     m_indices.push_back(all_indices);
     m_stiffnesses.push_back(_stiffness);
     m_types.push_back(EQUALITY_CONSTRAINT);
+    m_debug_types.push_back(VOLUME_CONSTRAINT);
 
     m_functions.push_back([_targeted_volume, _pressure, _indices](const std::vector<glm::dvec3> &_p) {
         double V = 0;

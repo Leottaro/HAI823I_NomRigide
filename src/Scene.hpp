@@ -17,25 +17,65 @@ struct StaticBodyDesc {
     StaticBodyDesc(const std::string &_name, uint _mesh_i) : name(_name), mesh_i(_mesh_i) {}
 };
 
+#define DYNAMIC_OBJECT_PRESEST_N 4
+#define IMGUI_DYNAMIC_OBJECT_PRESEST "CustomBody\0RigidBody\0ClothObject\0SoftBody\0"
+enum DynamicObjectDescPreset {
+    CustomBody,
+    RigidBody,
+    ClothObject,
+    SoftBody
+};
+
 struct DynamicObjectDesc {
     std::string name;
     uint mesh_i;
+    DynamicObjectDescPreset preset;
 
     float distance_stiffness;
     float angle_stiffness;
     float volume_stiffness;
     float volume_pressure;
+    float damping_coefficient{0.05};
 
     DynamicRenderType render_type{DynamicRenderType::Auto};
     Transformation transfo{};
-    float ambient_friction_coefficient{0.01};
     float friction_coefficient{0.5};
     float restitution_coefficient{0.5};
 
     std::unordered_set<uint> fixed_vertices{};
-    bool real_time_fixed{false};
 
-    DynamicObjectDesc(const std::string &_name, uint _mesh_i, float _distance_stiffness, float _angle_stiffness, float _volume_stiffness, float _volume_pressure) : name(_name), mesh_i(_mesh_i), distance_stiffness(_distance_stiffness), angle_stiffness(_angle_stiffness), volume_stiffness(_volume_stiffness), volume_pressure(_volume_pressure) {}
+    DynamicObjectDesc(const std::string &_name, uint _mesh_i, float _distance_stiffness, float _angle_stiffness, float _volume_stiffness, float _volume_pressure) : name(_name), mesh_i(_mesh_i), preset(DynamicObjectDescPreset::CustomBody), distance_stiffness(_distance_stiffness), angle_stiffness(_angle_stiffness), volume_stiffness(_volume_stiffness), volume_pressure(_volume_pressure) {}
+    DynamicObjectDesc(const std::string &_name, uint _mesh_i, DynamicObjectDescPreset _preset) : name(_name), mesh_i(_mesh_i), preset(_preset) {
+        applyPreset();
+    }
+
+    void applyPreset() {
+        switch (preset) {
+        case DynamicObjectDescPreset::CustomBody:
+            break;
+        case DynamicObjectDescPreset::RigidBody:
+            distance_stiffness = 1.;
+            angle_stiffness = 1.;
+            volume_stiffness = 1.;
+            volume_pressure = 1.;
+            damping_coefficient = 1.;
+            break;
+        case DynamicObjectDescPreset::ClothObject:
+            distance_stiffness = .9;
+            angle_stiffness = .9;
+            volume_stiffness = 0.;
+            volume_pressure = 1.;
+            break;
+        case DynamicObjectDescPreset::SoftBody:
+            distance_stiffness = .9;
+            angle_stiffness = .9;
+            volume_stiffness = .9;
+            volume_pressure = 1.;
+            break;
+        default:
+            throw new std::runtime_error("unimplemented DynamicObjectDescPreset in DynamicObjectDesc constructor.");
+        }
+    }
 };
 
 class Scene {

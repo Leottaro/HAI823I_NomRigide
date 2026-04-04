@@ -41,6 +41,25 @@ enum ConstraintType {
     INEQUALITY_CONSTRAINT,
 };
 
+constexpr std::array<const char *, 7> CONSTAINT_DEBUG_NAMES = {
+    "CUSTOM CONSTRAINT",
+    "DISTANCE CONSTRAINT",
+    "BENDING CONSTRAINT",
+    "VOLUME CONSTRAINT",
+    "VERTEX COLLISION CONSTRAINT",
+    "EDGE COLLISION CONSTRAINT",
+    "TRAINGLE COLLISION CONSTRAINT",
+};
+enum ConstraintDebugType {
+    CUSTOM_CONSTRAINT,
+    DISTANCE_CONSTRAINT,
+    BENDING_CONSTRAINT,
+    VOLUME_CONSTRAINT,
+    VERTEX_COLLISION_CONSTRAINT,
+    EDGE_COLLISION_CONSTRAINT,
+    TRAINGLE_COLLISION_CONSTRAINT,
+};
+
 #define DYNAMIC_RENDER_TYPES_N 4
 #define IMGUI_DYNAMIC_RENDER_TYPES "PointRender\0LineRender\0TriangleRender\0Auto\0"
 enum DynamicRenderType {
@@ -60,21 +79,23 @@ class DynamicObject {
     std::vector<bool> m_fixed;            // if the vertex is fixed
 
     // Constraints
-    uint M = 0, Mcoll = 0;                        // number of contraints
-    std::vector<uint> m_cardinalities;            // nj: The number of impacted vertices
-    std::vector<constraint_function> m_functions; // Cj: The constraint itself. Input's size must match the cardinality
-    std::vector<gradient_function> m_gradients;   // Cj: The gradient (evolution) of the constraint. Input's size must match the cardinality
-    std::vector<std::vector<uint>> m_indices;     // Indices of impacted vertices
-    std::vector<double> m_stiffnesses;            // kj: Strength in [0;1]
-    std::vector<ConstraintType> m_types;          // Either Equality (=0) or Inequality (>=0)
+    uint M = 0, Mcoll = 0;                          // number of contraints
+    std::vector<uint> m_cardinalities;              // nj: The number of impacted vertices
+    std::vector<constraint_function> m_functions;   // Cj: The constraint itself. Input's size must match the cardinality
+    std::vector<gradient_function> m_gradients;     // Cj: The gradient (evolution) of the constraint. Input's size must match the cardinality
+    std::vector<std::vector<uint>> m_indices;       // Indices of impacted vertices
+    std::vector<double> m_stiffnesses;              // kj: Strength in [0;1]
+    std::vector<ConstraintType> m_types;            // Either Equality (=0) or Inequality (>=0)
+    std::vector<ConstraintDebugType> m_debug_types; // for debugging sake
 
-    // Collisions parameters
-    double m_ambient_friction_coefficient = 0.01;
+    // Other parameters
+    double m_damping_coefficient = 0.05;
+    // double m_ambiant_friction_coefficient = 0.001;
     double m_friction_coefficient = 0.5;
     double m_restitution_coefficient = 0.5;
 
     // "3.5. Damping" of ./articles/Position_Based_Dynamics.pdf
-    void dampVelocities(double k_damping = 1.); // k_damping = 1. -> rigid body
+    void dampVelocities(); // k_damping = 1. -> rigid body
 
     inline void fillMissingVertexInfos() {
         m_velocities.resize(N);
@@ -101,11 +122,11 @@ public:
     inline const std::vector<double> &getStiffnesses() const { return m_stiffnesses; };
     inline const std::vector<ConstraintType> &getTypes() const { return m_types; };
 
-    inline void setAmbientFrictionCoefficient(double _coeff) { m_ambient_friction_coefficient = _coeff; }
     inline void setFrictionCoefficient(double _coeff) { m_friction_coefficient = _coeff; }
+    inline void setDampingCoefficient(double _coeff) { m_damping_coefficient = _coeff; }
     inline void setRestitutionCoefficient(double _coeff) { m_restitution_coefficient = _coeff; }
-    inline double getAmbientFrictionCoefficient() { return m_ambient_friction_coefficient; }
     inline double getFrictionCoefficient() { return m_friction_coefficient; }
+    inline double getDampingCoefficient() { return m_damping_coefficient; }
     inline double getRestitutionCoefficient() { return m_restitution_coefficient; }
 
     // "3.1. Algorithm Overview" of ./articles/Position_Based_Dynamics.pdf
