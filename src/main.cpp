@@ -65,11 +65,11 @@ int main(void) {
     Transformation *floor_transfo = scene.addStaticBody(StaticBodyDesc("sol", 0));
     floor_transfo->setTranslation(glm::vec3(0.f, -3.f, 0.f));
     floor_transfo->setScale(glm::vec3(10.f, 4.f, 50.f));
-    floor_transfo->setEulerAngles(glm::vec3(M_PIf / 8.f, 0.f, 0.f));
+    floor_transfo->setEulerAngles(glm::vec3(glm::pi<float>() / 8.f, 0.f, 0.f));
 
     DynamicObjectDesc dynamic_object_desc("boule", 1, .9f, 0.f, 0.f, 1.f);
     dynamic_object_desc.render_type = DynamicRenderType::LineRender;
-    dynamic_object_desc.fixed_vertices = {0, size - 1, size * (size - 1)};
+    // dynamic_object_desc.fixed_vertices = {0, size - 1, size * (size - 1)};
     Transformation *dynamic_body_transformation = scene.addDynamicObject(dynamic_object_desc);
     dynamic_body_transformation->setTranslation(glm::vec3(0.f, 3.f, 0.f));
     dynamic_body_transformation->setScale(glm::vec3(1.f));
@@ -123,9 +123,19 @@ int main(void) {
         cursor_worldpos = applyTransformation(glm::vec3(2.f * (cursor_pos.x / window_width) - 1.f, 1.f - 2.f * (cursor_pos.y / window_height), camera.m_near_far.x), 1.f, glm::inverse(camera.getViewMatrix()) * glm::inverse(camera.getProjectionMatrix()));
         scene.updateInteractions(window, camera.m_position, cursor_worldpos);
         if (run_simulation) {
-            if (!scene.updateSimulation(deltaTime)) {
-                run_simulation = false;
+            int num_subSteps = scene.num_subSteps;
+            float clamped_dt = std::min(deltaTime, 0.033f);
+            float sub_dt = clamped_dt / (float)num_subSteps;
+
+            for (int i = 0; i < num_subSteps; i++) {
+                if (!scene.updateSimulation(sub_dt)) {
+                    run_simulation = false;
+                    break;
+                }
             }
+
+            // update scene for rendering after all small steps simulation
+            scene.updateAllRendredPositions();
         }
         camera.update(window, deltaTime, cursor_vel, scroll, disable_mouse_actions);
 

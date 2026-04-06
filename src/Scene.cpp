@@ -261,6 +261,10 @@ bool Scene::updateInterface() {
     if (ImGui::Begin("Scene")) {
         disable_mouse_actions = ImGui::IsWindowHovered() || ImGui::IsAnyItemHovered() || ImGui::IsAnyItemActive() || ImGui::IsAnyItemFocused();
         ImGui::SeparatorText("Global settings");
+        int ns = num_subSteps;
+        if (ImGui::DragInt("Number Sub Steps", &ns, 0.5f, 1, 100)) {
+            num_subSteps = ns;
+        };
         int si = solver_iterations;
         if (ImGui::DragInt("Solver iterations", &si, 0.5f, 1, 1000)) {
             solver_iterations = si;
@@ -363,22 +367,31 @@ bool Scene::updateInteractions(GLFWwindow *_window, const glm::dvec3 &_camera_po
     return res;
 }
 
-bool Scene::updateSimulation(float _deltaTime) {
+bool Scene::updateSimulation(float _subDeltaTime) {
     std::vector<StaticBody> static_bodies(m_static_bodies_desc.size());
     for (uint i = 0; i < m_static_bodies_desc.size(); i++) {
         static_bodies[i].m_mesh = &m_meshes[m_static_bodies_mesh_i[i]];
         static_bodies[i].m_transformation = &m_static_bodies_transfo[i];
     }
 
+    uint sub_iterations = solver_iterations / 4;
+    if (sub_iterations < 1) sub_iterations = 1;
     for (DynamicObject &obj : m_dynamic_objects) {
-        if (!obj.update(do_fixed_delta_time ? fixed_delta_time : _deltaTime, solver_iterations, static_bodies)) {
+        float dt = do_fixed_delta_time ? (fixed_delta_time / 4.0f) : _subDeltaTime;
+        if (!obj.update(dt, sub_iterations, static_bodies)) {
             obj.updateRenderedPositions();
             return false;
         }
-        obj.updateRenderedPositions();
+        // obj.updateRenderedPositions();
     }
 
     return true;
+}
+
+void Scene::updateAllRendredPositions() {
+    for (DynamicObject &obj : m_dynamic_objects) {
+        obj.updateRenderedPositions();
+    }
 }
 
 void Scene::render(const ShaderProgram &_dynamic_shader, const ShaderProgram &_mesh_shader, const glm::mat4 &_projection, const glm::mat4 &_view) const {

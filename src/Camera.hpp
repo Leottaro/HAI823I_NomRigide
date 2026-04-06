@@ -25,7 +25,7 @@ public:
     float m_rotation_speed = 1.0f;
 
     float m_aspect_ratio = 1.f;
-    float m_fovy = M_PI_2f;
+    float m_fovy = glm::pi<float>() / 2.f;
     glm::vec2 m_near_far = glm::vec2(1.e-1f, 1.e4f);
 
     const glm::vec3 *m_center = &VEC_ZERO; // Only in oribtal type

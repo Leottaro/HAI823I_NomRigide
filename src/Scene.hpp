@@ -102,6 +102,7 @@ private:
 
 public:
     uint solver_iterations = 100;
+    uint num_subSteps = 4;
     bool do_fixed_delta_time = false;
     double fixed_delta_time = 1.e-6;
 
@@ -134,6 +135,7 @@ public:
 
     bool updateInteractions(GLFWwindow *_window, const glm::dvec3 &_camera_pos, const glm::dvec3 &_cursor_worldpos);
     bool updateSimulation(float _deltaTime);
+    void updateAllRendredPositions();
 
     void render(const ShaderProgram &_dynamic_shader, const ShaderProgram &_mesh_shader, const glm::mat4 &_projection, const glm::mat4 &_view) const;
     void clear();
