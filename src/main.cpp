@@ -128,7 +128,7 @@ int main(void) {
             float sub_dt = clamped_dt / (float)num_subSteps;
 
             for (int i = 0; i < num_subSteps; i++) {
-                if (!scene.updateSimulation(sub_dt)) {
+                if (!scene.updateSimulation(sub_dt, clamped_dt, i==0)) {
                     run_simulation = false;
                     break;
                 }

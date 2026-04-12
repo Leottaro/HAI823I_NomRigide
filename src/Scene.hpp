@@ -134,7 +134,7 @@ public:
     void dynamicObjectInterface(uint _i);
 
     bool updateInteractions(GLFWwindow *_window, const glm::dvec3 &_camera_pos, const glm::dvec3 &_cursor_worldpos);
-    bool updateSimulation(float _deltaTime);
+    bool updateSimulation(float _deltaTime, float _fullDeltaTime, bool _is_first_step);
     void updateAllRendredPositions();
 
     void render(const ShaderProgram &_dynamic_shader, const ShaderProgram &_mesh_shader, const glm::mat4 &_projection, const glm::mat4 &_view) const;

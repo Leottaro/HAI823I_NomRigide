@@ -367,7 +367,7 @@ bool Scene::updateInteractions(GLFWwindow *_window, const glm::dvec3 &_camera_po
     return res;
 }
 
-bool Scene::updateSimulation(float _subDeltaTime) {
+bool Scene::updateSimulation(float _subDeltaTime, float _fullDeltaTime, bool _is_first_step) {
     std::vector<StaticBody> static_bodies(m_static_bodies_desc.size());
     for (uint i = 0; i < m_static_bodies_desc.size(); i++) {
         static_bodies[i].m_mesh = &m_meshes[m_static_bodies_mesh_i[i]];
@@ -377,8 +377,9 @@ bool Scene::updateSimulation(float _subDeltaTime) {
     uint sub_iterations = solver_iterations / num_subSteps;
     if (sub_iterations < 1) sub_iterations = 1;
     for (DynamicObject &obj : m_dynamic_objects) {
-        float dt = do_fixed_delta_time ? (fixed_delta_time / (float) num_subSteps) : _subDeltaTime;
-        if (!obj.update(dt, sub_iterations, static_bodies)) {
+        float sdt = do_fixed_delta_time ? (fixed_delta_time / (float) num_subSteps) : _subDeltaTime;
+        float fdt = do_fixed_delta_time ? fixed_delta_time : _fullDeltaTime;
+        if (!obj.update(sdt, fdt, sub_iterations, static_bodies, _is_first_step)) {
             obj.updateRenderedPositions();
             return false;
         }
