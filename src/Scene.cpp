@@ -374,10 +374,10 @@ bool Scene::updateSimulation(float _subDeltaTime) {
         static_bodies[i].m_transformation = &m_static_bodies_transfo[i];
     }
 
-    uint sub_iterations = solver_iterations / 4;
+    uint sub_iterations = solver_iterations / num_subSteps;
     if (sub_iterations < 1) sub_iterations = 1;
     for (DynamicObject &obj : m_dynamic_objects) {
-        float dt = do_fixed_delta_time ? (fixed_delta_time / 4.0f) : _subDeltaTime;
+        float dt = do_fixed_delta_time ? (fixed_delta_time / (float) num_subSteps) : _subDeltaTime;
         if (!obj.update(dt, sub_iterations, static_bodies)) {
             obj.updateRenderedPositions();
             return false;
