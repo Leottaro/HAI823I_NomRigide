@@ -125,6 +125,7 @@ READ "3.1. Algorithm Overview" of ./articles/Position_Based_Dynamics.pdf
 */
 
 double thickness = 0.02;
+double predicted_collision_margin = 0.02;
 
 bool DynamicObject::update(double _delta_time, double _full_delta_time, uint _solver_iterations, const std::vector<StaticBody> &static_bodies, bool _is_first_step) {
     std::vector<glm::dvec3> new_positions(N); // p_i
@@ -241,13 +242,31 @@ bool DynamicObject::update(double _delta_time, double _full_delta_time, uint _so
                     }
                 }
 
-                if (0. <= min_t && min_t <= 1.) {
+                // Add a margin for predicted collision
+                double movement_length = glm::length(direction);
+                double t_margin = (movement_length > 1e-8) ? (predicted_collision_margin / movement_length) : 0.0;
+                bool is_ray_hit = (min_t >= -t_margin && min_t <= 1.0 + t_margin);
+                bool is_close_proximity = (dist < predicted_collision_margin);
+
+                if (is_ray_hit || is_close_proximity) {
                     // WILL ENTER THE OBJECT
-                    // std::cout << "POINT WILL ENTER: 0 <= " << min_t << " <= 1" << std::endl;
-                    closest_normal = glm::normalize(closest_normal);
-                    addCollisionConstraint(pj, closest_intersection, closest_normal);
-                    // accumulate_collision(pj, closest_normal);
-                } else if (min_t < 0. && max_t > 1.) {
+                    glm::dvec3 final_normal;
+                    glm::dvec3 final_intersection;
+
+                    if (is_ray_hit) {
+                        final_normal = closest_normal;
+                        final_intersection = closest_intersection;
+                    } else {
+                        final_normal = closest_surface_normal;
+                        final_intersection = closest_surface;
+                    }
+
+                    if (glm::length2(final_normal) > 1e-12) {
+                        // std::cout << "POINT WILL ENTER: 0 <= " << min_t << " <= 1" << std::endl;
+                        final_normal = glm::normalize(final_normal);
+                        addCollisionConstraint(pj, final_intersection, final_normal);
+                    }
+                }else if (min_t < 0. && max_t > 1.) {
                     // COMPLETLY INSIDE THE OBJECT
                     // std::cout << "POINT INSIDE: " << min_t << " < 0 && " << max_t << " > 1" << std::endl;
                     closest_surface_normal = glm::normalize(closest_surface_normal);
