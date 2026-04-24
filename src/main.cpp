@@ -67,9 +67,9 @@ int main(void) {
     floor_transfo->setScale(glm::vec3(10.f, 4.f, 50.f));
     floor_transfo->setEulerAngles(glm::vec3(M_PIf / 8.f, 0.f, 0.f));
 
-    DynamicObjectDesc dynamic_object_desc("boule", 1, DynamicObjectDescPreset::ClothObject);
+    DynamicObjectDesc dynamic_object_desc("tissu", 1, DynamicObjectDescPreset::ClothObject);
     dynamic_object_desc.render_type = DynamicRenderType::LineRender;
-    dynamic_object_desc.fixed_vertices = {0, size - 1, size * (size - 1)};
+    dynamic_object_desc.fixed_vertices = {size - 1};
     Transformation *dynamic_body_transformation = scene.addDynamicObject(dynamic_object_desc);
     dynamic_body_transformation->setTranslation(glm::vec3(0.f, 3.f, 0.f));
     dynamic_body_transformation->setScale(glm::vec3(1.f));

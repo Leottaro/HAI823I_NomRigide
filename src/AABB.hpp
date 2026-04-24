@@ -31,6 +31,11 @@ struct AABB {
                  v.x > max.x || v.y > max.y || v.z > max.z);
     }
 
+    inline void expand(double amount) {
+        min -= amount;
+        max += amount;
+    }
+
     bool intersect(const vec3 &origin, const vec3 &direction, T &tmin, T &tmax) const {
         // https://www.rose-hulman.edu/class/cs/csse451/AABB/#:~:text=Axis%2DAligned%20Bounding%20Boxes%20(AABBs,bound%20and%20a%20maximum%20bound.
         vec3 delta_min = min - origin;
