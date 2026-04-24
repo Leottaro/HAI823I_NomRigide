@@ -41,7 +41,7 @@ enum ConstraintType {
     INEQUALITY_CONSTRAINT,
 };
 
-constexpr std::array<const char *, 7> CONSTAINT_DEBUG_NAMES = {
+constexpr std::array<const char *, 8> CONSTAINT_DEBUG_NAMES = {
     "CUSTOM CONSTRAINT",
     "DISTANCE CONSTRAINT",
     "BENDING CONSTRAINT",
@@ -49,6 +49,7 @@ constexpr std::array<const char *, 7> CONSTAINT_DEBUG_NAMES = {
     "VERTEX COLLISION CONSTRAINT",
     "EDGE COLLISION CONSTRAINT",
     "TRAINGLE COLLISION CONSTRAINT",
+    "SELF COLLISION CONSTRAINT",
 };
 enum ConstraintDebugType {
     CUSTOM_CONSTRAINT,
@@ -58,6 +59,7 @@ enum ConstraintDebugType {
     VERTEX_COLLISION_CONSTRAINT,
     EDGE_COLLISION_CONSTRAINT,
     TRAINGLE_COLLISION_CONSTRAINT,
+    SELF_COLLISION_CONSTRAINT,
 };
 
 #define DYNAMIC_RENDER_TYPES_N 4
@@ -105,6 +107,7 @@ class DynamicObject {
     void addCollisionConstraint(uint _p0, glm::dvec3 _intersection, glm::dvec3 _normal);                                                                           // Point to Triangle collision
     void addEdgeCollisionConstraint(uint _p0, uint _p1, double _t1, glm::dvec3 _point1, glm::dvec3 _normal1, double _t2, glm::dvec3 _point2, glm::dvec3 _normal2); // Edge to Edge collision
     void addStaticPointDynamicTriangleConstraint(uint _p0, uint _p1, uint _p2, glm::dvec3 _static_point, glm::dvec3 _barycentrics, glm::dvec3 _normal);            // Point to Face collision
+    void addSelfCollisionConstraint(uint _q, uint _p0, uint _p1, uint _p2);                                                                                        // Self Point to Face collision
 
 public:
     // GETTERS

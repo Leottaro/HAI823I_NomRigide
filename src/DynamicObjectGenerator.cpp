@@ -13,7 +13,9 @@ struct Vec3Less {
 };
 
 DynamicObject DynamicObject::bodyFromMesh(const StaticBody &_static_body, float _distance_stiffness, float _angle_stiffness, float _volume_stiffness, float _volume_pressure) {
+    const std::vector<glm::uvec3> &mesh_triangles = _static_body.m_mesh->triangleIndices();
     const glm::mat4 tranformation = _static_body.m_transformation->computeTransformationMatrix();
+
     DynamicObject object;
 
     std::map<glm::vec3, uint, Vec3Less> seen_positions;
@@ -51,61 +53,60 @@ DynamicObject DynamicObject::bodyFromMesh(const StaticBody &_static_body, float 
         }
     };
 
-    const std::vector<glm::uvec3> &mesh_triangles = _static_body.m_mesh->triangleIndices();
     for (uint i = 0; i < mesh_triangles.size(); i++) {
         const uint a = positions_map.at(mesh_triangles[i][0]);
         const uint b = positions_map.at(mesh_triangles[i][1]);
         const uint c = positions_map.at(mesh_triangles[i][2]);
         object.m_triangles.push_back(glm::uvec3(a, b, c));
 
-        addEdgeIfNeeded(a, b);
-        addEdgeIfNeeded(a, c);
-        addEdgeIfNeeded(b, c);
-
-        object.m_triangles.push_back(glm::uvec3(a, b, c));
+        if (_distance_stiffness > 0.) {
+            addEdgeIfNeeded(a, b);
+            addEdgeIfNeeded(a, c);
+            addEdgeIfNeeded(b, c);
+        }
     }
+
     // BENDING CONSTRAINTS
+    if (_angle_stiffness > 0.) {
+        std::map<std::pair<uint, uint>, std::vector<uint>> edgeToOpposite;
+        for (uint i = 0; i < mesh_triangles.size(); i++) {
+            uint a = positions_map.at(mesh_triangles[i][0]);
+            uint b = positions_map.at(mesh_triangles[i][1]);
+            uint c = positions_map.at(mesh_triangles[i][2]);
 
-    std::map<std::pair<uint, uint>, std::vector<uint>> edgeToOpposite;
-    for (uint i = 0; i < mesh_triangles.size(); i++) {
-        uint a = positions_map.at(mesh_triangles[i][0]);
-        uint b = positions_map.at(mesh_triangles[i][1]);
-        uint c = positions_map.at(mesh_triangles[i][2]);
+            edgeToOpposite[{std::min(a, b), std::max(a, b)}].push_back(c);
+            edgeToOpposite[{std::min(a, c), std::max(a, c)}].push_back(b);
+            edgeToOpposite[{std::min(b, c), std::max(b, c)}].push_back(a);
+        }
 
-        edgeToOpposite[{std::min(a, b), std::max(a, b)}].push_back(c);
-        edgeToOpposite[{std::min(a, c), std::max(a, c)}].push_back(b);
-        edgeToOpposite[{std::min(b, c), std::max(b, c)}].push_back(a);
-    }
+        for (auto const &pair : edgeToOpposite) {
+            const auto &edge = pair.first;
+            const auto &opposites = pair.second;
+            if (opposites.size() == 2) {
+                uint p0 = edge.first;
+                uint p1 = edge.second;
+                uint p2 = opposites[0];
+                uint p3 = opposites[1];
 
-    for (auto const &pair : edgeToOpposite) {
-        const auto &edge = pair.first;
-        const auto &opposites = pair.second;
-        if (opposites.size() == 2) {
-            uint p0 = edge.first;
-            uint p1 = edge.second;
-            uint p2 = opposites[0];
-            uint p3 = opposites[1];
-
-            object.addBendingConstraint(p0, p1, p2, p3, _angle_stiffness);
+                object.addBendingConstraint(p0, p1, p2, p3, _angle_stiffness);
+            }
         }
     }
 
     // VOLUME CONSTRAINT
-    if (_volume_stiffness <= 0.f || _volume_pressure <= 0.f) {
-        return object;
+    if (_volume_stiffness > 0.f) {
+        std::vector<glm::uvec3> remapped_triangles;
+        remapped_triangles.reserve(mesh_triangles.size());
+
+        for (const auto &tri : mesh_triangles) {
+            remapped_triangles.push_back(glm::uvec3(
+                positions_map.at(tri[0]),
+                positions_map.at(tri[1]),
+                positions_map.at(tri[2])));
+        }
+
+        object.addVolumeConstraint(remapped_triangles, _volume_stiffness, _volume_pressure);
     }
-
-    std::vector<glm::uvec3> remapped_triangles;
-    remapped_triangles.reserve(mesh_triangles.size());
-
-    for (const auto &tri : mesh_triangles) {
-        remapped_triangles.push_back(glm::uvec3(
-            positions_map.at(tri[0]),
-            positions_map.at(tri[1]),
-            positions_map.at(tri[2])));
-    }
-
-    object.addVolumeConstraint(remapped_triangles, _volume_stiffness, _volume_pressure);
 
     return object;
 }

@@ -21,6 +21,7 @@ set(APP_SOURCES
     src/ShaderProgram.cpp
 
     src/Transformation.hpp
+    src/AABB.hpp
 
     src/Camera.hpp
     src/Camera.cpp

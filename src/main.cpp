@@ -58,16 +58,16 @@ int main(void) {
 
     Scene scene = Scene();
 
-    uint size = 5;
+    uint size = 4;
     scene.addMesh(CubeMesh{2});
-    scene.addMesh(CubeSphereMesh{size});
+    scene.addMesh(SimpleGridMesh{size, size});
 
     Transformation *floor_transfo = scene.addStaticBody(StaticBodyDesc("sol", 0));
     floor_transfo->setTranslation(glm::vec3(0.f, -3.f, 0.f));
     floor_transfo->setScale(glm::vec3(10.f, 4.f, 50.f));
     floor_transfo->setEulerAngles(glm::vec3(M_PIf / 8.f, 0.f, 0.f));
 
-    DynamicObjectDesc dynamic_object_desc("boule", 1, .9f, 0.f, 0.f, 1.f);
+    DynamicObjectDesc dynamic_object_desc("boule", 1, DynamicObjectDescPreset::ClothObject);
     dynamic_object_desc.render_type = DynamicRenderType::LineRender;
     dynamic_object_desc.fixed_vertices = {0, size - 1, size * (size - 1)};
     Transformation *dynamic_body_transformation = scene.addDynamicObject(dynamic_object_desc);

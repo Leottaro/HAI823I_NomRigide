@@ -5,6 +5,7 @@
 #include "DynamicObject.hpp"
 #include <iostream>
 #include <unordered_map>
+#include "AABB.hpp"
 
 bool computeBarycentrics(const glm::dvec3 &v0, const glm::dvec3 &v1, const glm::dvec3 &v2, const glm::dvec3 &normal, const glm::dvec3 &p, glm::dvec3 &barycentrics) {
     double total_area_sq = glm::length2(normal);
@@ -124,7 +125,7 @@ READ "3.1. Algorithm Overview" of ./articles/Position_Based_Dynamics.pdf
 (17)  endloop
 */
 
-double thickness = 0.02;
+double thickness = 0.2;
 
 bool DynamicObject::update(double _delta_time, uint _solver_iterations, const std::vector<StaticBody> &static_bodies) {
     std::vector<glm::dvec3> new_positions(N); // p_i
@@ -149,6 +150,8 @@ bool DynamicObject::update(double _delta_time, uint _solver_iterations, const st
             colliding_vertices[_pj] += _normal;
         }
     };
+
+    // Point to Triangle collision
     for (uint pj = 0; pj < N; pj++) {
         glm::dvec3 origin = m_positions[pj];
         glm::dvec3 direction = new_positions[pj] - m_positions[pj];
@@ -233,6 +236,7 @@ bool DynamicObject::update(double _delta_time, uint _solver_iterations, const st
         }
     }
 
+    // Edge to Edge collision
     for (const glm::uvec2 &edge : m_lines) {
         uint e0 = edge[0];
         uint e1 = edge[1];
@@ -285,6 +289,8 @@ bool DynamicObject::update(double _delta_time, uint _solver_iterations, const st
             accumulate_collision(e1, 0.5 * glm::normalize(min_t * closest_normal + max_t * furthest_normal));
         }
     }
+
+    // Point to Face collision
     for (const StaticBody &static_body : static_bodies) {
         const std::vector<glm::vec3> &static_positions = static_body.m_mesh->vertexPositions();
         glm::mat4 transformation = static_body.m_transformation->computeTransformationMatrix();
@@ -355,6 +361,63 @@ bool DynamicObject::update(double _delta_time, uint _solver_iterations, const st
                     accumulate_collision(p0, push_normal);
                     accumulate_collision(p1, push_normal);
                     accumulate_collision(p2, push_normal);
+                }
+            }
+        }
+    }
+
+    // Self Point to Face collision
+    for (uint q = 0; q < N; q++) {
+        const glm::dvec3 &origin = m_positions[q];
+        const glm::dvec3 &direction = new_positions[q] - m_positions[q];
+
+        bool triangle_found = false;
+        for (uint ti = 0; ti < m_triangles.size(); ti++) {
+            uint p1 = m_triangles[ti][0];
+            uint p2 = m_triangles[ti][1];
+            uint p3 = m_triangles[ti][2];
+            if (q == p1 || q == p2 || q == p3)
+                continue;
+
+            AABB<double> aabb;
+            for (uint i = 0; i < 3; i++) {
+                aabb.addPosition(m_positions[m_triangles[ti][i]]);
+                aabb.addPosition(new_positions[m_triangles[ti][i]]);
+            }
+            double tmin, tmax;
+            if (!aabb.intersect(origin, direction, tmin, tmax))
+                continue;
+            glm::dvec3 barycentrics;
+            for (uint i = 1; i <= 10000; i++) {
+                double t_prev = double(i - 1) / 10000.0;
+                double t_curr = double(i) / 10000.0;
+
+                glm::dvec3 qt_prev = glm::lerp(m_positions[q], new_positions[q], t_prev);
+                glm::dvec3 p1t_prev = glm::lerp(m_positions[p1], new_positions[p1], t_prev);
+                glm::dvec3 p2t_prev = glm::lerp(m_positions[p2], new_positions[p2], t_prev);
+                glm::dvec3 p3t_prev = glm::lerp(m_positions[p3], new_positions[p3], t_prev);
+
+                glm::dvec3 qt = glm::lerp(m_positions[q], new_positions[q], t_curr);
+                glm::dvec3 p1t = glm::lerp(m_positions[p1], new_positions[p1], t_curr);
+                glm::dvec3 p2t = glm::lerp(m_positions[p2], new_positions[p2], t_curr);
+                glm::dvec3 p3t = glm::lerp(m_positions[p3], new_positions[p3], t_curr);
+
+                glm::dvec3 n_prev = glm::cross(p2t_prev - p1t_prev, p3t_prev - p1t_prev);
+                glm::dvec3 n_curr = glm::cross(p2t - p1t, p3t - p1t);
+
+                double d_prev = glm::dot(qt_prev - p1t_prev, n_prev);
+                double d_curr = glm::dot(qt - p1t, n_curr);
+
+                // Sign change = plane crossing
+                if (d_prev * d_curr < 0.0) {
+                    // Check if crossing point is inside triangle (at t_curr)
+                    if (computeBarycentrics(p1t, p2t, p3t, n_curr, qt, barycentrics)) {
+                        bool from_behind = d_prev > 0.0;
+                        std::cout << "self collision: " << q << " with (" << p1 << ", " << (from_behind ? p2 : p3) << ", " << (from_behind ? p3 : p2) << ")" << std::endl;
+                        addSelfCollisionConstraint(q, p1, from_behind ? p2 : p3, from_behind ? p3 : p2);
+                        triangle_found = true;
+                        break;
+                    }
                 }
             }
         }
@@ -468,6 +531,10 @@ bool DynamicObject::update(double _delta_time, uint _solver_iterations, const st
     return true;
 }
 
+inline glm::dmat3 getTildeMatrix(const glm::dvec3 &_p) {
+    return glm::dmat3(0, -_p.z, _p.y, _p.z, 0, -_p.x, -_p.y, _p.x, 0);
+}
+
 void DynamicObject::addVertex(const glm::dvec3 &_position, const glm::dvec3 &_velocity, double _mass, bool _fixed) {
     N++;
     m_positions.push_back(_position);
@@ -527,7 +594,7 @@ void DynamicObject::addBendingConstraint(uint _p0, uint _p1, uint _p2, uint _p3,
 
         glm::dvec3 n1 = glm::normalize(glm::cross(_p[2] - _p[0], _p[2] - _p[1]));
         glm::dvec3 n2 = glm::normalize(glm::cross(_p[3] - _p[1], _p[3] - _p[0]));
-        double cosTheta = glm::clamp(glm::dot(n1, n2), -1., 1.);
+        double cosTheta = glm::dot(n1, n2);
         double theta = acos(cosTheta);
         double sign = glm::dot(glm::cross(n1, n2), e);
         if (sign < 0)
@@ -650,6 +717,68 @@ void DynamicObject::addStaticPointDynamicTriangleConstraint(uint _p0, uint _p1, 
             _barycentrics[0] * _normal,
             _barycentrics[1] * _normal,
             _barycentrics[2] * _normal};
+    });
+}
+
+void DynamicObject::addSelfCollisionConstraint(uint _q, uint _p0, uint _p1, uint _p2) {
+    Mcoll++;
+    m_cardinalities.push_back(4);
+    m_indices.push_back({_q, _p0, _p1, _p2});
+    m_stiffnesses.push_back(1.);
+    m_types.push_back(INEQUALITY_CONSTRAINT);
+    m_debug_types.push_back(SELF_COLLISION_CONSTRAINT);
+
+    m_functions.push_back([](const std::vector<glm::dvec3> &_p) {
+        const glm::dvec3 &q = _p[0];
+        const glm::dvec3 &p1 = _p[1];
+        const glm::dvec3 &p2 = _p[2];
+        const glm::dvec3 &p3 = _p[3];
+
+        const glm::dvec3 x = q - p1;
+        const glm::dvec3 e2 = p2 - p1;
+        const glm::dvec3 e3 = p3 - p1;
+
+        // Compute cross product
+        glm::dvec3 n = glm::cross(e2, e3);
+        double n_len_sq = glm::length2(n);
+
+        if (n_len_sq < 1e-8) {
+            return 0.0;
+        }
+
+        // Constraint without thickness offset first
+        return glm::dot(x, n) / std::sqrt(n_len_sq);
+    });
+
+    m_gradients.push_back([](const std::vector<glm::dvec3> &_p) {
+        const glm::dvec3 &q = _p[0];
+        const glm::dvec3 &p1 = _p[1];
+        const glm::dvec3 &p2 = _p[2];
+        const glm::dvec3 &p3 = _p[3];
+
+        const glm::dvec3 x = q - p1;
+        const glm::dvec3 e2 = p2 - p1;
+        const glm::dvec3 e3 = p3 - p1;
+
+        glm::dvec3 n = glm::cross(e2, e3);
+        double n_len = glm::length(n);
+
+        if (n_len < 1e-8) {
+            return std::vector<glm::dvec3>{glm::dvec3(0), glm::dvec3(0), glm::dvec3(0), glm::dvec3(0)};
+        }
+
+        glm::dvec3 n_norm = n / n_len;
+
+        // Gradient w.r.t q: positive normal
+        glm::dvec3 grad_q = n_norm;
+
+        // Gradients w.r.t triangle vertices
+        // When triangle vertices move, the normal (and thus constraint) changes
+        // The correction is distributed across all vertices for momentum conservation
+        // Each triangle vertex gets -n_norm / 3 to balance q's +n_norm
+        glm::dvec3 grad_tri = -n_norm / 3.0;
+
+        return std::vector<glm::dvec3>{grad_q, grad_tri, grad_tri, grad_tri};
     });
 }
 

@@ -62,7 +62,7 @@ struct DynamicObjectDesc {
             break;
         case DynamicObjectDescPreset::ClothObject:
             distance_stiffness = .9;
-            angle_stiffness = .9;
+            angle_stiffness = 0.;
             volume_stiffness = 0.;
             volume_pressure = 1.;
             break;
