@@ -95,9 +95,11 @@ class DynamicObject {
     // double m_ambiant_friction_coefficient = 0.001;
     double m_friction_coefficient = 0.5;
     double m_restitution_coefficient = 0.5;
+    double m_surface_thickness = 1.e-4;
 
     // "3.5. Damping" of ./articles/Position_Based_Dynamics.pdf
-    void dampVelocities(); // k_damping = 1. -> rigid body
+    void
+    dampVelocities(); // k_damping = 1. -> rigid body
 
     inline void fillMissingVertexInfos() {
         m_velocities.resize(N);
@@ -133,6 +135,13 @@ public:
     inline double getRestitutionCoefficient() { return m_restitution_coefficient; }
 
     // "3.1. Algorithm Overview" of ./articles/Position_Based_Dynamics.pdf
+private:
+    void detectPointTriangleCollision(const std::vector<glm::dvec3> &new_positions, const std::vector<StaticBody> &static_bodies, std::unordered_map<uint, glm::dvec3> &_collisions_responses);
+    void detectEdgeEdgeCollision(const std::vector<glm::dvec3> &new_positions, const std::vector<StaticBody> &static_bodies, std::unordered_map<uint, glm::dvec3> &_collisions_responses);
+    void detectTrianglePointCollision(const std::vector<glm::dvec3> &new_positions, const std::vector<StaticBody> &static_bodies, std::unordered_map<uint, glm::dvec3> &_collisions_responses);
+    void detectSelfPointTriangleCollision(const std::vector<glm::dvec3> &new_positions, std::unordered_map<uint, glm::dvec3> &_collisions_responses);
+
+public:
     bool update(double _delta_time, uint _solver_iterations, const std::vector<StaticBody> &static_bodies);
 
     void addVertex(const glm::dvec3 &_position, const glm::dvec3 &_velocity, double _mass, bool _fixed);

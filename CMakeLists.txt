@@ -33,6 +33,7 @@ set(APP_SOURCES
 
     src/DynamicObject.hpp
     src/DynamicObject.cpp
+    src/DynamicObjectCollision.cpp
 
     src/Scene.hpp
     src/Scene.cpp

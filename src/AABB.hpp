@@ -68,4 +68,9 @@ struct AABB {
 
         return true;
     }
+
+    inline bool intersect(const vec3 &origin, const vec3 &direction) const {
+        T tmin, tmax;
+        return intersect(origin, direction, tmin, tmax);
+    }
 };
