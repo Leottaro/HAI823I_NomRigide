@@ -41,7 +41,7 @@ glm::vec3 cursor_worldpos = glm::vec3(0, 0, 0);
 glm::vec2 cursor_vel = glm::vec2(0, 0);
 glm::vec2 scroll = glm::vec2(0, 0);
 int polygon_mode = GL_FILL;
-GLFWwindow *window;
+GLFWwindow* window;
 
 Camera camera;
 bool run_simulation = false;
@@ -57,23 +57,26 @@ int main(void) {
     dynamic_shader.link();
 
     Scene scene = Scene();
+    scene.do_fixed_delta_time = true;
+    scene.fixed_delta_time = 0.01;
 
-    uint size = 4;
-    scene.addMesh(CubeMesh{2});
+    uint size = 3;
+    // scene.addMesh(CubeMesh{2});
     scene.addMesh(SimpleGridMesh{size, size});
 
-    Transformation *floor_transfo = scene.addStaticBody(StaticBodyDesc("sol", 0));
-    floor_transfo->setTranslation(glm::vec3(0.f, -3.f, 0.f));
-    floor_transfo->setScale(glm::vec3(10.f, 4.f, 50.f));
-    floor_transfo->setEulerAngles(glm::vec3(M_PIf / 8.f, 0.f, 0.f));
+    // Transformation* floor_transfo = scene.addStaticBody(StaticBodyDesc("sol", 0));
+    // floor_transfo->setTranslation(glm::vec3(0.f, -3.f, 0.f));
+    // floor_transfo->setScale(glm::vec3(10.f, 4.f, 50.f));
+    // floor_transfo->setEulerAngles(glm::vec3(M_PIf / 8.f, 0.f, 0.f));
 
-    DynamicObjectDesc dynamic_object_desc("tissu", 1, DynamicObjectDescPreset::ClothObject);
+    DynamicObjectDesc dynamic_object_desc("tissu", 0, DynamicObjectDescPreset::ClothObject);
     dynamic_object_desc.render_type = DynamicRenderType::LineRender;
-    dynamic_object_desc.fixed_vertices = {size - 1};
-    Transformation *dynamic_body_transformation = scene.addDynamicObject(dynamic_object_desc);
-    dynamic_body_transformation->setTranslation(glm::vec3(0.f, 3.f, 0.f));
-    dynamic_body_transformation->setScale(glm::vec3(1.f));
-    dynamic_body_transformation->setEulerAngles(glm::vec3(0.f));
+    dynamic_object_desc.fixed_vertices = {0, size - 1, size * (size - 1)};
+    // dynamic_object_desc.fixed_vertices = {size - 1};
+    Transformation* dynamic_body_transformation = scene.addDynamicObject(dynamic_object_desc);
+    // dynamic_body_transformation->setTranslation(glm::vec3(0.f, 3.f, 0.f));
+    // dynamic_body_transformation->setScale(glm::vec3(1.f));
+    // dynamic_body_transformation->setEulerAngles(glm::vec3(0.f));
 
     scene.resetObjects();
 
@@ -150,7 +153,7 @@ int main(void) {
     return 0;
 }
 
-void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
+void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     // cout << "framebuffer size: " << width << ", " << height << endl;
     window_width = width;
     window_height = height;
@@ -158,7 +161,7 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
 }
 
 bool space_key_pressed = false;
-void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     // cout << "key:" << key << " scancode:" << scancode << " action:" << action << " mods:" << mods << endl;
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
         glfwSetWindowShouldClose(window, GLFW_TRUE);
@@ -187,14 +190,14 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
     }
 }
 
-void mouse_button_callback(GLFWwindow *window, int button, int action, int mods) {
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
     // cout << "mouse button:" << button << " action:" << action << " mods:" << mods << endl;
     if (button == GLFW_MOUSE_BUTTON_LEFT && mods == 0) {
         glfwSetInputMode(window, GLFW_CURSOR, action == GLFW_PRESS ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
     }
 }
 
-void cursor_pos_callback(GLFWwindow *window, double xpos, double ypos) {
+void cursor_pos_callback(GLFWwindow* window, double xpos, double ypos) {
     cursor_vel.x = xpos - cursor_pos.x;
     cursor_vel.y = ypos - cursor_pos.y;
     cursor_pos.x = xpos;
@@ -203,7 +206,7 @@ void cursor_pos_callback(GLFWwindow *window, double xpos, double ypos) {
     // cout << "cursor_pos: (" << cursor_pos.x << ", " << cursor_pos.y << ")\tcursor_vel: (" << cursor_vel.x << ", " << cursor_vel.y << ")" << endl;
 }
 
-void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
     // cout << "scroll: (" << xoffset << ", " << yoffset << ")" << endl;
     scroll.x = xoffset;
     scroll.y = yoffset;

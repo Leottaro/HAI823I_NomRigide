@@ -26,22 +26,22 @@
 #include "Transformation.hpp"
 
 struct StaticBody {
-    Mesh *m_mesh;
-    Transformation *m_transformation;
+    Mesh* m_mesh;
+    Transformation* m_transformation;
 
     StaticBody() : m_mesh(nullptr), m_transformation(nullptr) {}
-    StaticBody(Mesh *_mesh, Transformation *_transformation) : m_mesh(_mesh), m_transformation(_transformation) {}
+    StaticBody(Mesh* _mesh, Transformation* _transformation) : m_mesh(_mesh), m_transformation(_transformation) {}
 };
 
-typedef std::function<double(const std::vector<glm::dvec3> &)> constraint_function;
-typedef std::function<std::vector<glm::dvec3>(const std::vector<glm::dvec3> &)> gradient_function;
+typedef std::function<double(const std::vector<glm::dvec3>&)> constraint_function;
+typedef std::function<std::vector<glm::dvec3>(const std::vector<glm::dvec3>&)> gradient_function;
 
 enum ConstraintType {
     EQUALITY_CONSTRAINT,
     INEQUALITY_CONSTRAINT,
 };
 
-constexpr std::array<const char *, 8> CONSTAINT_DEBUG_NAMES = {
+constexpr std::array<const char*, 8> CONSTAINT_DEBUG_NAMES = {
     "CUSTOM CONSTRAINT",
     "DISTANCE CONSTRAINT",
     "BENDING CONSTRAINT",
@@ -95,7 +95,7 @@ class DynamicObject {
     // double m_ambiant_friction_coefficient = 0.001;
     double m_friction_coefficient = 0.5;
     double m_restitution_coefficient = 0.5;
-    double m_surface_thickness = 1.e-4;
+    double m_surface_thickness = 1.e-1;
 
     // "3.5. Damping" of ./articles/Position_Based_Dynamics.pdf
     void
@@ -114,18 +114,18 @@ class DynamicObject {
 public:
     // GETTERS
     inline uint getN() const { return N; };
-    inline const std::vector<glm::dvec3> &getPositions() const { return m_positions; };
-    inline const std::vector<glm::dvec3> &getVelocities() const { return m_velocities; };
-    inline const std::vector<double> &getMasses() const { return m_masses; };
-    inline const std::vector<double> &getWeights() const { return m_weights; };
-    inline const std::vector<bool> &getFixed() const { return m_fixed; };
+    inline const std::vector<glm::dvec3>& getPositions() const { return m_positions; };
+    inline const std::vector<glm::dvec3>& getVelocities() const { return m_velocities; };
+    inline const std::vector<double>& getMasses() const { return m_masses; };
+    inline const std::vector<double>& getWeights() const { return m_weights; };
+    inline const std::vector<bool>& getFixed() const { return m_fixed; };
     inline uint getM() const { return M; };
-    inline const std::vector<uint> &getCardinalities() const { return m_cardinalities; };
-    inline const std::vector<constraint_function> &getFunctions() const { return m_functions; };
-    inline const std::vector<gradient_function> &getGradients() const { return m_gradients; };
-    inline const std::vector<std::vector<uint>> &getIndices() const { return m_indices; };
-    inline const std::vector<double> &getStiffnesses() const { return m_stiffnesses; };
-    inline const std::vector<ConstraintType> &getTypes() const { return m_types; };
+    inline const std::vector<uint>& getCardinalities() const { return m_cardinalities; };
+    inline const std::vector<constraint_function>& getFunctions() const { return m_functions; };
+    inline const std::vector<gradient_function>& getGradients() const { return m_gradients; };
+    inline const std::vector<std::vector<uint>>& getIndices() const { return m_indices; };
+    inline const std::vector<double>& getStiffnesses() const { return m_stiffnesses; };
+    inline const std::vector<ConstraintType>& getTypes() const { return m_types; };
 
     inline void setFrictionCoefficient(double _coeff) { m_friction_coefficient = _coeff; }
     inline void setDampingCoefficient(double _coeff) { m_damping_coefficient = _coeff; }
@@ -136,15 +136,15 @@ public:
 
     // "3.1. Algorithm Overview" of ./articles/Position_Based_Dynamics.pdf
 private:
-    void detectPointTriangleCollision(const std::vector<glm::dvec3> &new_positions, const std::vector<StaticBody> &static_bodies, std::unordered_map<uint, glm::dvec3> &_collisions_responses);
-    void detectEdgeEdgeCollision(const std::vector<glm::dvec3> &new_positions, const std::vector<StaticBody> &static_bodies, std::unordered_map<uint, glm::dvec3> &_collisions_responses);
-    void detectTrianglePointCollision(const std::vector<glm::dvec3> &new_positions, const std::vector<StaticBody> &static_bodies, std::unordered_map<uint, glm::dvec3> &_collisions_responses);
-    void detectSelfPointTriangleCollision(const std::vector<glm::dvec3> &new_positions, std::unordered_map<uint, glm::dvec3> &_collisions_responses);
+    void detectPointTriangleCollision(const std::vector<glm::dvec3>& new_positions, const std::vector<StaticBody>& static_bodies, std::unordered_map<uint, glm::dvec3>& _collisions_responses);
+    void detectEdgeEdgeCollision(const std::vector<glm::dvec3>& new_positions, const std::vector<StaticBody>& static_bodies, std::unordered_map<uint, glm::dvec3>& _collisions_responses);
+    void detectTrianglePointCollision(const std::vector<glm::dvec3>& new_positions, const std::vector<StaticBody>& static_bodies, std::unordered_map<uint, glm::dvec3>& _collisions_responses);
+    void detectSelfPointTriangleCollision(const std::vector<glm::dvec3>& new_positions, std::unordered_map<uint, glm::dvec3>& _collisions_responses);
 
 public:
-    bool update(double _delta_time, uint _solver_iterations, const std::vector<StaticBody> &static_bodies);
+    bool update(double _delta_time, uint _solver_iterations, const std::vector<StaticBody>& static_bodies);
 
-    void addVertex(const glm::dvec3 &_position, const glm::dvec3 &_velocity, double _mass, bool _fixed);
+    void addVertex(const glm::dvec3& _position, const glm::dvec3& _velocity, double _mass, bool _fixed);
     inline void setVertexPosition(uint _pj, glm::dvec3 _position) { m_positions[_pj] = _position; }
     inline void setVertexVelocity(uint _pj, glm::dvec3 _velocity) { m_velocities[_pj] = _velocity; }
     inline void setVertexMass(uint _pj, double _mass) {
@@ -158,11 +158,11 @@ public:
 
     void addConstraint(
         uint _cardinality,
-        const constraint_function &_function,
-        const gradient_function &_gradient,
-        const std::vector<uint> &_indices,
+        const constraint_function& _function,
+        const gradient_function& _gradient,
+        const std::vector<uint>& _indices,
         double _stiffness,
-        const ConstraintType &_type);
+        const ConstraintType& _type);
     void addDistanceConstraint(uint _p0, uint _p1, double _stiffness, double _targeted_distance);
     void addDistanceConstraint(uint _p0, uint _p1, double _stiffness); // the targeted distance is set to the current distance between p0 and p1
     void addBendingConstraint(uint _p0, uint _p1, uint _p2, uint _p3, double _stiffness, double _targeted_angle);
@@ -171,18 +171,18 @@ public:
     void addVolumeConstraint(std::vector<glm::uvec3> _indices, double _stiffness, double _pressure);
 
     // Objects creation
-    static DynamicObject bodyFromMesh(const StaticBody &_static_body, float _distance_stiffness, float _angle_stiffness, float _volume_stiffness, float _volume_pressure);
-    static DynamicObject bodyFromMesh(const StaticBody &_static_body, float _stiffness) { return bodyFromMesh(_static_body, _stiffness, _stiffness, 1.f, 0.f); }
-    static DynamicObject rigidBodyFromMesh(const StaticBody &_static_body) { return bodyFromMesh(_static_body, 1.f, 1.f, 1.f, 0.f); }
+    static DynamicObject bodyFromMesh(const StaticBody& _static_body, float _distance_stiffness, float _angle_stiffness, float _volume_stiffness, float _volume_pressure);
+    static DynamicObject bodyFromMesh(const StaticBody& _static_body, float _stiffness) { return bodyFromMesh(_static_body, _stiffness, _stiffness, 1.f, 0.f); }
+    static DynamicObject rigidBodyFromMesh(const StaticBody& _static_body) { return bodyFromMesh(_static_body, 1.f, 1.f, 1.f, 0.f); }
 
     // Object interaction
 private:
     uint grabbed_point = UINT32_MAX;
     bool grabbed_fixed = false;
-    void findNearestPointToLine(const glm::dvec3 &_position, const glm::dvec3 &_direction, uint &point, double &distance, glm::dvec3 &projection) const;
+    void findNearestPointToLine(const glm::dvec3& _position, const glm::dvec3& _direction, uint& point, double& distance, glm::dvec3& projection) const;
 
 public:
-    bool updateInteractions(GLFWwindow *_window, const glm::dvec3 &_camera_pos, const glm::dvec3 &_cursor_worldpos);
+    bool updateInteractions(GLFWwindow* _window, const glm::dvec3& _camera_pos, const glm::dvec3& _cursor_worldpos);
 
     // OpenGL interface
 private:

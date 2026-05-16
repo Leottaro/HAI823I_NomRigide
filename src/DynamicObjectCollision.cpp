@@ -4,29 +4,11 @@
 
 #include "DynamicObject.hpp"
 #include "AABB.hpp"
+#include <iostream>
 
-bool computeBarycentrics(const glm::dvec3 &v0, const glm::dvec3 &v1, const glm::dvec3 &v2, const glm::dvec3 &normal, const glm::dvec3 &p, glm::dvec3 &barycentrics) {
-    double total_area_sq = glm::length2(normal);
-    if (total_area_sq < 1e-16)
-        return false;
-
-    // Signed barycentric coordinates
-    barycentrics.x = glm::dot(glm::cross(v1 - p, v2 - p), normal) / total_area_sq;
-    barycentrics.y = glm::dot(glm::cross(v2 - p, v0 - p), normal) / total_area_sq;
-    barycentrics.z = glm::dot(glm::cross(v0 - p, v1 - p), normal) / total_area_sq;
-
-    if (barycentrics.x < -1e-5 || 1. + 1e-5 < barycentrics.x ||
-        barycentrics.y < -1e-5 || 1. + 1e-5 < barycentrics.y ||
-        barycentrics.z < -1e-5 || 1. + 1e-5 < barycentrics.z) {
-        return false;
-    }
-
-    return true;
-}
-
-bool rayTriangleIntersection(const glm::dvec3 &origin, const glm::dvec3 &direction,
-                             const glm::dvec3 &v0, const glm::dvec3 &v1, const glm::dvec3 &v2, const glm::dvec3 &normal,
-                             double &t, glm::dvec3 &intersection, glm::dvec3 &barycentrics) {
+bool rayTriangleIntersection(const glm::dvec3& origin, const glm::dvec3& direction,
+                             const glm::dvec3& v0, const glm::dvec3& v1, const glm::dvec3& v2, const glm::dvec3& normal,
+                             double& t, glm::dvec3& intersection, glm::dvec3& barycentrics) {
     // Check if ray is parallel
     double dot = glm::dot(direction, normal);
     if (std::abs(dot) <= 1.e-8) {
@@ -46,22 +28,22 @@ size_t hash(size_t x, size_t y, size_t z) {
     return ((x * p1) ^ (y * p2) ^ (z * p3)) % n;
 }
 
-inline void accumulateCollisionsResponse(uint _pj, const glm::dvec3 &_normal, std::unordered_map<uint, glm::dvec3> &_collisions_responses) {
+inline void accumulateCollisionsResponse(uint _pj, const glm::dvec3& _normal, std::unordered_map<uint, glm::dvec3>& _collisions_responses) {
     if (_collisions_responses.find(_pj) == _collisions_responses.end()) {
         _collisions_responses.insert({_pj, _normal});
     } else {
         _collisions_responses[_pj] += _normal;
     }
 }
-void DynamicObject::detectPointTriangleCollision(const std::vector<glm::dvec3> &new_positions, const std::vector<StaticBody> &static_bodies, std::unordered_map<uint, glm::dvec3> &_collisions_responses) {
+void DynamicObject::detectPointTriangleCollision(const std::vector<glm::dvec3>& new_positions, const std::vector<StaticBody>& static_bodies, std::unordered_map<uint, glm::dvec3>& _collisions_responses) {
     for (uint pj = 0; pj < N; pj++) {
         glm::dvec3 origin = m_positions[pj];
         glm::dvec3 direction = new_positions[pj] - m_positions[pj];
 
-        for (const StaticBody &static_body : static_bodies) {
-            const std::vector<glm::vec3> &mesh_positions = static_body.m_mesh->vertexPositions();
-            const std::vector<glm::vec3> &mesh_normals = static_body.m_mesh->vertexNormals();
-            const std::vector<glm::uvec3> &mesh_triangles = static_body.m_mesh->triangleIndices();
+        for (const StaticBody& static_body : static_bodies) {
+            const std::vector<glm::vec3>& mesh_positions = static_body.m_mesh->vertexPositions();
+            const std::vector<glm::vec3>& mesh_normals = static_body.m_mesh->vertexNormals();
+            const std::vector<glm::uvec3>& mesh_triangles = static_body.m_mesh->triangleIndices();
             glm::mat4 transformation = static_body.m_transformation->computeTransformationMatrix();
 
             double min_t = DBL_MAX, max_t = -DBL_MAX, t;
@@ -70,7 +52,7 @@ void DynamicObject::detectPointTriangleCollision(const std::vector<glm::dvec3> &
             double min_dist = DBL_MAX, dist;
             glm::dvec3 closest_surface, closest_surface_normal, surface;
 
-            for (const glm::uvec3 &triangle : mesh_triangles) {
+            for (const glm::uvec3& triangle : mesh_triangles) {
                 glm::dvec3 v0 = applyTransformation(mesh_positions[triangle[0]], 1.f, transformation);
                 glm::dvec3 v1 = applyTransformation(mesh_positions[triangle[1]], 1.f, transformation);
                 glm::dvec3 v2 = applyTransformation(mesh_positions[triangle[2]], 1.f, transformation);
@@ -95,26 +77,7 @@ void DynamicObject::detectPointTriangleCollision(const std::vector<glm::dvec3> &
                 }
 
                 // closest surface
-                glm::dvec3 project_on_plane = v0 + glm::cross(glm::normalize(triangle_normal), glm::cross(new_positions[pj] - v0, glm::normalize(triangle_normal)));
-                computeBarycentrics(v0, v1, v2, triangle_normal, project_on_plane, barycentrics);
-
-                // https://www.desmos.com/calculator/eeqkstj2ck
-                const auto fallback_in_triangle = [project_on_plane](const glm::dvec3 &p1, const glm::dvec3 &p2) {
-                    glm::dvec3 direction = p2 - p1;
-                    double n_squared = std::pow(glm::distance(p2, p1), 2);
-                    double dot = glm::dot(direction, project_on_plane - p1);
-                    double dot_over_one = dot / n_squared;
-                    double r = std::clamp(dot_over_one, 0., 1.);
-                    return p1 + direction * r;
-                };
-
-                surface = barycentrics[0] < 0.   ? fallback_in_triangle(v1, v2)
-                          : barycentrics[1] < 0. ? fallback_in_triangle(v2, v0)
-                          : barycentrics[2] < 0. ? fallback_in_triangle(v0, v1)
-                                                 : project_on_plane;
-
-                dist = glm::distance(new_positions[pj], surface);
-
+                dist = closestPointInTriangle(m_positions[pj], v0, v1, v2, glm::normalize(triangle_normal), surface, barycentrics);
                 if (dist < min_dist) {
                     min_dist = dist;
                     closest_surface = surface;
@@ -138,24 +101,24 @@ void DynamicObject::detectPointTriangleCollision(const std::vector<glm::dvec3> &
         }
     }
 }
-void DynamicObject::detectEdgeEdgeCollision(const std::vector<glm::dvec3> &new_positions, const std::vector<StaticBody> &static_bodies, std::unordered_map<uint, glm::dvec3> &_collisions_responses) {
-    for (const glm::uvec2 &edge : m_lines) {
+void DynamicObject::detectEdgeEdgeCollision(const std::vector<glm::dvec3>& new_positions, const std::vector<StaticBody>& static_bodies, std::unordered_map<uint, glm::dvec3>& _collisions_responses) {
+    for (const glm::uvec2& edge : m_lines) {
         uint e0 = edge[0];
         uint e1 = edge[1];
 
         glm::dvec3 origin = new_positions[e0];
         glm::dvec3 direction = new_positions[e1] - new_positions[e0];
 
-        for (const StaticBody &static_body : static_bodies) {
-            const std::vector<glm::vec3> &mesh_positions = static_body.m_mesh->vertexPositions();
-            const std::vector<glm::vec3> &mesh_normals = static_body.m_mesh->vertexNormals();
-            const std::vector<glm::uvec3> &mesh_triangles = static_body.m_mesh->triangleIndices();
+        for (const StaticBody& static_body : static_bodies) {
+            const std::vector<glm::vec3>& mesh_positions = static_body.m_mesh->vertexPositions();
+            const std::vector<glm::vec3>& mesh_normals = static_body.m_mesh->vertexNormals();
+            const std::vector<glm::uvec3>& mesh_triangles = static_body.m_mesh->triangleIndices();
             glm::mat4 transformation = static_body.m_transformation->computeTransformationMatrix();
 
             double min_t = DBL_MAX, max_t = -DBL_MAX, t;
             glm::dvec3 closest_intersection, closest_normal, furthest_intersection, furthest_normal, intersection, barycentrics;
 
-            for (const glm::uvec3 &triangle : mesh_triangles) {
+            for (const glm::uvec3& triangle : mesh_triangles) {
                 glm::dvec3 v0 = applyTransformation(mesh_positions[triangle[0]], 1.f, transformation);
                 glm::dvec3 v1 = applyTransformation(mesh_positions[triangle[1]], 1.f, transformation);
                 glm::dvec3 v2 = applyTransformation(mesh_positions[triangle[2]], 1.f, transformation);
@@ -192,15 +155,15 @@ void DynamicObject::detectEdgeEdgeCollision(const std::vector<glm::dvec3> &new_p
         }
     }
 }
-void DynamicObject::detectTrianglePointCollision(const std::vector<glm::dvec3> &new_positions, const std::vector<StaticBody> &static_bodies, std::unordered_map<uint, glm::dvec3> &_collisions_responses) {
-    for (const StaticBody &static_body : static_bodies) {
-        const std::vector<glm::vec3> &static_positions = static_body.m_mesh->vertexPositions();
+void DynamicObject::detectTrianglePointCollision(const std::vector<glm::dvec3>& new_positions, const std::vector<StaticBody>& static_bodies, std::unordered_map<uint, glm::dvec3>& _collisions_responses) {
+    for (const StaticBody& static_body : static_bodies) {
+        const std::vector<glm::vec3>& static_positions = static_body.m_mesh->vertexPositions();
         glm::mat4 transformation = static_body.m_transformation->computeTransformationMatrix();
 
         for (size_t i = 0; i < static_positions.size(); i++) {
             glm::dvec3 static_point = applyTransformation(static_positions[i], 1.f, transformation);
 
-            for (const glm::uvec3 &triangle : m_triangles) {
+            for (const glm::uvec3& triangle : m_triangles) {
                 uint p0 = triangle[0];
                 uint p1 = triangle[1];
                 uint p2 = triangle[2];
@@ -268,76 +231,78 @@ void DynamicObject::detectTrianglePointCollision(const std::vector<glm::dvec3> &
         }
     }
 }
-void DynamicObject::detectSelfPointTriangleCollision(const std::vector<glm::dvec3> &new_positions, std::unordered_map<uint, glm::dvec3> &_collisions_responses) {
+
+void DynamicObject::detectSelfPointTriangleCollision(const std::vector<glm::dvec3>& new_positions, std::unordered_map<uint, glm::dvec3>& _collisions_responses) {
     for (uint q = 0; q < N; q++) {
+        const glm::dvec3& origin = m_positions[q];
+        const glm::dvec3 direction = new_positions[q] - m_positions[q];
+
         for (uint ti = 0; ti < m_triangles.size(); ti++) {
             uint p1 = m_triangles[ti][0];
             uint p2 = m_triangles[ti][1];
             uint p3 = m_triangles[ti][2];
+
+            // Skip immediate neighbors
             if (q == p1 || q == p2 || q == p3)
                 continue;
 
-            // Borad phase: AABB
+            // Broad phase: AABB
             AABB<double> aabb;
             for (uint i = 0; i < 3; i++) {
                 aabb.addPosition(m_positions[m_triangles[ti][i]]);
                 aabb.addPosition(new_positions[m_triangles[ti][i]]);
             }
-            aabb.expand(m_surface_thickness); // Expand AABB by m_surface_thickness so nearby-but-not-crossing cases are caught
-            const glm::dvec3 &origin = m_positions[q];
-            const glm::dvec3 direction = new_positions[q] - m_positions[q];
+            aabb.expand(m_surface_thickness);
             if (!aabb.intersect(origin, direction))
                 continue;
 
-            glm::dvec3 barycentrics;
-            for (uint i = 1; i <= 10000; i++) { // TODO: better idea ?
-                double t_prev = double(i - 1) / 10000.0;
-                double t_curr = double(i) / 10000.0;
+            // Compute initial plane normal at t=0
+            glm::dvec3 n_init = glm::cross(m_positions[p2] - m_positions[p1], m_positions[p3] - m_positions[p1]);
+            double n_init_len = glm::length(n_init);
 
-                glm::dvec3 qt_prev = glm::lerp(m_positions[q], new_positions[q], t_prev);
-                glm::dvec3 p1t_prev = glm::lerp(m_positions[p1], new_positions[p1], t_prev);
-                glm::dvec3 p2t_prev = glm::lerp(m_positions[p2], new_positions[p2], t_prev);
-                glm::dvec3 p3t_prev = glm::lerp(m_positions[p3], new_positions[p3], t_prev);
+            double prev_dist = std::numeric_limits<double>::max();
+            double prev_signed_dist = 0.0;
 
-                glm::dvec3 qt = glm::lerp(m_positions[q], new_positions[q], t_curr);
-                glm::dvec3 p1t = glm::lerp(m_positions[p1], new_positions[p1], t_curr);
-                glm::dvec3 p2t = glm::lerp(m_positions[p2], new_positions[p2], t_curr);
-                glm::dvec3 p3t = glm::lerp(m_positions[p3], new_positions[p3], t_curr);
+            // Accurately initialize prev_signed_dist BEFORE the loop to avoid the 0.0 trap
+            if (n_init_len > 1e-12) {
+                n_init /= n_init_len;
+                // Using (plane_point - point) to maintain your original sign polarity:
+                // Negative = In Front, Positive = Behind
+                prev_signed_dist = glm::dot(m_positions[p1] - m_positions[q], n_init);
+            }
 
-                glm::dvec3 n_prev = glm::cross(p2t_prev - p1t_prev, p3t_prev - p1t_prev);
-                glm::dvec3 n_curr = glm::cross(p2t - p1t, p3t - p1t);
+            glm::dvec3 surface, barycentrics;
 
-                double d_prev = glm::dot(qt_prev - p1t_prev, n_prev);
-                double d_curr = glm::dot(qt - p1t, n_curr);
+            // 15 steps is plenty for numerical CCD. 10,000 will destroy your framerate.
+            const uint CCD_STEPS = 10000;
 
-                double n_len_prev = glm::length(n_prev);
-                double n_len_curr = glm::length(n_curr);
-                if (n_len_prev < 1e-8 || n_len_curr < 1e-8)
+            for (uint i = 0; i <= CCD_STEPS; ++i) {
+                double t = double(i) / double(CCD_STEPS);
+                glm::dvec3 qt = glm::lerp(m_positions[q], new_positions[q], t);
+                glm::dvec3 p1t = glm::lerp(m_positions[p1], new_positions[p1], t);
+                glm::dvec3 p2t = glm::lerp(m_positions[p2], new_positions[p2], t);
+                glm::dvec3 p3t = glm::lerp(m_positions[p3], new_positions[p3], t);
+                glm::dvec3 normal = glm::cross(p2t - p1t, p3t - p1t);
+                double normal_len = glm::length(normal);
+                if (normal_len < 1e-12)
                     continue;
+                glm::dvec3 n = normal / normal_len;
 
-                // Signed distances (in world units, not scaled by |n|)
-                double sd_prev = d_prev / n_len_prev;
-                double sd_curr = d_curr / n_len_curr;
+                double dist = closestPointInTriangle(qt, p1t, p2t, p3t, n, surface, barycentrics);
+                double signed_dist = glm::dot(p1t - qt, n); // negative <=> in front
 
-                // Trigger when either:
-                //   (a) the vertex crosses the triangle plane (sign change), OR
-                //   (b) the vertex enters the thickness shell (|sd| < thickness)
-                bool crossing = (sd_prev * sd_curr < 0.0);
-                bool proximity = (std::abs(sd_curr) < m_surface_thickness);
-
-                if (crossing || proximity) {
-                    if (computeBarycentrics(p1t, p2t, p3t, n_curr, qt, barycentrics)) {
-                        bool from_behind = sd_prev > 0.0;
-                        // std::cout << "self collision: " << q << " with ("
-                        //           << p1 << ", "
-                        //           << (from_behind ? p2 : p3) << ", "
-                        //           << (from_behind ? p3 : p2) << ")" << std::endl;
-                        addSelfCollisionConstraint(q, p1,
-                                                   from_behind ? p2 : p3,
-                                                   from_behind ? p3 : p2);
-                        break;
-                    }
+                bool crossing = (prev_signed_dist > 1e-8 && signed_dist < -1e-8) || (prev_signed_dist < -1e-8 && signed_dist > 1e-8); // Only triggers if it definitively passed through the plane, ignoring float noise
+                bool valid_crossing = crossing && (dist < m_surface_thickness * 1.5);                                                 // Ensure the crossing actually happened inside the bounds of the triangle edges
+                bool swept_proximity = (prev_dist > m_surface_thickness && dist <= m_surface_thickness);                              // Only triggers if the point actively ENTERED the thickness shell
+                if (swept_proximity) {
+                    bool from_behind = signed_dist > 0.0;
+                    addSelfCollisionConstraint(q, p1, from_behind ? p3 : p2, from_behind ? p2 : p3);
+                    std::cout << "SELF COLLISION" << std::endl;
+                    break;
                 }
+
+                prev_dist = dist;
+                prev_signed_dist = signed_dist;
             }
         }
     }
