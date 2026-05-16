@@ -137,16 +137,15 @@ public:
 
     // "3.1. Algorithm Overview" of ./articles/Position_Based_Dynamics.pdf
 private:
-    void detectPointTriangleCollision(const glm::dvec3* new_positions, const std::vector<StaticBody>& static_bodies, std::unordered_map<uint, glm::dvec3>& _collisions_responses);
-    void detectEdgeEdgeCollision(const glm::dvec3* new_positions, const std::vector<StaticBody>& static_bodies, std::unordered_map<uint, glm::dvec3>& _collisions_responses);
-    void detectTrianglePointCollision(const glm::dvec3* new_positions, const std::vector<StaticBody>& static_bodies, std::unordered_map<uint, glm::dvec3>& _collisions_responses);
-    void detectSelfPointTriangleCollision(const glm::dvec3* new_positions, std::unordered_map<uint, glm::dvec3>& _collisions_responses);
+    void detectPointTriangleCollision(const std::vector<glm::dvec3>& new_positions, const std::vector<StaticBody>& static_bodies, std::unordered_map<uint, glm::dvec3>& _collisions_responses);
+    void detectEdgeEdgeCollision(const std::vector<glm::dvec3>& new_positions, const std::vector<StaticBody>& static_bodies, std::unordered_map<uint, glm::dvec3>& _collisions_responses);
+    void detectTrianglePointCollision(const std::vector<glm::dvec3>& new_positions, const std::vector<StaticBody>& static_bodies, std::unordered_map<uint, glm::dvec3>& _collisions_responses);
+    void detectSelfPointTriangleCollision(const std::vector<glm::dvec3>& new_positions, const std::vector<DynamicObject*>& dynamic_objects, std::vector<std::unordered_map<uint, glm::dvec3>>& _collisions_responses);
 
-    void generateNewPositions(double _delta_time, glm::dvec3* new_positions);
-    void generateStaticCollisions(double _delta_time, glm::dvec3* new_positions, const std::vector<StaticBody>& static_bodies, std::unordered_map<uint, glm::dvec3>& collisions);
-    void generateSelfCollisions(double _delta_time, glm::dvec3* new_positions, std::unordered_map<uint, glm::dvec3>& collisions);
-    bool projectConstraints(uint _solver_iterations, glm::dvec3* new_positions);
-    bool applyNewPositions(double _delta_time, const glm::dvec3* new_positions);
+    void generateNewPositions(double _delta_time, std::vector<glm::dvec3>& new_positions);
+    void generateCollisions(double _delta_time, std::vector<glm::dvec3>& new_positions, const std::vector<StaticBody>& static_bodies, const std::vector<DynamicObject*> dynamic_objects, std::vector<std::unordered_map<uint, glm::dvec3>>& collisions_responses);
+    bool projectConstraints(uint _solver_iterations, std::vector<glm::dvec3>& new_positions);
+    bool applyNewPositions(double _delta_time, const std::vector<glm::dvec3>& new_positions);
     bool applyCollisions(std::unordered_map<uint, glm::dvec3> collisions_responses);
     void removeCollisionsConstraints();
 

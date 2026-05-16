@@ -32,7 +32,7 @@ inline void accumulateCollisionsResponse(uint _pj, const glm::dvec3& _normal, st
         _collisions_responses[_pj] += _normal;
     }
 }
-void DynamicObject::detectPointTriangleCollision(const glm::dvec3* new_positions, const std::vector<StaticBody>& static_bodies, std::unordered_map<uint, glm::dvec3>& _collisions_responses) {
+void DynamicObject::detectPointTriangleCollision(const std::vector<glm::dvec3>& new_positions, const std::vector<StaticBody>& static_bodies, std::unordered_map<uint, glm::dvec3>& _collisions_responses) {
     for (uint pj = 0; pj < N; pj++) {
         glm::dvec3 origin = m_positions[pj];
         glm::dvec3 direction = new_positions[pj] - m_positions[pj];
@@ -98,7 +98,7 @@ void DynamicObject::detectPointTriangleCollision(const glm::dvec3* new_positions
         }
     }
 }
-void DynamicObject::detectEdgeEdgeCollision(const glm::dvec3* new_positions, const std::vector<StaticBody>& static_bodies, std::unordered_map<uint, glm::dvec3>& _collisions_responses) {
+void DynamicObject::detectEdgeEdgeCollision(const std::vector<glm::dvec3>& new_positions, const std::vector<StaticBody>& static_bodies, std::unordered_map<uint, glm::dvec3>& _collisions_responses) {
     for (const glm::uvec2& edge : m_lines) {
         uint e0 = edge[0];
         uint e1 = edge[1];
@@ -152,7 +152,7 @@ void DynamicObject::detectEdgeEdgeCollision(const glm::dvec3* new_positions, con
         }
     }
 }
-void DynamicObject::detectTrianglePointCollision(const glm::dvec3* new_positions, const std::vector<StaticBody>& static_bodies, std::unordered_map<uint, glm::dvec3>& _collisions_responses) {
+void DynamicObject::detectTrianglePointCollision(const std::vector<glm::dvec3>& new_positions, const std::vector<StaticBody>& static_bodies, std::unordered_map<uint, glm::dvec3>& _collisions_responses) {
     for (const StaticBody& static_body : static_bodies) {
         const std::vector<glm::vec3>& static_positions = static_body.m_mesh->vertexPositions();
         glm::mat4 transformation = static_body.m_transformation->computeTransformationMatrix();
@@ -229,108 +229,125 @@ void DynamicObject::detectTrianglePointCollision(const glm::dvec3* new_positions
     }
 }
 
-void DynamicObject::detectSelfPointTriangleCollision(const glm::dvec3* new_positions, std::unordered_map<uint, glm::dvec3>& _collisions_responses) {
+void DynamicObject::detectSelfPointTriangleCollision(const std::vector<glm::dvec3>& new_positions, const std::vector<DynamicObject*>& dynamic_objects, std::vector<std::unordered_map<uint, glm::dvec3>>& _collisions_responses) {
+    uint self_i = 0;
+    for (uint object_i = 0; object_i < dynamic_objects.size(); object_i++) {
+        if (dynamic_objects[object_i] == this) {
+            self_i = object_i;
+            break;
+        }
+    }
+
     for (uint q = 0; q < N; q++) {
         const glm::dvec3 dq = new_positions[q] - m_positions[q];
 
-        for (uint ti = 0; ti < m_triangles.size(); ti++) {
-            uint p1 = m_triangles[ti][0];
-            uint p2 = m_triangles[ti][1];
-            uint p3 = m_triangles[ti][2];
+        for (uint object_i = 0; object_i < dynamic_objects.size(); object_i++) {
+            DynamicObject* obj = dynamic_objects[object_i];
+            for (uint ti = 0; ti < obj->m_triangles.size(); ti++) {
+                uint p1 = obj->m_triangles[ti][0];
+                uint p2 = obj->m_triangles[ti][1];
+                uint p3 = obj->m_triangles[ti][2];
 
-            // Skip immediate neighbors
-            if (q == p1 || q == p2 || q == p3)
-                continue;
+                // Skip immediate neighbors
+                if (q == p1 || q == p2 || q == p3)
+                    continue;
 
-            // Broad phase: AABB
-            AABB<double> aabb;
-            for (uint i = 0; i < 3; i++) {
-                aabb.addPosition(m_positions[m_triangles[ti][i]]);
-                aabb.addPosition(new_positions[m_triangles[ti][i]]);
-            }
-            aabb.expand(m_surface_thickness);
-            if (!aabb.intersect(m_positions[q], dq))
-                continue;
-
-            // Pre-calculate t=0 normal vector for side determination
-            glm::dvec3 N0 = glm::cross(m_positions[p2] - m_positions[p1], m_positions[p3] - m_positions[p1]);
-            // Determine side from the initial state (t=0) to prevent the 0.0 sign bug
-            double signed_dist_init = glm::dot(m_positions[q] - m_positions[p1], N0);
-            bool from_behind = signed_dist_init > 0.0;
-
-            // ==========================================
-            // THICKNESS FIX 1: Proximity check at t = 1
-            // ==========================================
-            // Catches slow-moving objects entering the shell without crossing the mid-plane
-            glm::dvec3 normal_end = glm::cross(new_positions[p2] - new_positions[p1], new_positions[p3] - new_positions[p1]);
-            double normal_end_len = glm::length(normal_end);
-            if (normal_end_len > 1e-12) {
-                glm::dvec3 n_end = normal_end / normal_end_len;
-                glm::dvec3 surface_end, bary_end;
-                double dist_end = closestPointInTriangle(new_positions[q], new_positions[p1], new_positions[p2], new_positions[p3], n_end, surface_end, bary_end);
-
-                if (dist_end <= m_surface_thickness) {
-                    addSelfCollisionConstraint(q, p1, from_behind ? p2 : p3, from_behind ? p3 : p2);
-                    continue; // Handled, skip the cubic solver for this pair
+                // Broad phase: AABB
+                AABB<double> aabb;
+                for (uint i = 0; i < 3; i++) {
+                    aabb.addPosition(m_positions[obj->m_triangles[ti][i]]);
+                    aabb.addPosition(new_positions[obj->m_triangles[ti][i]]);
                 }
-            }
-
-            // ==========================================
-            // Continuous Component: Cubic Solver (Tunneling)
-            // ==========================================
-            glm::dvec3 dp1 = new_positions[p1] - m_positions[p1];
-            glm::dvec3 dp2 = new_positions[p2] - m_positions[p2];
-            glm::dvec3 dp3 = new_positions[p3] - m_positions[p3];
-
-            // A(t) = A0 + t*A1 (Edge 1)
-            glm::dvec3 A0 = m_positions[p2] - m_positions[p1];
-            glm::dvec3 A1 = dp2 - dp1;
-            // B(t) = B0 + t*B1 (Edge 2)
-            glm::dvec3 B0 = m_positions[p3] - m_positions[p1];
-            glm::dvec3 B1 = dp3 - dp1;
-            // C(t) = C0 + t*C1 (Point to Triangle)
-            glm::dvec3 C0 = m_positions[q] - m_positions[p1];
-            glm::dvec3 C1 = dq - dp1;
-
-            // Expand the cross product (A(t) x B(t))
-            glm::dvec3 N1 = glm::cross(A0, B1) + glm::cross(A1, B0);
-            glm::dvec3 N2 = glm::cross(A1, B1);
-
-            // Assemble Cubic Coefficients from C(t) . N(t) = 0
-            double a = glm::dot(C1, N2);
-            double b = glm::dot(C0, N2) + glm::dot(C1, N1);
-            double c = glm::dot(C0, N1) + glm::dot(C1, N0);
-            double d = glm::dot(C0, N0);
-
-            // Solve for time 't'
-            double roots[3];
-            int num_roots = SolveP3(roots, b / a, c / a, d / a);
-
-            // Test valid roots to see if they occurred inside/near the triangle
-            for (int i = 0; i < num_roots; ++i) {
-                double t = roots[i];
-                if (t < 0. || t > 1.)
+                aabb.expand(obj->m_surface_thickness);
+                if (!aabb.intersect(m_positions[q], dq))
                     continue;
 
-                glm::dvec3 qt = m_positions[q] + t * dq;
-                glm::dvec3 p1t = m_positions[p1] + t * dp1;
-                glm::dvec3 p2t = m_positions[p2] + t * dp2;
-                glm::dvec3 p3t = m_positions[p3] + t * dp3;
+                // Pre-calculate t=0 normal vector for side determination
+                glm::dvec3 N0 = glm::cross(m_positions[p2] - m_positions[p1], m_positions[p3] - m_positions[p1]);
+                // Determine side from the initial state (t=0) to prevent the 0.0 sign bug
+                double signed_dist_init = glm::dot(m_positions[q] - m_positions[p1], N0);
+                bool from_behind = signed_dist_init > 0.0;
 
-                glm::dvec3 normal = glm::cross(p2t - p1t, p3t - p1t);
-                double normal_len = glm::length(normal);
-                if (normal_len < 1e-12)
-                    continue;
+                // ==========================================
+                // THICKNESS FIX 1: Proximity check at t = 1
+                // ==========================================
+                // Catches slow-moving objects entering the shell without crossing the mid-plane
+                glm::dvec3 normal_end = glm::cross(new_positions[p2] - new_positions[p1], new_positions[p3] - new_positions[p1]);
+                double normal_end_len = glm::length(normal_end);
+                if (normal_end_len > 1e-12) {
+                    glm::dvec3 n_end = normal_end / normal_end_len;
+                    glm::dvec3 surface_end, bary_end;
+                    double dist_end = closestPointInTriangle(new_positions[q], new_positions[p1], new_positions[p2], new_positions[p3], n_end, surface_end, bary_end);
 
-                glm::dvec3 n = normal / normal_len;
-                glm::dvec3 surface, barycentrics;
-                double dist = closestPointInTriangle(qt, p1t, p2t, p3t, n, surface, barycentrics);
+                    if (dist_end <= obj->m_surface_thickness) {
+                        addSelfCollisionConstraint(q, p1, from_behind ? p2 : p3, from_behind ? p3 : p2);
+                        continue; // Handled, skip the cubic solver for this pair
+                    }
+                }
 
-                // THICKNESS FIX 2: If it crosses the plane within the thickness boundary of the edges
-                if (dist <= m_surface_thickness) {
-                    // Corrected: Uses the robust 'from_behind' computed at t=0
-                    addSelfCollisionConstraint(q, p1, from_behind ? p2 : p3, from_behind ? p3 : p2);
-                    break;
+                // ==========================================
+                // Continuous Component: Cubic Solver (Tunneling)
+                // ==========================================
+                glm::dvec3 dp1 = new_positions[p1] - m_positions[p1];
+                glm::dvec3 dp2 = new_positions[p2] - m_positions[p2];
+                glm::dvec3 dp3 = new_positions[p3] - m_positions[p3];
+
+                // A(t) = A0 + t*A1 (Edge 1)
+                glm::dvec3 A0 = m_positions[p2] - m_positions[p1];
+                glm::dvec3 A1 = dp2 - dp1;
+                // B(t) = B0 + t*B1 (Edge 2)
+                glm::dvec3 B0 = m_positions[p3] - m_positions[p1];
+                glm::dvec3 B1 = dp3 - dp1;
+                // C(t) = C0 + t*C1 (Point to Triangle)
+                glm::dvec3 C0 = m_positions[q] - m_positions[p1];
+                glm::dvec3 C1 = dq - dp1;
+
+                // Expand the cross product (A(t) x B(t))
+                glm::dvec3 N1 = glm::cross(A0, B1) + glm::cross(A1, B0);
+                glm::dvec3 N2 = glm::cross(A1, B1);
+
+                // Assemble Cubic Coefficients from C(t) . N(t) = 0
+                double a = glm::dot(C1, N2);
+                double b = glm::dot(C0, N2) + glm::dot(C1, N1);
+                double c = glm::dot(C0, N1) + glm::dot(C1, N0);
+                double d = glm::dot(C0, N0);
+
+                // Solve for time 't'
+                double roots[3];
+                int num_roots = SolveP3(roots, b / a, c / a, d / a);
+
+                // Test valid roots to see if they occurred inside/near the triangle
+                for (int i = 0; i < num_roots; ++i) {
+                    double t = roots[i];
+                    if (t < 0. || t > 1.)
+                        continue;
+
+                    glm::dvec3 qt = m_positions[q] + t * dq;
+                    glm::dvec3 p1t = m_positions[p1] + t * dp1;
+                    glm::dvec3 p2t = m_positions[p2] + t * dp2;
+                    glm::dvec3 p3t = m_positions[p3] + t * dp3;
+
+                    glm::dvec3 normal = glm::cross(p2t - p1t, p3t - p1t);
+                    double normal_len = glm::length(normal);
+                    if (normal_len < 1e-12)
+                        continue;
+
+                    glm::dvec3 n = normal / normal_len;
+                    glm::dvec3 surface, barycentrics;
+                    double dist = closestPointInTriangle(qt, p1t, p2t, p3t, n, surface, barycentrics);
+
+                    // THICKNESS FIX 2: If it crosses the plane within the thickness boundary of the edges
+                    if (dist <= obj->m_surface_thickness) {
+                        // Corrected: Uses the robust 'from_behind' computed at t=0
+                        addSelfCollisionConstraint(q, p1, from_behind ? p2 : p3, from_behind ? p3 : p2);
+
+                        accumulateCollisionsResponse(q, normal, _collisions_responses[self_i]);
+                        // normal /= 3;
+                        accumulateCollisionsResponse(p1, -normal, _collisions_responses[object_i]);
+                        accumulateCollisionsResponse(p2, -normal, _collisions_responses[object_i]);
+                        accumulateCollisionsResponse(p3, -normal, _collisions_responses[object_i]);
+                        break;
+                    }
                 }
             }
         }

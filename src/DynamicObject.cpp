@@ -87,7 +87,7 @@ READ "3.1. Algorithm Overview" of ./articles/Position_Based_Dynamics.pdf
 (16)      velocityUpdate(v1 ,..., vN )
 (17)  endloop
 */
-void DynamicObject::generateNewPositions(double _delta_time, glm::dvec3* new_positions) {
+void DynamicObject::generateNewPositions(double _delta_time, std::vector<glm::dvec3>& new_positions) {
     // (5) external forces (gravity, etc...) (for now, just gravity)
     for (uint pj = 0; pj < N; pj++)
         m_velocities[pj] = m_fixed[pj] ? m_velocities[pj] : m_velocities[pj] + _delta_time * glm::dvec3(0., -9.807, 0.);
@@ -100,17 +100,18 @@ void DynamicObject::generateNewPositions(double _delta_time, glm::dvec3* new_pos
         new_positions[pj] = m_fixed[pj] ? m_positions[pj] : m_positions[pj] + _delta_time * m_velocities[pj];
 }
 
-void DynamicObject::generateStaticCollisions(double _delta_time, glm::dvec3* new_positions, const std::vector<StaticBody>& static_bodies, std::unordered_map<uint, glm::dvec3>& collisions_responses) {
-    detectPointTriangleCollision(new_positions, static_bodies, collisions_responses);
-    detectEdgeEdgeCollision(new_positions, static_bodies, collisions_responses);
-    detectTrianglePointCollision(new_positions, static_bodies, collisions_responses);
+void DynamicObject::generateCollisions(double _delta_time, std::vector<glm::dvec3>& new_positions, const std::vector<StaticBody>& static_bodies, const std::vector<DynamicObject*> dynamic_objects, std::vector<std::unordered_map<uint, glm::dvec3>>& collisions_responses) {
+    for (uint i = 0; i < dynamic_objects.size(); i++) {
+        if (dynamic_objects[i] == this) {
+            detectPointTriangleCollision(new_positions, static_bodies, collisions_responses[i]);
+            detectEdgeEdgeCollision(new_positions, static_bodies, collisions_responses[i]);
+            detectTrianglePointCollision(new_positions, static_bodies, collisions_responses[i]);
+        }
+    }
+    detectSelfPointTriangleCollision(new_positions, dynamic_objects, collisions_responses);
 }
 
-void DynamicObject::generateSelfCollisions(double _delta_time, glm::dvec3* new_positions, std::unordered_map<uint, glm::dvec3>& collisions_responses) {
-    detectSelfPointTriangleCollision(new_positions, collisions_responses);
-}
-
-bool DynamicObject::projectConstraints(uint _solver_iterations, glm::dvec3* new_positions) {
+bool DynamicObject::projectConstraints(uint _solver_iterations, std::vector<glm::dvec3>& new_positions) {
     for (uint ci = 0; ci < M + Mcoll; ci++) {
         // gather function input (and total weight)
         std::vector<glm::dvec3> affected_points(m_cardinalities[ci]);
@@ -170,7 +171,7 @@ bool DynamicObject::projectConstraints(uint _solver_iterations, glm::dvec3* new_
     return true;
 }
 
-bool DynamicObject::applyNewPositions(double _delta_time, const glm::dvec3* new_positions) {
+bool DynamicObject::applyNewPositions(double _delta_time, const std::vector<glm::dvec3>& new_positions) {
     // (12)-(15)
     for (uint pj = 0; pj < N; pj++) {
         if (m_positions[pj] != new_positions[pj]) {
@@ -224,19 +225,19 @@ void DynamicObject::removeCollisionsConstraints() {
 
 bool DynamicObject::update(double _delta_time, uint _solver_iterations, const std::vector<StaticBody>& static_bodies) {
     std::vector<glm::dvec3> new_positions(N);
-    std::unordered_map<uint, glm::dvec3> collisions_responses;
+    std::vector<std::unordered_map<uint, glm::dvec3>> collisions_responses;
 
-    generateNewPositions(_delta_time, new_positions.data());                                    // (5)-(7)
-    generateCollisions(_delta_time, new_positions.data(), static_bodies, collisions_responses); // (8)
+    generateNewPositions(_delta_time, new_positions);                                            // (5)-(7)
+    generateCollisions(_delta_time, new_positions, static_bodies, {this}, collisions_responses); // (8)
 
     // (9)-(11)
     for (uint _ = 0; _ < _solver_iterations; _++)
-        if (!projectConstraints(_solver_iterations, new_positions.data()))
+        if (!projectConstraints(_solver_iterations, new_positions))
             return false;
 
-    if (!applyNewPositions(_delta_time, new_positions.data())) // (12)-(15)
+    if (!applyNewPositions(_delta_time, new_positions)) // (12)-(15)
         return false;
-    if (!applyCollisions(collisions_responses)) // (16)
+    if (!applyCollisions(collisions_responses[0])) // (16)
         return false;
 
     removeCollisionsConstraints();
@@ -246,29 +247,23 @@ bool DynamicObject::update(double _delta_time, uint _solver_iterations, const st
 
 bool DynamicObject::update(const std::vector<DynamicObject*>& dynamic_objects, double _delta_time, uint _solver_iterations, const std::vector<StaticBody>& static_bodies) {
     uint nb_objects = dynamic_objects.size();
-    std::vector<uint> pos_offset(nb_objects, 0);
+
     std::vector<bool> stop_update(nb_objects);
-    for (uint i = 1; i < nb_objects; i++)
-        pos_offset[i] = pos_offset[i - 1] + dynamic_objects[i - 1]->N;
-    uint totalN = pos_offset[nb_objects - 1] + dynamic_objects[nb_objects - 1]->N;
+    std::vector<std::vector<glm::dvec3>> new_positions(nb_objects);
+    for (uint i = 0; i < nb_objects; i++)
+        dynamic_objects[i]->generateNewPositions(_delta_time, new_positions[i]);
 
-    std::vector<glm::dvec3> positions(totalN);
-    std::vector<glm::dvec3> new_positions(totalN);
-    for (uint i = 0; i < nb_objects; i++) {
-        std::memcpy(positions.data() + pos_offset[i], dynamic_objects[i]->m_positions.data(), dynamic_objects[i]->N);
-        dynamic_objects[i]->generateNewPositions(_delta_time, new_positions.data() + pos_offset[i]);
-    }
-
-    std::unordered_map<uint, glm::dvec3> collisions_responses;
-    dynamic_objects[i]->generateCollisions(_delta_time, new_positions.data() + pos_offset[i], static_bodies, collisions_responses[i]); // (8)
+    std::vector<std::unordered_map<uint, glm::dvec3>> collisions_responses;
+    for (uint i = 0; i < nb_objects; i++)
+        dynamic_objects[i]->generateCollisions(_delta_time, new_positions[i], static_bodies, dynamic_objects, collisions_responses); // (8)
 
     for (uint _ = 0; _ < _solver_iterations; _++)
         for (uint i = 0; i < nb_objects; i++)
-            stop_update[i] = stop_update[i] || !dynamic_objects[i]->projectConstraints(_solver_iterations, new_positions.data() + pos_offset[i]);
+            stop_update[i] = stop_update[i] || !dynamic_objects[i]->projectConstraints(_solver_iterations, new_positions[i]);
 
     for (uint i = 0; i < nb_objects; i++) {
-        stop_update[i] = stop_update[i] || !dynamic_objects[i]->applyNewPositions(_delta_time, new_positions.data() + pos_offset[i]); // (12)-(15)
-        stop_update[i] = stop_update[i] || !dynamic_objects[i]->applyCollisions(collisions_responses[i]);                             // (16)
+        stop_update[i] = stop_update[i] || !dynamic_objects[i]->applyNewPositions(_delta_time, new_positions[i]); // (12)-(15)
+        stop_update[i] = stop_update[i] || !dynamic_objects[i]->applyCollisions(collisions_responses[i]);         // (16)
         dynamic_objects[i]->removeCollisionsConstraints();
     }
 }
