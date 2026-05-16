@@ -274,7 +274,7 @@ void DynamicObject::detectSelfPointTriangleCollision(const std::vector<glm::dvec
             glm::dvec3 surface, barycentrics;
 
             // 15 steps is plenty for numerical CCD. 10,000 will destroy your framerate.
-            const uint CCD_STEPS = 10000;
+            const uint CCD_STEPS = 100;
 
             for (uint i = 0; i <= CCD_STEPS; ++i) {
                 double t = double(i) / double(CCD_STEPS);

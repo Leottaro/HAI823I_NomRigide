@@ -451,20 +451,22 @@ void DynamicObject::addSelfCollisionConstraint(uint _q, uint _p0, uint _p1, uint
 
         glm::dvec3 n_hat = n / n_len;
 
-        // d(C)/d(q) = n_hat
+        // C = dot(x, n) / |n| - h
+        double signed_dist = glm::dot(x, n_hat);
+        glm::dvec3 x_proj = x - signed_dist * n_hat; // projection of x onto triangle plane
+
+        // dC/dq = n_hat
         glm::dvec3 grad_q = n_hat;
 
-        // d(C)/d(p2): from both dot(x,n)/|n| differentiated w.r.t. p2
-        // d(n)/d(p2) = tilde(e3)^T  (i.e. cross(*, e3) applied to basis)
-        // Gives: cross(x, e3) / n_len - n_hat * dot(n_hat, cross(x, e3)) / n_len
-        //      = (I - n_hat*n_hat^T) * cross(x, e3) / n_len
-        glm::dvec3 grad_p2 = (glm::cross(x, e3) - glm::dot(n_hat, glm::cross(x, e3)) * n_hat) / n_len;
+        // dC/de2 = cross(e3, x_proj) / |n|
+        // Since e2 = p2 - p1, dC/dp2 = dC/de2
+        glm::dvec3 grad_p2 = glm::cross(e3, x_proj) / n_len;
 
-        // d(C)/d(p3): similarly with cross(e2, x)
-        glm::dvec3 grad_p3 = (glm::cross(e2, x) - glm::dot(n_hat, glm::cross(e2, x)) * n_hat) / n_len;
+        // dC/de3 = cross(x_proj, e2) / |n|
+        // Since e3 = p3 - p1, dC/dp3 = dC/de3
+        glm::dvec3 grad_p3 = glm::cross(x_proj, e2) / n_len;
 
-        // d(C)/d(p1): p1 affects x = q-p1 and both edges e2, e3
-        // = -grad_q - grad_p2 - grad_p3  (sum of gradients = 0 for translation invariance)
+        // dC/dp1 = -dC/dq - dC/de2 - dC/de3 (translation invariance)
         glm::dvec3 grad_p1 = -grad_q - grad_p2 - grad_p3;
 
         return std::vector<glm::dvec3>{grad_q, grad_p1, grad_p2, grad_p3};
