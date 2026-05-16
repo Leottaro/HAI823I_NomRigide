@@ -87,9 +87,7 @@ READ "3.1. Algorithm Overview" of ./articles/Position_Based_Dynamics.pdf
 (16)      velocityUpdate(v1 ,..., vN )
 (17)  endloop
 */
-bool DynamicObject::update(double _delta_time, uint _solver_iterations, const std::vector<StaticBody>& static_bodies) {
-    std::vector<glm::dvec3> new_positions(N); // p_i
-
+void DynamicObject::generateNewPositions(double _delta_time, glm::dvec3* new_positions) {
     // (5) external forces (gravity, etc...) (for now, just gravity)
     for (uint pj = 0; pj < N; pj++)
         m_velocities[pj] = m_fixed[pj] ? m_velocities[pj] : m_velocities[pj] + _delta_time * glm::dvec3(0., -9.807, 0.);
@@ -100,85 +98,92 @@ bool DynamicObject::update(double _delta_time, uint _solver_iterations, const st
     // (7)
     for (uint pj = 0; pj < N; pj++)
         new_positions[pj] = m_fixed[pj] ? m_positions[pj] : m_positions[pj] + _delta_time * m_velocities[pj];
+}
 
-    // (8)
-    std::unordered_map<uint, glm::dvec3> collisions_responses;
+void DynamicObject::generateStaticCollisions(double _delta_time, glm::dvec3* new_positions, const std::vector<StaticBody>& static_bodies, std::unordered_map<uint, glm::dvec3>& collisions_responses) {
     detectPointTriangleCollision(new_positions, static_bodies, collisions_responses);
     detectEdgeEdgeCollision(new_positions, static_bodies, collisions_responses);
     detectTrianglePointCollision(new_positions, static_bodies, collisions_responses);
+}
+
+void DynamicObject::generateSelfCollisions(double _delta_time, glm::dvec3* new_positions, std::unordered_map<uint, glm::dvec3>& collisions_responses) {
     detectSelfPointTriangleCollision(new_positions, collisions_responses);
+}
 
-    // (9)-(11)
-    for (uint i = 0; i < _solver_iterations; i++) {
-        for (uint ci = 0; ci < M + Mcoll; ci++) {
-            // gather function input (and total weight)
-            std::vector<glm::dvec3> affected_points(m_cardinalities[ci]);
-            double total_weigths = 0.;
-            for (uint i = 0; i < m_cardinalities[ci]; i++) {
-                uint pj = m_indices[ci][i];
-                affected_points[i] = new_positions[pj];
-                total_weigths += m_weights[pj];
-            }
-            if (total_weigths == 0.) {
-                continue;
-            }
+bool DynamicObject::projectConstraints(uint _solver_iterations, glm::dvec3* new_positions) {
+    for (uint ci = 0; ci < M + Mcoll; ci++) {
+        // gather function input (and total weight)
+        std::vector<glm::dvec3> affected_points(m_cardinalities[ci]);
+        double total_weigths = 0.;
+        for (uint i = 0; i < m_cardinalities[ci]; i++) {
+            uint pj = m_indices[ci][i];
+            affected_points[i] = new_positions[pj];
+            total_weigths += m_weights[pj];
+        }
+        if (total_weigths == 0.) {
+            continue;
+        }
 
-            if (total_weigths != total_weigths) {
-                std::cerr << total_weigths << " total weights... Is there a vertex with a zero mass ?" << std::endl;
+        if (total_weigths != total_weigths) {
+            std::cerr << total_weigths << " total weights... Is there a vertex with a zero mass ?" << std::endl;
+            return false;
+        }
+
+        double function_value = m_functions[ci](affected_points);
+        if (m_types[ci] == INEQUALITY_CONSTRAINT && function_value >= 0.) {
+            // The constraint is already satisfied so we don't project it
+            continue;
+        }
+
+        // Determine S
+        std::vector<glm::dvec3> gradients = m_gradients[ci](affected_points);
+        double denominator = 0.;
+        for (uint i = 0; i < m_cardinalities[ci]; i++) {
+            if (gradients[i] != gradients[i]) {
+                std::cerr << glm::to_string(gradients[i]) << " gradients[i] for a " << CONSTAINT_DEBUG_NAMES[m_debug_types[ci]] << " constraint " << ci << " of cardinality " << m_cardinalities[ci] << "." << std::endl;
                 return false;
             }
+            denominator += glm::length2(gradients[i]);
+        }
+        if (denominator != denominator || denominator == 0.) {
+            std::cerr << "invalid denominator=" << denominator << " for a " << CONSTAINT_DEBUG_NAMES[m_debug_types[ci]] << " constraint " << ci << " of cardinality " << m_cardinalities[ci] << ". You may need to lower the deltaTime!" << std::endl;
+            return false;
+        }
+        double s = function_value / denominator;
 
-            double function_value = m_functions[ci](affected_points);
-            if (m_types[ci] == INEQUALITY_CONSTRAINT && function_value >= 0.) {
-                // The constraint is already satisfied so we don't project it
-                continue;
-            }
-
-            // Determine S
-            std::vector<glm::dvec3> gradients = m_gradients[ci](affected_points);
-            double denominator = 0.;
-            for (uint i = 0; i < m_cardinalities[ci]; i++) {
-                if (gradients[i] != gradients[i]) {
-                    std::cerr << glm::to_string(gradients[i]) << " gradients[i] for a " << CONSTAINT_DEBUG_NAMES[m_debug_types[ci]] << " constraint " << ci << " of cardinality " << m_cardinalities[ci] << "." << std::endl;
-                    return false;
-                }
-                denominator += glm::length2(gradients[i]);
-            }
-            if (denominator != denominator || denominator == 0.) {
-                std::cerr << "invalid denominator=" << denominator << " for a " << CONSTAINT_DEBUG_NAMES[m_debug_types[ci]] << " constraint " << ci << " of cardinality " << m_cardinalities[ci] << ". You may need to lower the deltaTime!" << std::endl;
+        // add the deltas
+        for (uint i = 0; i < m_cardinalities[ci]; i++) {
+            uint pj = m_indices[ci][i];
+            glm::dvec3 delta_pj = -s * (double(m_cardinalities[ci]) * m_weights[pj] / total_weigths) * gradients[i];
+            if (delta_pj != delta_pj) {
+                std::cerr << delta_pj << " delta_pj for a " << CONSTAINT_DEBUG_NAMES[m_debug_types[ci]] << " constraint " << ci << " of cardinality " << m_cardinalities[ci] << "." << std::endl;
                 return false;
             }
-            double s = function_value / denominator;
-
-            // add the deltas
-            for (uint i = 0; i < m_cardinalities[ci]; i++) {
-                uint pj = m_indices[ci][i];
-                glm::dvec3 delta_pj = -s * (double(m_cardinalities[ci]) * m_weights[pj] / total_weigths) * gradients[i];
-                if (delta_pj != delta_pj) {
-                    std::cerr << delta_pj << " delta_pj for a " << CONSTAINT_DEBUG_NAMES[m_debug_types[ci]] << " constraint " << ci << " of cardinality " << m_cardinalities[ci] << "." << std::endl;
-                    return false;
-                }
-                double k_prime = 1. - std::pow(1. - m_stiffnesses[ci], 1. / _solver_iterations);
-                new_positions[pj] += k_prime * delta_pj;
-                if (new_positions[pj] != new_positions[pj]) {
-                    std::cerr << new_positions[pj] << " new_positions[pj] for a " << CONSTAINT_DEBUG_NAMES[m_debug_types[ci]] << " constraint " << ci << " of cardinality " << m_cardinalities[ci] << "." << std::endl;
-                    return false;
-                }
+            double k_prime = 1. - std::pow(1. - m_stiffnesses[ci], 1. / _solver_iterations);
+            new_positions[pj] += k_prime * delta_pj;
+            if (new_positions[pj] != new_positions[pj]) {
+                std::cerr << new_positions[pj] << " new_positions[pj] for a " << CONSTAINT_DEBUG_NAMES[m_debug_types[ci]] << " constraint " << ci << " of cardinality " << m_cardinalities[ci] << "." << std::endl;
+                return false;
             }
         }
     }
+    return true;
+}
 
+bool DynamicObject::applyNewPositions(double _delta_time, const glm::dvec3* new_positions) {
     // (12)-(15)
     for (uint pj = 0; pj < N; pj++) {
-        m_velocities[pj] = (new_positions[pj] - m_positions[pj]) / _delta_time; // (13)
-        m_positions[pj] = new_positions[pj];                                    // (14)
-        if (m_positions[pj] != m_positions[pj]) {
+        if (m_positions[pj] != new_positions[pj]) {
             std::cerr << m_positions[pj] << " m_positions[pj]." << std::endl;
             return false;
         }
+        m_velocities[pj] = (new_positions[pj] - m_positions[pj]) / _delta_time; // (13)
+        m_positions[pj] = new_positions[pj];                                    // (14)
     }
+    return true;
+}
 
-    // (16)
+bool DynamicObject::applyCollisions(std::unordered_map<uint, glm::dvec3> collisions_responses) {
     for (auto [pj, collision_normal] : collisions_responses) {
         collision_normal = glm::normalize(collision_normal);
 
@@ -202,7 +207,10 @@ bool DynamicObject::update(double _delta_time, uint _solver_iterations, const st
             return false;
         }
     }
+    return true;
+}
 
+void DynamicObject::removeCollisionsConstraints() {
     // cancel collision constraitns
     Mcoll = 0;
     m_cardinalities.resize(M);
@@ -212,12 +220,57 @@ bool DynamicObject::update(double _delta_time, uint _solver_iterations, const st
     m_debug_types.resize(M);
     m_functions.resize(M);
     m_gradients.resize(M);
+}
+
+bool DynamicObject::update(double _delta_time, uint _solver_iterations, const std::vector<StaticBody>& static_bodies) {
+    std::vector<glm::dvec3> new_positions(N);
+    std::unordered_map<uint, glm::dvec3> collisions_responses;
+
+    generateNewPositions(_delta_time, new_positions.data());                                    // (5)-(7)
+    generateCollisions(_delta_time, new_positions.data(), static_bodies, collisions_responses); // (8)
+
+    // (9)-(11)
+    for (uint _ = 0; _ < _solver_iterations; _++)
+        if (!projectConstraints(_solver_iterations, new_positions.data()))
+            return false;
+
+    if (!applyNewPositions(_delta_time, new_positions.data())) // (12)-(15)
+        return false;
+    if (!applyCollisions(collisions_responses)) // (16)
+        return false;
+
+    removeCollisionsConstraints();
 
     return true;
 }
 
-inline glm::dmat3 getTildeMatrix(const glm::dvec3& _p) {
-    return glm::dmat3(0, -_p.z, _p.y, _p.z, 0, -_p.x, -_p.y, _p.x, 0);
+bool DynamicObject::update(const std::vector<DynamicObject*>& dynamic_objects, double _delta_time, uint _solver_iterations, const std::vector<StaticBody>& static_bodies) {
+    uint nb_objects = dynamic_objects.size();
+    std::vector<uint> pos_offset(nb_objects, 0);
+    std::vector<bool> stop_update(nb_objects);
+    for (uint i = 1; i < nb_objects; i++)
+        pos_offset[i] = pos_offset[i - 1] + dynamic_objects[i - 1]->N;
+    uint totalN = pos_offset[nb_objects - 1] + dynamic_objects[nb_objects - 1]->N;
+
+    std::vector<glm::dvec3> positions(totalN);
+    std::vector<glm::dvec3> new_positions(totalN);
+    for (uint i = 0; i < nb_objects; i++) {
+        std::memcpy(positions.data() + pos_offset[i], dynamic_objects[i]->m_positions.data(), dynamic_objects[i]->N);
+        dynamic_objects[i]->generateNewPositions(_delta_time, new_positions.data() + pos_offset[i]);
+    }
+
+    std::unordered_map<uint, glm::dvec3> collisions_responses;
+    dynamic_objects[i]->generateCollisions(_delta_time, new_positions.data() + pos_offset[i], static_bodies, collisions_responses[i]); // (8)
+
+    for (uint _ = 0; _ < _solver_iterations; _++)
+        for (uint i = 0; i < nb_objects; i++)
+            stop_update[i] = stop_update[i] || !dynamic_objects[i]->projectConstraints(_solver_iterations, new_positions.data() + pos_offset[i]);
+
+    for (uint i = 0; i < nb_objects; i++) {
+        stop_update[i] = stop_update[i] || !dynamic_objects[i]->applyNewPositions(_delta_time, new_positions.data() + pos_offset[i]); // (12)-(15)
+        stop_update[i] = stop_update[i] || !dynamic_objects[i]->applyCollisions(collisions_responses[i]);                             // (16)
+        dynamic_objects[i]->removeCollisionsConstraints();
+    }
 }
 
 void DynamicObject::addVertex(const glm::dvec3& _position, const glm::dvec3& _velocity, double _mass, bool _fixed) {
@@ -227,300 +280,6 @@ void DynamicObject::addVertex(const glm::dvec3& _position, const glm::dvec3& _ve
     m_masses.push_back(_mass);
     m_weights.push_back(_fixed ? 0. : 1. / _mass);
     m_fixed.push_back(_fixed);
-}
-
-void DynamicObject::addConstraint(
-    uint _cardinality,
-    const constraint_function& _function,
-    const gradient_function& _gradient,
-    const std::vector<uint>& _indices,
-    double _stiffness,
-    const ConstraintType& _type) {
-    M++;
-    m_cardinalities.push_back(_cardinality);
-    m_functions.push_back(_function);
-    m_gradients.push_back(_gradient);
-    m_indices.push_back(_indices);
-    m_stiffnesses.push_back(_stiffness);
-    m_types.push_back(_type);
-    m_debug_types.push_back(CUSTOM_CONSTRAINT);
-}
-
-void DynamicObject::addDistanceConstraint(uint _p0, uint _p1, double _stiffness, double _targeted_distance) {
-    M++;
-    m_cardinalities.push_back(2);
-    m_indices.push_back({_p0, _p1});
-    m_stiffnesses.push_back(_stiffness);
-    m_types.push_back(EQUALITY_CONSTRAINT);
-    m_debug_types.push_back(DISTANCE_CONSTRAINT);
-
-    m_functions.push_back([_targeted_distance](const std::vector<glm::dvec3>& _p) {
-        return glm::distance(_p[0], _p[1]) - _targeted_distance;
-    });
-    m_gradients.push_back([](const std::vector<glm::dvec3>& _p) {
-        glm::dvec3 n = glm::normalize(_p[0] - _p[1]);
-        return std::vector<glm::dvec3>{n, -n};
-    });
-}
-void DynamicObject::addDistanceConstraint(uint _p0, uint _p1, double _stiffness) {
-    addDistanceConstraint(_p0, _p1, _stiffness, glm::distance(m_positions[_p0], m_positions[_p1]));
-}
-
-void DynamicObject::addBendingConstraint(uint _p0, uint _p1, uint _p2, uint _p3, double _stiffness, double _targeted_angle) {
-    M++;
-    m_cardinalities.push_back(4);
-    m_indices.push_back({_p0, _p1, _p2, _p3});
-    m_stiffnesses.push_back(_stiffness);
-    m_types.push_back(EQUALITY_CONSTRAINT);
-    m_debug_types.push_back(BENDING_CONSTRAINT);
-
-    m_functions.push_back([_targeted_angle](const std::vector<glm::dvec3>& _p) {
-        glm::dvec3 e = glm::normalize(_p[1] - _p[0]); // arête commune
-
-        glm::dvec3 n1 = glm::normalize(glm::cross(_p[2] - _p[0], _p[2] - _p[1]));
-        glm::dvec3 n2 = glm::normalize(glm::cross(_p[3] - _p[1], _p[3] - _p[0]));
-        double cosTheta = glm::dot(n1, n2);
-        double theta = acos(cosTheta);
-        double sign = glm::dot(glm::cross(n1, n2), e);
-        if (sign < 0)
-            theta = -theta;
-        return theta - _targeted_angle;
-    });
-    m_gradients.push_back([](const std::vector<glm::dvec3>& _p) {
-        // bridson model
-        // p0 and p1 : common edge
-        glm::dvec3 e = _p[1] - _p[0];
-        double elen = glm::length(e);
-
-        glm::dvec3 n1 = glm::cross(_p[2] - _p[0], _p[2] - _p[1]);
-        glm::dvec3 n2 = glm::cross(_p[3] - _p[1], _p[3] - _p[0]);
-        double n1sq = glm::length2(n1);
-        double n2sq = glm::length2(n2);
-
-        // gp2 = u1, gp3 = u2, gp0 = u3, gp1 = u4
-        glm::dvec3 gp2 = elen * (n1 / n1sq);
-        glm::dvec3 gp3 = elen * (n2 / n2sq);
-        glm::dvec3 gp0 = glm::dot(_p[2] - _p[1], e) / elen * (n1 / n1sq) + glm::dot(_p[3] - _p[1], e) / elen * (n2 / n2sq);
-        glm::dvec3 gp1 = -glm::dot(_p[2] - _p[0], e) / elen * (n1 / n1sq) - glm::dot(_p[3] - _p[0], e) / elen * (n2 / n2sq);
-
-        // glm::dvec3 sum = gp0 + gp1 + gp2 + gp3;
-        // if (glm::length(sum) > 1.e-4) {
-        //     std::cout << "ERREUR : sum != 0" << std::endl;
-        // }
-
-        return std::vector<glm::dvec3>{-gp0, -gp1, -gp2, -gp3};
-    });
-}
-
-void DynamicObject::addBendingConstraint(uint _p0, uint _p1, uint _p2, uint _p3, double _stiffness) {
-    glm::dvec3 e = glm::normalize(m_positions[_p1] - m_positions[_p0]);
-    glm::dvec3 n1 = glm::normalize(glm::cross(m_positions[_p2] - m_positions[_p0], m_positions[_p2] - m_positions[_p1]));
-    glm::dvec3 n2 = glm::normalize(glm::cross(m_positions[_p3] - m_positions[_p1], m_positions[_p3] - m_positions[_p0]));
-    double cosTheta = glm::clamp(glm::dot(n1, n2), -1., 1.);
-    double theta = acos(cosTheta);
-    double sign = glm::dot(glm::cross(n1, n2), e);
-    if (sign < 0)
-        theta = -theta;
-    addBendingConstraint(_p0, _p1, _p2, _p3, _stiffness, theta);
-}
-
-void DynamicObject::addCollisionConstraint(uint _p0, glm::dvec3 _intersection, glm::dvec3 _normal) {
-    Mcoll++;
-    m_cardinalities.push_back(1);
-    m_indices.push_back({_p0});
-    m_stiffnesses.push_back(1.);
-    m_types.push_back(INEQUALITY_CONSTRAINT);
-    m_debug_types.push_back(VERTEX_COLLISION_CONSTRAINT);
-
-    m_functions.push_back([_intersection, _normal](const std::vector<glm::dvec3>& _p) {
-        return glm::dot(_p[0] - _intersection, _normal);
-    });
-    m_gradients.push_back([_normal](const std::vector<glm::dvec3>& _p) {
-        return std::vector<glm::dvec3>{_normal};
-    });
-}
-
-void DynamicObject::addEdgeCollisionConstraint(uint _p0, uint _p1,
-                                               double _t1, glm::dvec3 _point1, glm::dvec3 _normal1,
-                                               double _t2, glm::dvec3 _point2, glm::dvec3 _normal2) {
-    // Create first contact constraint
-    Mcoll++;
-    m_cardinalities.push_back(2);
-    m_indices.push_back({_p0, _p1});
-    m_stiffnesses.push_back(1.0);
-    m_types.push_back(INEQUALITY_CONSTRAINT);
-    m_debug_types.push_back(EDGE_COLLISION_CONSTRAINT);
-
-    double thickness = m_surface_thickness;
-    m_functions.push_back([thickness, _t1, _point1, _normal1](const std::vector<glm::dvec3>& _p) {
-        glm::dvec3 edge_pt = (1.0 - _t1) * _p[0] + _t1 * _p[1];
-        double dist = glm::dot(edge_pt - _point1, _normal1);
-        return dist - thickness;
-    });
-
-    m_gradients.push_back([_t1, _normal1](const std::vector<glm::dvec3>& _p) {
-        return std::vector<glm::dvec3>{
-            (1.0 - _t1) * _normal1,
-            _t1 * _normal1};
-    });
-
-    // Create second contact constraint
-    Mcoll++;
-    m_cardinalities.push_back(2);
-    m_indices.push_back({_p0, _p1});
-    m_stiffnesses.push_back(1.0);
-    m_types.push_back(INEQUALITY_CONSTRAINT);
-    m_debug_types.push_back(EDGE_COLLISION_CONSTRAINT);
-
-    m_functions.push_back([thickness, _t2, _point2, _normal2](const std::vector<glm::dvec3>& _p) {
-        glm::dvec3 edge_pt = (1.0 - _t2) * _p[0] + _t2 * _p[1];
-        double dist = glm::dot(edge_pt - _point2, _normal2);
-        return dist - thickness;
-    });
-
-    m_gradients.push_back([_t2, _normal2](const std::vector<glm::dvec3>& _p) {
-        return std::vector<glm::dvec3>{
-            (1.0 - _t2) * _normal2,
-            _t2 * _normal2};
-    });
-}
-
-void DynamicObject::addStaticPointDynamicTriangleConstraint(uint _p0, uint _p1, uint _p2, glm::dvec3 _static_point, glm::dvec3 _barycentrics, glm::dvec3 _normal) {
-    Mcoll++;
-    m_cardinalities.push_back(3);
-    m_indices.push_back({_p0, _p1, _p2});
-    m_stiffnesses.push_back(1.);
-    m_types.push_back(INEQUALITY_CONSTRAINT);
-    m_debug_types.push_back(TRAINGLE_COLLISION_CONSTRAINT);
-
-    double thickness = m_surface_thickness;
-    m_functions.push_back([thickness, _static_point, _barycentrics, _normal](const std::vector<glm::dvec3>& _p) {
-        glm::dvec3 surface_pt = _barycentrics[0] * _p[0] + _barycentrics[1] * _p[1] + _barycentrics[2] * _p[2];
-        return glm::dot(surface_pt - _static_point, _normal) - thickness;
-    });
-
-    m_gradients.push_back([_barycentrics, _normal](const std::vector<glm::dvec3>& _p) {
-        return std::vector<glm::dvec3>{
-            _barycentrics[0] * _normal,
-            _barycentrics[1] * _normal,
-            _barycentrics[2] * _normal};
-    });
-}
-
-void DynamicObject::addSelfCollisionConstraint(uint _q, uint _p0, uint _p1, uint _p2) {
-    Mcoll++;
-    m_cardinalities.push_back(4);
-    m_indices.push_back({_q, _p0, _p1, _p2});
-    m_stiffnesses.push_back(1.);
-    m_types.push_back(INEQUALITY_CONSTRAINT);
-    m_debug_types.push_back(SELF_COLLISION_CONSTRAINT);
-
-    double thickness = m_surface_thickness;
-    m_functions.push_back([thickness](const std::vector<glm::dvec3>& _p) {
-        const glm::dvec3& q = _p[0];
-        const glm::dvec3& p1 = _p[1];
-        const glm::dvec3& p2 = _p[2];
-        const glm::dvec3& p3 = _p[3];
-
-        const glm::dvec3 e2 = p2 - p1;
-        const glm::dvec3 e3 = p3 - p1;
-        glm::dvec3 n = glm::cross(e2, e3);
-        double n_len = glm::length(n);
-
-        if (n_len < 1e-8)
-            return 0.0;
-
-        return glm::dot(q - p1, n) / n_len - thickness;
-    });
-
-    m_gradients.push_back([](const std::vector<glm::dvec3>& _p) {
-        const glm::dvec3& q = _p[0];
-        const glm::dvec3& p1 = _p[1];
-        const glm::dvec3& p2 = _p[2];
-        const glm::dvec3& p3 = _p[3];
-
-        const glm::dvec3 e2 = p2 - p1;
-        const glm::dvec3 e3 = p3 - p1;
-        const glm::dvec3 x = q - p1;
-
-        glm::dvec3 n = glm::cross(e2, e3);
-        double n_len = glm::length(n);
-
-        if (n_len < 1e-8)
-            return std::vector<glm::dvec3>{glm::dvec3(0), glm::dvec3(0), glm::dvec3(0), glm::dvec3(0)};
-
-        glm::dvec3 n_hat = n / n_len;
-
-        // C = dot(x, n) / |n| - h
-        double signed_dist = glm::dot(x, n_hat);
-        glm::dvec3 x_proj = x - signed_dist * n_hat; // projection of x onto triangle plane
-
-        // dC/dq = n_hat
-        glm::dvec3 grad_q = n_hat;
-
-        // dC/de2 = cross(e3, x_proj) / |n|
-        // Since e2 = p2 - p1, dC/dp2 = dC/de2
-        glm::dvec3 grad_p2 = glm::cross(e3, x_proj) / n_len;
-
-        // dC/de3 = cross(x_proj, e2) / |n|
-        // Since e3 = p3 - p1, dC/dp3 = dC/de3
-        glm::dvec3 grad_p3 = glm::cross(x_proj, e2) / n_len;
-
-        // dC/dp1 = -dC/dq - dC/de2 - dC/de3 (translation invariance)
-        glm::dvec3 grad_p1 = -grad_q - grad_p2 - grad_p3;
-
-        return std::vector<glm::dvec3>{grad_q, grad_p1, grad_p2, grad_p3};
-    });
-}
-
-void DynamicObject::addVolumeConstraint(std::vector<glm::uvec3> _indices, double _stiffness, double _pressure, double _targeted_volume) {
-    M++;
-    m_cardinalities.push_back(getPositions().size());
-    std::vector<uint> all_indices(N);
-    std::iota(all_indices.begin(), all_indices.end(), 0);
-    m_indices.push_back(all_indices);
-    m_stiffnesses.push_back(_stiffness);
-    m_types.push_back(EQUALITY_CONSTRAINT);
-    m_debug_types.push_back(VOLUME_CONSTRAINT);
-
-    m_functions.push_back([_targeted_volume, _pressure, _indices](const std::vector<glm::dvec3>& _p) {
-        double V = 0;
-        for (size_t i = 0; i < _indices.size(); i++) {
-            const glm::dvec3 p1 = _p[_indices[i][0]];
-            const glm::dvec3 p2 = _p[_indices[i][1]];
-            const glm::dvec3 p3 = _p[_indices[i][2]];
-            V += glm::dot(glm::cross(p1, p2), p3) / 6.;
-        }
-        return V - _pressure * _targeted_volume;
-    });
-    m_gradients.push_back([_indices](const std::vector<glm::dvec3>& _p) {
-        std::vector<glm::dvec3> grads(_p.size(), glm::dvec3(0.0));
-        for (size_t i = 0; i < _indices.size(); i++) {
-            uint i1 = _indices[i][0];
-            uint i2 = _indices[i][1];
-            uint i3 = _indices[i][2];
-
-            glm::dvec3 p1 = _p[i1];
-            glm::dvec3 p2 = _p[i2];
-            glm::dvec3 p3 = _p[i3];
-
-            grads[i1] += glm::cross(p2, p3) / 6.;
-            grads[i2] += glm::cross(p3, p1) / 6.;
-            grads[i3] += glm::cross(p1, p2) / 6.;
-        }
-        return grads;
-    });
-}
-
-void DynamicObject::addVolumeConstraint(std::vector<glm::uvec3> _indices, double _stiffness, double _pressure) {
-    double V = 0;
-    for (size_t i = 0; i < _indices.size(); i++) {
-        const glm::dvec3 p1 = m_positions[_indices[i][0]];
-        const glm::dvec3 p2 = m_positions[_indices[i][1]];
-        const glm::dvec3 p3 = m_positions[_indices[i][2]];
-        V += glm::dot(glm::cross(p1, p2), p3) / 6.;
-    }
-    addVolumeConstraint(_indices, _stiffness, _pressure, V);
 }
 
 // Object interaction

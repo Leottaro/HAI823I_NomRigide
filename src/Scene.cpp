@@ -13,17 +13,18 @@ void Scene::resetStaticBody(uint _i) {
     m_static_bodies_mesh_i[_i] = m_static_bodies_desc[_i].mesh_i;
     m_static_bodies_transfo[_i] = m_static_bodies_desc[_i].transfo;
 }
-void Scene::resetDynamicObject(uint _i) {
-    m_dynamic_objects[_i].clear();
-    m_dynamic_objects[_i] = DynamicObject::bodyFromMesh({&m_meshes[m_dynamic_objects_desc[_i].mesh_i], &m_dynamic_objects_desc[_i].transfo}, m_dynamic_objects_desc[_i].distance_stiffness, m_dynamic_objects_desc[_i].angle_stiffness, m_dynamic_objects_desc[_i].volume_stiffness, m_dynamic_objects_desc[_i].volume_pressure);
-    for (uint pj : m_dynamic_objects_desc[_i].fixed_vertices) {
-        m_dynamic_objects[_i].setVertexFixed(pj, true);
-    }
-    m_dynamic_objects[_i].setDampingCoefficient(m_dynamic_objects_desc[_i].damping_coefficient);
-    m_dynamic_objects[_i].setFrictionCoefficient(m_dynamic_objects_desc[_i].friction_coefficient);
-    m_dynamic_objects[_i].setRestitutionCoefficient(m_dynamic_objects_desc[_i].restitution_coefficient);
+void Scene::resetDynamicObject() {
+    m_dynamic_object.clear();
 
-    m_dynamic_objects[_i].initRendering();
+    for (size_t i = 0; i < m_dynamic_objects_desc.size(); i++) {
+        DynamicObject temp = DynamicObject::bodyFromMesh({&m_meshes[m_dynamic_objects_desc[i].mesh_i], &m_dynamic_objects_desc[i].transfo}, m_dynamic_objects_desc[i].distance_stiffness, m_dynamic_objects_desc[i].angle_stiffness, m_dynamic_objects_desc[i].volume_stiffness, m_dynamic_objects_desc[i].volume_pressure);
+        for (uint pj : m_dynamic_objects_desc[i].fixed_vertices) {
+            temp.setVertexFixed(pj, true);
+        }
+        m_dynamic_object.addObject(temp);
+    }
+
+    m_dynamic_object.initRendering();
 }
 
 void Scene::resetObjects() {
@@ -36,10 +37,8 @@ void Scene::resetObjects() {
     for (uint i = 0; i < m_static_bodies_desc.size(); i++)
         resetStaticBody(i);
 
-    m_dynamic_objects.resize(m_dynamic_objects_desc.size());
     m_dynamic_fixed_input_buffers.resize(m_dynamic_objects_desc.size());
-    for (uint i = 0; i < m_dynamic_objects_desc.size(); i++)
-        resetDynamicObject(i);
+    resetDynamicObject();
 
     // std::cout << "Initialisation terminée avec " << static_bodies.size() << " objets statiques et " << dynamic_objects.size() << " objets dynamiques." << std::endl;
 }
@@ -54,7 +53,7 @@ void Scene::meshTypeInterface(uint _mesh_i) {
 
     ImGui::Indent();
     std::visit(
-        [_mesh_i](auto &mesh_spec) {
+        [_mesh_i](auto& mesh_spec) {
             using T = std::decay_t<decltype(mesh_spec)>;
             if constexpr (std::is_same_v<T, LoadedMesh>) {
                 char path_buffer[256];
@@ -97,8 +96,10 @@ void Scene::meshTypeInterface(uint _mesh_i) {
             if (m_static_bodies_desc[i].mesh_i == _mesh_i)
                 resetStaticBody(i);
         for (uint i = 0; i < m_dynamic_objects_desc.size(); i++)
-            if (m_dynamic_objects_desc[i].mesh_i == _mesh_i)
-                resetDynamicObject(i);
+            if (m_dynamic_objects_desc[i].mesh_i == _mesh_i) {
+                resetDynamicObject();
+                break;
+            }
     }
 
     ImGui::SameLine();
@@ -119,7 +120,6 @@ void Scene::meshTypeInterface(uint _mesh_i) {
         for (uint i = 0; i < m_dynamic_objects_desc.size(); i++) {
             if (m_dynamic_objects_desc[i].mesh_i == _mesh_i) {
                 m_dynamic_objects_desc.erase(m_dynamic_objects_desc.begin() + i);
-                m_dynamic_objects.erase(m_dynamic_objects.begin() + i);
             } else if (m_dynamic_objects_desc[i].mesh_i > _mesh_i) {
                 m_dynamic_objects_desc[i].mesh_i--;
             }
@@ -130,7 +130,7 @@ void Scene::meshTypeInterface(uint _mesh_i) {
 }
 
 void Scene::staticBodyInterface(uint _i) {
-    StaticBodyDesc &object = m_static_bodies_desc[_i];
+    StaticBodyDesc& object = m_static_bodies_desc[_i];
     ImGui::Text("%s: ", object.name.c_str());
 
     ImGui::SameLine();
@@ -167,18 +167,17 @@ void Scene::staticBodyInterface(uint _i) {
 }
 
 void Scene::dynamicObjectInterface(uint _i) {
-    DynamicObjectDesc &object = m_dynamic_objects_desc[_i];
+    DynamicObjectDesc& object = m_dynamic_objects_desc[_i];
     ImGui::Text("%s: ", object.name.c_str());
 
     ImGui::SameLine();
     if (ImGui::Button(("remove##dynamic" + std::to_string(_i)).c_str())) {
         m_dynamic_objects_desc.erase(m_dynamic_objects_desc.begin() + _i);
-        m_dynamic_objects.erase(m_dynamic_objects.begin() + _i);
     }
 
     ImGui::SameLine();
     if (ImGui::Button(("apply##dynamic" + object.name).c_str())) {
-        resetDynamicObject(_i);
+        resetDynamicObject();
     }
 
     int mi = object.mesh_i;
@@ -192,7 +191,7 @@ void Scene::dynamicObjectInterface(uint _i) {
     }
     if (object.preset != DynamicObjectDescPreset::CustomBody) {
         ImGui::SameLine();
-        if (ImGui::Button("Apply preset")) {
+        if (ImGui::Button(("Apply preset##dynamic" + object.name).c_str())) {
             object.applyPreset();
         }
     }
@@ -207,9 +206,10 @@ void Scene::dynamicObjectInterface(uint _i) {
     }
 
     ImGui::Spacing();
-    ImGui::DragFloat(("Damping##dynamic" + object.name).c_str(), &object.damping_coefficient, .01f, 0.f, 1.f);
     ImGui::DragFloat(("Friction##dynamic" + object.name).c_str(), &object.friction_coefficient, .01f, 0.f, 1.f);
     ImGui::DragFloat(("Restitution##dynamic" + object.name).c_str(), &object.restitution_coefficient, .01f, 0.f, 1.f);
+    ImGui::DragFloat(("Damping##dynamic" + object.name).c_str(), &object.damping_coefficient, .01f, 0.f, 1.f);
+    ImGui::DragFloat(("Thickness##dynamic" + object.name).c_str(), &object.surface_thickness, .001f, .01f, 1.f);
 
     ImGui::Spacing();
     ImGui::DragFloat(("distance stiffness##dynamic" + object.name).c_str(), &object.distance_stiffness, 0.001f, 0.f, 1.f);
@@ -229,7 +229,6 @@ void Scene::dynamicObjectInterface(uint _i) {
     if (ImGui::Button(("Add##fixed" + object.name).c_str())) {
         uint pj = static_cast<uint>(m_dynamic_fixed_input_buffers[_i]);
         object.fixed_vertices.insert(pj);
-        m_dynamic_objects[_i].setVertexFixed(pj, true);
         m_dynamic_fixed_input_buffers[_i] = 0;
     }
     ImGui::SameLine();
@@ -248,7 +247,6 @@ void Scene::dynamicObjectInterface(uint _i) {
         }
     }
     for (uint pj : vertices_to_remove) {
-        m_dynamic_objects[_i].setVertexFixed(pj, false);
         object.fixed_vertices.erase(pj);
     }
     ImGui::Unindent();
@@ -331,7 +329,6 @@ bool Scene::updateInterface() {
         ImGui::SameLine();
         if (ImGui::Button("Add##dynamic")) {
             m_dynamic_objects_desc.push_back(DynamicObjectDesc(m_new_dynamic_name, 0, .9f, .9f, .9f, 1.f));
-            m_dynamic_objects.push_back(DynamicObject());
             resetStaticBody(m_dynamic_objects_desc.size() - 1);
         }
         for (uint i = 0; i < m_dynamic_objects_desc.size(); i++) {
@@ -345,7 +342,7 @@ bool Scene::updateInterface() {
     return disable_mouse_actions;
 }
 
-bool Scene::updateInteractions(GLFWwindow *_window, const glm::dvec3 &_camera_pos, const glm::dvec3 &_cursor_worldpos) {
+bool Scene::updateInteractions(GLFWwindow* _window, const glm::dvec3& _camera_pos, const glm::dvec3& _cursor_worldpos) {
     static bool r_was_pressed = false;
     bool r_is_pressed = glfwGetKey(_window, GLFW_KEY_R) == GLFW_PRESS;
     if (r_is_pressed && !r_was_pressed) {
@@ -353,14 +350,11 @@ bool Scene::updateInteractions(GLFWwindow *_window, const glm::dvec3 &_camera_po
     }
     r_was_pressed = r_is_pressed;
 
-    bool res = false;
-    for (DynamicObject &object : m_dynamic_objects) {
-        if (object.updateInteractions(_window, _camera_pos, _cursor_worldpos)) {
-            object.updateRenderedPositions();
-            res = true;
-        }
+    if (m_dynamic_object.updateInteractions(_window, _camera_pos, _cursor_worldpos)) {
+        m_dynamic_object.updateRenderedPositions();
+        return true;
     }
-    return res;
+    return false;
 }
 
 bool Scene::updateSimulation(float _deltaTime) {
@@ -370,25 +364,17 @@ bool Scene::updateSimulation(float _deltaTime) {
         static_bodies[i].m_transformation = &m_static_bodies_transfo[i];
     }
 
-    for (DynamicObject &obj : m_dynamic_objects) {
-        if (!obj.update(do_fixed_delta_time ? fixed_delta_time : _deltaTime, solver_iterations, static_bodies)) {
-            obj.updateRenderedPositions();
-            return false;
-        }
-        obj.updateRenderedPositions();
-    }
-
-    return true;
+    bool res = m_dynamic_object.update(do_fixed_delta_time ? fixed_delta_time : _deltaTime, solver_iterations, static_bodies);
+    m_dynamic_object.updateRenderedPositions();
+    return res;
 }
 
-void Scene::render(const ShaderProgram &_dynamic_shader, const ShaderProgram &_mesh_shader, const glm::mat4 &_projection, const glm::mat4 &_view) const {
+void Scene::render(const ShaderProgram& _dynamic_shader, const ShaderProgram& _mesh_shader, const glm::mat4& _projection, const glm::mat4& _view) const {
     // DYNAMIC OBJECTS RENDERING
     _dynamic_shader.use();
     _dynamic_shader.set("projection", _projection);
     _dynamic_shader.set("view", _view);
-    for (uint i = 0; i < m_dynamic_objects_desc.size(); i++) {
-        m_dynamic_objects[i].render(m_dynamic_objects_desc[i].render_type);
-    }
+    m_dynamic_object.render(m_dynamic_objects_desc[0].render_type);
 
     // STATIC OBJECTS RENDERING
     _mesh_shader.use();
@@ -404,10 +390,9 @@ void Scene::render(const ShaderProgram &_dynamic_shader, const ShaderProgram &_m
 }
 
 void Scene::clear() {
-    for (Mesh &mesh : m_meshes) {
+    for (Mesh& mesh : m_meshes) {
         mesh.clear();
     }
-    for (DynamicObject &object : m_dynamic_objects) {
-        object.clear();
-    }
+
+    m_dynamic_object.clear();
 }

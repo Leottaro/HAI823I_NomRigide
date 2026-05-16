@@ -30,6 +30,7 @@ set(APP_SOURCES
     src/Mesh.cpp
     src/MeshGenerator.cpp
     src/DynamicObjectGenerator.cpp
+    src/DynamicObjectConstraints.cpp
 
     src/DynamicObject.hpp
     src/DynamicObject.cpp
