@@ -1,3 +1,5 @@
+#include <poly34.h>
+
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/string_cast.hpp>
 #include <glm/matrix.hpp>
@@ -21,11 +23,6 @@ bool rayTriangleIntersection(const glm::dvec3& origin, const glm::dvec3& directi
 
     // barycentric coordinates
     return computeBarycentrics(v0, v1, v2, normal, intersection, barycentrics);
-}
-
-template <size_t p1, size_t p2, size_t p3, size_t n>
-size_t hash(size_t x, size_t y, size_t z) {
-    return ((x * p1) ^ (y * p2) ^ (z * p3)) % n;
 }
 
 inline void accumulateCollisionsResponse(uint _pj, const glm::dvec3& _normal, std::unordered_map<uint, glm::dvec3>& _collisions_responses) {
@@ -234,8 +231,7 @@ void DynamicObject::detectTrianglePointCollision(const std::vector<glm::dvec3>& 
 
 void DynamicObject::detectSelfPointTriangleCollision(const std::vector<glm::dvec3>& new_positions, std::unordered_map<uint, glm::dvec3>& _collisions_responses) {
     for (uint q = 0; q < N; q++) {
-        const glm::dvec3& origin = m_positions[q];
-        const glm::dvec3 direction = new_positions[q] - m_positions[q];
+        const glm::dvec3 dq = new_positions[q] - m_positions[q];
 
         for (uint ti = 0; ti < m_triangles.size(); ti++) {
             uint p1 = m_triangles[ti][0];
@@ -253,56 +249,89 @@ void DynamicObject::detectSelfPointTriangleCollision(const std::vector<glm::dvec
                 aabb.addPosition(new_positions[m_triangles[ti][i]]);
             }
             aabb.expand(m_surface_thickness);
-            if (!aabb.intersect(origin, direction))
+            if (!aabb.intersect(m_positions[q], dq))
                 continue;
 
-            // Compute initial plane normal at t=0
-            glm::dvec3 n_init = glm::cross(m_positions[p2] - m_positions[p1], m_positions[p3] - m_positions[p1]);
-            double n_init_len = glm::length(n_init);
+            // Pre-calculate t=0 normal vector for side determination
+            glm::dvec3 N0 = glm::cross(m_positions[p2] - m_positions[p1], m_positions[p3] - m_positions[p1]);
+            // Determine side from the initial state (t=0) to prevent the 0.0 sign bug
+            double signed_dist_init = glm::dot(m_positions[q] - m_positions[p1], N0);
+            bool from_behind = signed_dist_init > 0.0;
 
-            double prev_dist = std::numeric_limits<double>::max();
-            double prev_signed_dist = 0.0;
+            // ==========================================
+            // THICKNESS FIX 1: Proximity check at t = 1
+            // ==========================================
+            // Catches slow-moving objects entering the shell without crossing the mid-plane
+            glm::dvec3 normal_end = glm::cross(new_positions[p2] - new_positions[p1], new_positions[p3] - new_positions[p1]);
+            double normal_end_len = glm::length(normal_end);
+            if (normal_end_len > 1e-12) {
+                glm::dvec3 n_end = normal_end / normal_end_len;
+                glm::dvec3 surface_end, bary_end;
+                double dist_end = closestPointInTriangle(new_positions[q], new_positions[p1], new_positions[p2], new_positions[p3], n_end, surface_end, bary_end);
 
-            // Accurately initialize prev_signed_dist BEFORE the loop to avoid the 0.0 trap
-            if (n_init_len > 1e-12) {
-                n_init /= n_init_len;
-                // Using (plane_point - point) to maintain your original sign polarity:
-                // Negative = In Front, Positive = Behind
-                prev_signed_dist = glm::dot(m_positions[p1] - m_positions[q], n_init);
+                if (dist_end <= m_surface_thickness) {
+                    addSelfCollisionConstraint(q, p1, from_behind ? p2 : p3, from_behind ? p3 : p2);
+                    continue; // Handled, skip the cubic solver for this pair
+                }
             }
 
-            glm::dvec3 surface, barycentrics;
+            // ==========================================
+            // Continuous Component: Cubic Solver (Tunneling)
+            // ==========================================
+            glm::dvec3 dp1 = new_positions[p1] - m_positions[p1];
+            glm::dvec3 dp2 = new_positions[p2] - m_positions[p2];
+            glm::dvec3 dp3 = new_positions[p3] - m_positions[p3];
 
-            // 15 steps is plenty for numerical CCD. 10,000 will destroy your framerate.
-            const uint CCD_STEPS = 100;
+            // A(t) = A0 + t*A1 (Edge 1)
+            glm::dvec3 A0 = m_positions[p2] - m_positions[p1];
+            glm::dvec3 A1 = dp2 - dp1;
+            // B(t) = B0 + t*B1 (Edge 2)
+            glm::dvec3 B0 = m_positions[p3] - m_positions[p1];
+            glm::dvec3 B1 = dp3 - dp1;
+            // C(t) = C0 + t*C1 (Point to Triangle)
+            glm::dvec3 C0 = m_positions[q] - m_positions[p1];
+            glm::dvec3 C1 = dq - dp1;
 
-            for (uint i = 0; i <= CCD_STEPS; ++i) {
-                double t = double(i) / double(CCD_STEPS);
-                glm::dvec3 qt = glm::lerp(m_positions[q], new_positions[q], t);
-                glm::dvec3 p1t = glm::lerp(m_positions[p1], new_positions[p1], t);
-                glm::dvec3 p2t = glm::lerp(m_positions[p2], new_positions[p2], t);
-                glm::dvec3 p3t = glm::lerp(m_positions[p3], new_positions[p3], t);
+            // Expand the cross product (A(t) x B(t))
+            glm::dvec3 N1 = glm::cross(A0, B1) + glm::cross(A1, B0);
+            glm::dvec3 N2 = glm::cross(A1, B1);
+
+            // Assemble Cubic Coefficients from C(t) . N(t) = 0
+            double a = glm::dot(C1, N2);
+            double b = glm::dot(C0, N2) + glm::dot(C1, N1);
+            double c = glm::dot(C0, N1) + glm::dot(C1, N0);
+            double d = glm::dot(C0, N0);
+
+            // Solve for time 't'
+            double roots[3];
+            int num_roots = SolveP3(roots, b / a, c / a, d / a);
+
+            // Test valid roots to see if they occurred inside/near the triangle
+            for (int i = 0; i < num_roots; ++i) {
+                double t = roots[i];
+                if (t < 0. || t > 1.)
+                    continue;
+
+                glm::dvec3 qt = m_positions[q] + t * dq;
+                glm::dvec3 p1t = m_positions[p1] + t * dp1;
+                glm::dvec3 p2t = m_positions[p2] + t * dp2;
+                glm::dvec3 p3t = m_positions[p3] + t * dp3;
+
                 glm::dvec3 normal = glm::cross(p2t - p1t, p3t - p1t);
                 double normal_len = glm::length(normal);
                 if (normal_len < 1e-12)
                     continue;
+
                 glm::dvec3 n = normal / normal_len;
-
+                glm::dvec3 surface, barycentrics;
                 double dist = closestPointInTriangle(qt, p1t, p2t, p3t, n, surface, barycentrics);
-                double signed_dist = glm::dot(p1t - qt, n); // negative <=> in front
 
-                bool crossing = (prev_signed_dist > 1e-8 && signed_dist < -1e-8) || (prev_signed_dist < -1e-8 && signed_dist > 1e-8); // Only triggers if it definitively passed through the plane, ignoring float noise
-                bool valid_crossing = crossing && (dist < m_surface_thickness * 1.5);                                                 // Ensure the crossing actually happened inside the bounds of the triangle edges
-                bool swept_proximity = (prev_dist > m_surface_thickness && dist <= m_surface_thickness);                              // Only triggers if the point actively ENTERED the thickness shell
-                if (swept_proximity) {
-                    bool from_behind = signed_dist > 0.0;
-                    addSelfCollisionConstraint(q, p1, from_behind ? p3 : p2, from_behind ? p2 : p3);
-                    std::cout << "SELF COLLISION" << std::endl;
+                // THICKNESS FIX 2: If it crosses the plane within the thickness boundary of the edges
+                if (dist <= m_surface_thickness) {
+                    // Corrected: Uses the robust 'from_behind' computed at t=0
+                    addSelfCollisionConstraint(q, p1, from_behind ? p2 : p3, from_behind ? p3 : p2);
                     break;
                 }
-
-                prev_dist = dist;
-                prev_signed_dist = signed_dist;
             }
         }
     }

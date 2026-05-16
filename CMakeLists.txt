@@ -87,6 +87,12 @@ target_link_libraries(imgui PRIVATE glfw)
 target_link_libraries(${APP_TARGET_DEBUG} imgui)
 target_link_libraries(${APP_TARGET_OPT} imgui)
 
+# poly34
+add_subdirectory(external/poly34)
+include_directories(external/poly34)
+target_link_libraries(${APP_TARGET_DEBUG} poly34)
+target_link_libraries(${APP_TARGET_OPT} poly34)
+
 # glm
 add_subdirectory(external/glm)
 include_directories(external/glm)
