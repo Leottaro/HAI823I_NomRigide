@@ -25,14 +25,14 @@ bool rayTriangleIntersection(const glm::dvec3& origin, const glm::dvec3& directi
     return computeBarycentrics(v0, v1, v2, normal, intersection, barycentrics);
 }
 
-inline void accumulateCollisionsResponse(uint _pj, const glm::dvec3& _normal, std::unordered_map<uint, glm::dvec3>& _collisions_responses) {
+inline void accumulateCollisionsResponse(uint _pj, const glm::dvec3& _normal, std::map<uint, glm::dvec3>& _collisions_responses) {
     if (_collisions_responses.find(_pj) == _collisions_responses.end()) {
         _collisions_responses.insert({_pj, _normal});
     } else {
         _collisions_responses[_pj] += _normal;
     }
 }
-void DynamicObject::detectPointTriangleCollision(const std::vector<glm::dvec3>& new_positions, const std::vector<StaticBody>& static_bodies, std::unordered_map<uint, glm::dvec3>& _collisions_responses) {
+void DynamicObject::detectPointTriangleCollision(const std::vector<glm::dvec3>& new_positions, const std::vector<StaticBody>& static_bodies, std::map<uint, glm::dvec3>& _collisions_responses) {
     for (uint pj = 0; pj < N; pj++) {
         glm::dvec3 origin = m_positions[pj];
         glm::dvec3 direction = new_positions[pj] - m_positions[pj];
@@ -98,7 +98,7 @@ void DynamicObject::detectPointTriangleCollision(const std::vector<glm::dvec3>& 
         }
     }
 }
-void DynamicObject::detectEdgeEdgeCollision(const std::vector<glm::dvec3>& new_positions, const std::vector<StaticBody>& static_bodies, std::unordered_map<uint, glm::dvec3>& _collisions_responses) {
+void DynamicObject::detectEdgeEdgeCollision(const std::vector<glm::dvec3>& new_positions, const std::vector<StaticBody>& static_bodies, std::map<uint, glm::dvec3>& _collisions_responses) {
     for (const glm::uvec2& edge : m_lines) {
         uint e0 = edge[0];
         uint e1 = edge[1];
@@ -152,7 +152,7 @@ void DynamicObject::detectEdgeEdgeCollision(const std::vector<glm::dvec3>& new_p
         }
     }
 }
-void DynamicObject::detectTrianglePointCollision(const std::vector<glm::dvec3>& new_positions, const std::vector<StaticBody>& static_bodies, std::unordered_map<uint, glm::dvec3>& _collisions_responses) {
+void DynamicObject::detectTrianglePointCollision(const std::vector<glm::dvec3>& new_positions, const std::vector<StaticBody>& static_bodies, std::map<uint, glm::dvec3>& _collisions_responses) {
     for (const StaticBody& static_body : static_bodies) {
         const std::vector<glm::vec3>& static_positions = static_body.m_mesh->vertexPositions();
         glm::mat4 transformation = static_body.m_transformation->computeTransformationMatrix();
@@ -229,7 +229,7 @@ void DynamicObject::detectTrianglePointCollision(const std::vector<glm::dvec3>& 
     }
 }
 
-void DynamicObject::detectSelfPointTriangleCollision(const std::vector<glm::dvec3>& new_positions, std::unordered_map<uint, glm::dvec3>& _collisions_responses) {
+void DynamicObject::detectSelfPointTriangleCollision(const std::vector<glm::dvec3>& new_positions, std::map<uint, glm::dvec3>& _collisions_responses) {
     for (uint q = 0; q < N; q++) {
         const glm::dvec3 dq = new_positions[q] - m_positions[q];
 
@@ -271,6 +271,7 @@ void DynamicObject::detectSelfPointTriangleCollision(const std::vector<glm::dvec
 
                 if (dist_end <= m_surface_thickness) {
                     addSelfCollisionConstraint(q, p1, from_behind ? p2 : p3, from_behind ? p3 : p2);
+                    std::cout << "SELF COLLISION (PROXIMITY)" << std::endl;
                     continue; // Handled, skip the cubic solver for this pair
                 }
             }
@@ -330,6 +331,7 @@ void DynamicObject::detectSelfPointTriangleCollision(const std::vector<glm::dvec
                 if (dist <= m_surface_thickness) {
                     // Corrected: Uses the robust 'from_behind' computed at t=0
                     addSelfCollisionConstraint(q, p1, from_behind ? p2 : p3, from_behind ? p3 : p2);
+                    std::cout << "SELF COLLISION (TUNNELLING)" << std::endl;
                     break;
                 }
             }

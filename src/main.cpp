@@ -61,22 +61,29 @@ int main(void) {
     scene.fixed_delta_time = 0.01;
 
     uint size = 6;
-    // scene.addMesh(CubeMesh{2});
     scene.addMesh(SimpleGridMesh{size, size});
+    scene.addMesh(CubeSphereMesh{3});
 
-    // Transformation* floor_transfo = scene.addStaticBody(StaticBodyDesc("sol", 0));
-    // floor_transfo->setTranslation(glm::vec3(0.f, -3.f, 0.f));
-    // floor_transfo->setScale(glm::vec3(10.f, 4.f, 50.f));
-    // floor_transfo->setEulerAngles(glm::vec3(M_PIf / 8.f, 0.f, 0.f));
+    DynamicObjectDesc filet_desc("filet", 0, DynamicObjectDescPreset::ClothObject);
+    filet_desc.render_type = DynamicRenderType::LineRender;
+    filet_desc.fixed_vertices = {0, size - 1, size * (size - 1), size * size - 1};
+    Transformation* filet_transfo = scene.addDynamicObject(filet_desc);
+    filet_transfo->setScale(glm::vec3(10.f));
 
-    DynamicObjectDesc dynamic_object_desc("tissu", 0, DynamicObjectDescPreset::ClothObject);
-    dynamic_object_desc.render_type = DynamicRenderType::LineRender;
-    dynamic_object_desc.fixed_vertices = {0, size - 1, size * (size - 1)};
-    // dynamic_object_desc.fixed_vertices = {size - 1};
-    Transformation* dynamic_body_transformation = scene.addDynamicObject(dynamic_object_desc);
-    // dynamic_body_transformation->setTranslation(glm::vec3(0.f, 3.f, 0.f));
-    // dynamic_body_transformation->setScale(glm::vec3(1.f));
-    // dynamic_body_transformation->setEulerAngles(glm::vec3(0.f));
+    DynamicObjectDesc boule1_desc("boule1", 1, DynamicObjectDescPreset::RigidBody);
+    boule1_desc.render_type = DynamicRenderType::LineRender;
+    Transformation* boule1_transformation = scene.addDynamicObject(boule1_desc);
+    boule1_transformation->setTranslation(glm::vec3(3.f, 3.f, 3.f));
+
+    DynamicObjectDesc boule2_desc("boule2", 1, DynamicObjectDescPreset::RigidBody);
+    boule2_desc.render_type = DynamicRenderType::LineRender;
+    Transformation* boule2_transformation = scene.addDynamicObject(boule2_desc);
+    boule2_transformation->setTranslation(glm::vec3(0.f, 3.f, 0.f));
+
+    DynamicObjectDesc boule3_desc("boule3", 1, DynamicObjectDescPreset::RigidBody);
+    boule3_desc.render_type = DynamicRenderType::LineRender;
+    Transformation* boule3_transformation = scene.addDynamicObject(boule3_desc);
+    boule3_transformation->setTranslation(glm::vec3(-1.f, 1.25f, -1.f));
 
     scene.resetObjects();
 

@@ -91,15 +91,14 @@ class DynamicObject {
     std::vector<ConstraintDebugType> m_debug_types; // for debugging sake
 
     // Other parameters
-    double m_damping_coefficient = 0.05;
     // double m_ambiant_friction_coefficient = 0.001;
     double m_friction_coefficient = 0.5;
     double m_restitution_coefficient = 0.5;
-    double m_surface_thickness = 1.e-1;
+    double m_damping_coefficient = 0.05;
+    double m_surface_thickness = 1.e-2;
 
     // "3.5. Damping" of ./articles/Position_Based_Dynamics.pdf
-    void
-    dampVelocities(); // k_damping = 1. -> rigid body
+    void dampVelocities(uint _start, uint _end); // k_damping = 1. -> rigid body
 
     inline void fillMissingVertexInfos() {
         m_velocities.resize(N);
@@ -128,21 +127,31 @@ public:
     inline const std::vector<ConstraintType>& getTypes() const { return m_types; };
 
     inline void setFrictionCoefficient(double _coeff) { m_friction_coefficient = _coeff; }
-    inline void setDampingCoefficient(double _coeff) { m_damping_coefficient = _coeff; }
     inline void setRestitutionCoefficient(double _coeff) { m_restitution_coefficient = _coeff; }
-    inline double getFrictionCoefficient() { return m_friction_coefficient; }
-    inline double getDampingCoefficient() { return m_damping_coefficient; }
-    inline double getRestitutionCoefficient() { return m_restitution_coefficient; }
+    inline void setDampingCoefficient(double _coeff) { m_damping_coefficient = _coeff; }
+    inline void setSurfaceThickness(double _coeff) { m_surface_thickness = _coeff; }
+    inline double getFrictionCoefficient() const { return m_friction_coefficient; }
+    inline double getDampingCoefficient() const { return m_damping_coefficient; }
+    inline double getRestitutionCoefficient() const { return m_restitution_coefficient; }
+    inline double getSurfaceThickness() const { return m_surface_thickness; }
 
     // "3.1. Algorithm Overview" of ./articles/Position_Based_Dynamics.pdf
 private:
-    void detectPointTriangleCollision(const std::vector<glm::dvec3>& new_positions, const std::vector<StaticBody>& static_bodies, std::unordered_map<uint, glm::dvec3>& _collisions_responses);
-    void detectEdgeEdgeCollision(const std::vector<glm::dvec3>& new_positions, const std::vector<StaticBody>& static_bodies, std::unordered_map<uint, glm::dvec3>& _collisions_responses);
-    void detectTrianglePointCollision(const std::vector<glm::dvec3>& new_positions, const std::vector<StaticBody>& static_bodies, std::unordered_map<uint, glm::dvec3>& _collisions_responses);
-    void detectSelfPointTriangleCollision(const std::vector<glm::dvec3>& new_positions, std::unordered_map<uint, glm::dvec3>& _collisions_responses);
+    void detectPointTriangleCollision(const std::vector<glm::dvec3>& new_positions, const std::vector<StaticBody>& static_bodies, std::map<uint, glm::dvec3>& _collisions_responses);
+    void detectEdgeEdgeCollision(const std::vector<glm::dvec3>& new_positions, const std::vector<StaticBody>& static_bodies, std::map<uint, glm::dvec3>& _collisions_responses);
+    void detectTrianglePointCollision(const std::vector<glm::dvec3>& new_positions, const std::vector<StaticBody>& static_bodies, std::map<uint, glm::dvec3>& _collisions_responses);
+    void detectSelfPointTriangleCollision(const std::vector<glm::dvec3>& new_positions, std::map<uint, glm::dvec3>& _collisions_responses);
+
+    void generateNewPositions(double _delta_time, std::vector<glm::dvec3>& new_positions);
+    void generateCollisions(double _delta_time, std::vector<glm::dvec3>& new_positions, const std::vector<StaticBody>& static_bodies, std::map<uint, glm::dvec3>& collisions);
+    bool projectConstraints(uint _solver_iterations, std::vector<glm::dvec3>& new_positions);
+    bool applyNewPositions(double _delta_time, const std::vector<glm::dvec3>& new_positions);
+    bool applyCollisions(const std::map<uint, glm::dvec3>& collisions_responses, uint _start, uint _end);
+    void removeCollisionsConstraints();
 
 public:
     bool update(double _delta_time, uint _solver_iterations, const std::vector<StaticBody>& static_bodies);
+    static void update(std::vector<DynamicObject>& dynamic_objects, double _delta_time, uint _solver_iterations, const std::vector<StaticBody>& static_bodies);
 
     void addVertex(const glm::dvec3& _position, const glm::dvec3& _velocity, double _mass, bool _fixed);
     inline void setVertexPosition(uint _pj, glm::dvec3 _position) { m_positions[_pj] = _position; }
@@ -171,6 +180,7 @@ public:
     void addVolumeConstraint(std::vector<glm::uvec3> _indices, double _stiffness, double _pressure);
 
     // Objects creation
+    void addObject(const DynamicObject& _object);
     static DynamicObject bodyFromMesh(const StaticBody& _static_body, float _distance_stiffness, float _angle_stiffness, float _volume_stiffness, float _volume_pressure);
     static DynamicObject bodyFromMesh(const StaticBody& _static_body, float _stiffness) { return bodyFromMesh(_static_body, _stiffness, _stiffness, 1.f, 0.f); }
     static DynamicObject rigidBodyFromMesh(const StaticBody& _static_body) { return bodyFromMesh(_static_body, 1.f, 1.f, 1.f, 0.f); }
