@@ -20,6 +20,7 @@ set(APP_SOURCES
     src/ShaderProgram.hpp
     src/ShaderProgram.cpp
 
+    src/PositionHasher.hpp
     src/Transformation.hpp
     src/AABB.hpp
 

@@ -60,7 +60,7 @@ int main(void) {
     scene.do_fixed_delta_time = true;
     scene.fixed_delta_time = 0.01;
 
-    uint size = 6;
+    uint size = 25;
     scene.addMesh(SimpleGridMesh{size, size});
     scene.addMesh(CubeSphereMesh{3});
 

@@ -24,6 +24,7 @@
 
 #include "Mesh.hpp"
 #include "Transformation.hpp"
+#include "PositionHasher.hpp"
 
 struct StaticBody {
     Mesh* m_mesh;
@@ -137,13 +138,11 @@ public:
 
     // "3.1. Algorithm Overview" of ./articles/Position_Based_Dynamics.pdf
 private:
-    void detectPointTriangleCollision(const std::vector<glm::dvec3>& new_positions, const std::vector<StaticBody>& static_bodies, std::map<uint, glm::dvec3>& _collisions_responses);
-    void detectEdgeEdgeCollision(const std::vector<glm::dvec3>& new_positions, const std::vector<StaticBody>& static_bodies, std::map<uint, glm::dvec3>& _collisions_responses);
-    void detectTrianglePointCollision(const std::vector<glm::dvec3>& new_positions, const std::vector<StaticBody>& static_bodies, std::map<uint, glm::dvec3>& _collisions_responses);
-    void detectSelfPointTriangleCollision(const std::vector<glm::dvec3>& new_positions, std::map<uint, glm::dvec3>& _collisions_responses);
+    void detectPointTriangleCollision(const std::vector<glm::dvec3>& new_positions, const std::vector<StaticBody>& static_bodies, std::map<uint, glm::dvec3>& _collisions_responses, uint start, uint end);
+    void detectEdgeEdgeCollision(const std::vector<glm::dvec3>& new_positions, const std::vector<StaticBody>& static_bodies, std::map<uint, glm::dvec3>& _collisions_responses, uint start, uint end);
+    void detectTrianglePointCollision(const std::vector<glm::dvec3>& new_positions, const std::vector<StaticBody>& static_bodies, std::map<uint, glm::dvec3>& _collisions_responses, uint start, uint end);
+    void detectSelfPointTriangleCollision(const PositionHasher<double>& hasher, const std::vector<glm::dvec3>& new_positions, std::map<uint, glm::dvec3>& _collisions_responses, uint start, uint end);
 
-    void generateNewPositions(double _delta_time, std::vector<glm::dvec3>& new_positions);
-    void generateCollisions(double _delta_time, std::vector<glm::dvec3>& new_positions, const std::vector<StaticBody>& static_bodies, std::map<uint, glm::dvec3>& collisions);
     bool projectConstraints(uint _solver_iterations, std::vector<glm::dvec3>& new_positions);
     bool applyNewPositions(double _delta_time, const std::vector<glm::dvec3>& new_positions);
     bool applyCollisions(const std::map<uint, glm::dvec3>& collisions_responses, uint _start, uint _end);

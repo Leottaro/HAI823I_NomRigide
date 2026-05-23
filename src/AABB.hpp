@@ -14,10 +14,14 @@ struct AABB {
     vec3 min;
     vec3 max;
 
-    AABB() : min(std::numeric_limits<T>::min()), max(std::numeric_limits<T>::max()) {}
-    AABB(vec3 const &_min, vec3 const &_max) : min(_min), max(_max) {}
+    AABB() : min(std::numeric_limits<T>::max()), max(-std::numeric_limits<T>::max()) {}
+    AABB(vec3 const& _min, vec3 const& _max) : min(_min), max(_max) {}
+    AABB(const std::vector<vec3>& _points) : min(std::numeric_limits<T>::max()), max(std::numeric_limits<T>::max()) {
+        for (const vec3& point : _points)
+            addPosition(point);
+    }
 
-    inline void addPosition(vec3 const &v) {
+    inline void addPosition(vec3 const& v) {
         min.x = std::min(min.x, v.x);
         min.y = std::min(min.y, v.y);
         min.z = std::min(min.z, v.z);
@@ -26,7 +30,7 @@ struct AABB {
         max.z = std::max(max.z, v.z);
     }
 
-    inline bool isInside(vec3 const &v) const {
+    inline bool isInside(vec3 const& v) const {
         return !(v.x < min.x || v.y < min.y || v.z < min.z ||
                  v.x > max.x || v.y > max.y || v.z > max.z);
     }
@@ -36,7 +40,7 @@ struct AABB {
         max += amount;
     }
 
-    bool intersect(const vec3 &origin, const vec3 &direction, T &tmin, T &tmax) const {
+    bool intersect(const vec3& origin, const vec3& direction, T& tmin, T& tmax) const {
         // https://www.rose-hulman.edu/class/cs/csse451/AABB/#:~:text=Axis%2DAligned%20Bounding%20Boxes%20(AABBs,bound%20and%20a%20maximum%20bound.
         vec3 delta_min = min - origin;
         vec3 delta_max = max - origin;
@@ -69,7 +73,7 @@ struct AABB {
         return true;
     }
 
-    inline bool intersect(const vec3 &origin, const vec3 &direction) const {
+    inline bool intersect(const vec3& origin, const vec3& direction) const {
         T tmin, tmax;
         return intersect(origin, direction, tmin, tmax);
     }

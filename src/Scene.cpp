@@ -22,6 +22,7 @@ void Scene::resetDynamicObject(uint _i) {
     m_dynamic_objects[_i].setDampingCoefficient(m_dynamic_objects_desc[_i].damping_coefficient);
     m_dynamic_objects[_i].setFrictionCoefficient(m_dynamic_objects_desc[_i].friction_coefficient);
     m_dynamic_objects[_i].setRestitutionCoefficient(m_dynamic_objects_desc[_i].restitution_coefficient);
+    m_dynamic_objects[_i].setSurfaceThickness(m_dynamic_objects_desc[_i].surface_thickness);
 
     m_dynamic_objects[_i].initRendering();
 }
