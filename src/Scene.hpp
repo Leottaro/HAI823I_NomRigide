@@ -7,7 +7,7 @@
 
 #include "DynamicObject.hpp"
 #include "ShaderProgram.hpp"
-
+#include "Camera.hpp"
 struct StaticBodyDesc {
     std::string name;
     uint mesh_i;
@@ -138,6 +138,6 @@ public:
     bool updateSimulation(float _deltaTime, float _fullDeltaTime, bool _is_first_step);
     void updateAllRendredPositions();
 
-    void render(const ShaderProgram& _dynamic_shader, const ShaderProgram& _mesh_shader, const glm::mat4& _projection, const glm::mat4& _view) const;
+    void render(const ShaderProgram& _dynamic_shader, const ShaderProgram& _mesh_shader, const Camera& _camera) const;
     void clear();
 };

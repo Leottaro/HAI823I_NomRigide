@@ -22,7 +22,7 @@ public:
     float m_translation_speed = 2.5f;
 
     glm::vec2 m_orientation = glm::vec2(-M_PI_4 * 0.5, 0.); // (pitch, yaw)
-    float m_rotation_speed = 1.0f;
+    float m_rotation_speed = 0.001f;
 
     float m_aspect_ratio = 1.f;
     float m_fovy = glm::pi<float>() / 2.f;

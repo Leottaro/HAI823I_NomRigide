@@ -429,25 +429,66 @@ bool DynamicObject::updateInteractions(GLFWwindow* _window, const glm::dvec3& _c
 
 // OpenGL uinterface
 
+void DynamicObject::computeNormals() {
+
+    m_normals.clear();
+    m_normals.resize(m_positions.size(), glm::dvec3(0.f));
+
+    for (const auto& tri : m_triangles) {
+
+        uint32_t i0 = tri.x;
+        uint32_t i1 = tri.y;
+        uint32_t i2 = tri.z;
+
+        glm::dvec3 p0 = m_positions[i0];
+        glm::dvec3 p1 = m_positions[i1];
+        glm::dvec3 p2 = m_positions[i2];
+
+        glm::dvec3 e1 = p1 - p0;
+        glm::dvec3 e2 = p2 - p0;
+
+        glm::dvec3 n = glm::normalize(glm::cross(e1, e2));
+
+        m_normals[i0] += n;
+        m_normals[i1] += n;
+        m_normals[i2] += n;
+    }
+
+    for (glm::dvec3& n : m_normals) {
+        n = glm::normalize(n);
+    }
+}
+
 void DynamicObject::initRendering() {
     glGenVertexArrays(1, &m_VAO);
     glBindVertexArray(m_VAO);
 
     glGenBuffers(1, &m_positions_VBO);
-    updateRenderedPositions();
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
+    glGenBuffers(1, &m_normals_VBO);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
     glGenBuffers(1, &m_lines_EBO);
     glGenBuffers(1, &m_triangles_EBO);
+    updateRenderedPositions();
     updateRenderedConstraints();
 }
 
 void DynamicObject::updateRenderedPositions() {
+    std::cout << "positions ptr: " << m_positions.data() << std::endl;
     glBindVertexArray(m_VAO);
     std::vector<glm::vec3> positions_float(m_positions.begin(), m_positions.end());
     glBindBuffer(GL_ARRAY_BUFFER, m_positions_VBO);
     glBufferData(GL_ARRAY_BUFFER, positions_float.size() * sizeof(glm::vec3), positions_float.data(), GL_DYNAMIC_DRAW);
+
+    computeNormals();
+    std::vector<glm::vec3> normals_float(m_normals.begin(), m_normals.end());
+    glBindBuffer(GL_ARRAY_BUFFER, m_normals_VBO);
+
+    glBufferData(GL_ARRAY_BUFFER, normals_float.size() * sizeof(glm::vec3), normals_float.data(), GL_DYNAMIC_DRAW);
 }
 
 void DynamicObject::updateRenderedConstraints() {

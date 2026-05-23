@@ -386,21 +386,26 @@ void Scene::updateAllRendredPositions() {
     }
 }
 
-void Scene::render(const ShaderProgram& _dynamic_shader, const ShaderProgram& _mesh_shader, const glm::mat4& _projection, const glm::mat4& _view) const {
+void Scene::render(const ShaderProgram& _dynamic_shader, const ShaderProgram& _mesh_shader, const Camera& _camera) const {
     // DYNAMIC OBJECTS RENDERING
     _dynamic_shader.use();
-    _dynamic_shader.set("projection", _projection);
-    _dynamic_shader.set("view", _view);
+    _dynamic_shader.set("model", glm::mat4(1.f));
+    _dynamic_shader.set("projection", _camera.getProjectionMatrix());
+    _dynamic_shader.set("view", _camera.getViewMatrix());
+    _dynamic_shader.set("lightPos", glm::vec3(10.f, 10.f, 0.f));
+    _dynamic_shader.set("viewPos", _camera.m_position);
+    _dynamic_shader.set("lightColor", glm::vec3(1.f));
+    _dynamic_shader.set("objectColor", glm::vec3(1.f, 0.5f, 0.3f));
     for (uint i = 0; i < m_dynamic_objects_desc.size(); i++) {
         m_dynamic_objects[i].render(m_dynamic_objects_desc[i].render_type);
     }
 
     // STATIC OBJECTS RENDERING
     _mesh_shader.use();
-    _mesh_shader.set("projection", _projection);
+    _mesh_shader.set("projection", _camera.getProjectionMatrix());
     for (uint i = 0; i < m_static_bodies_desc.size(); i++) {
         glm::mat4 model = m_static_bodies_transfo[i].computeTransformationMatrix();
-        glm::mat4 model_view = _view * model;
+        glm::mat4 model_view = _camera.getViewMatrix() * model;
         glm::mat4 normal_mat = glm::transpose(glm::inverse(model_view));
         _mesh_shader.set("model_view", model_view);
         _mesh_shader.set("normal_mat", normal_mat);

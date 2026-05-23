@@ -90,6 +90,8 @@ private:
     std::vector<double> m_masses;         // mi
     std::vector<double> m_weights;        // wi
     std::vector<bool> m_fixed;            // if the vertex is fixed
+    GLuint m_normals_VBO;
+    std::vector<glm::dvec3> m_normals;
 
     // Constraints
     uint M = 0, Mcoll = 0;                          // number of contraints
@@ -214,6 +216,7 @@ private:
 
 public:
     void initRendering();
+    void computeNormals();
     void updateRenderedPositions();
     void updateRenderedConstraints();
     void render(DynamicRenderType _type = DynamicRenderType::Auto) const;

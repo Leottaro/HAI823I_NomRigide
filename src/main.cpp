@@ -65,23 +65,19 @@ int main(void) {
     scene.addMesh(CubeSphereMesh{3});
 
     DynamicObjectDesc filet_desc("filet", 0, DynamicObjectDescPreset::ClothObject);
-    filet_desc.render_type = DynamicRenderType::LineRender;
     filet_desc.fixed_vertices = {0, size - 1, size * (size - 1), size * size - 1};
     Transformation* filet_transfo = scene.addDynamicObject(filet_desc);
     filet_transfo->setScale(glm::vec3(10.f));
 
     DynamicObjectDesc boule1_desc("boule1", 1, DynamicObjectDescPreset::RigidBody);
-    boule1_desc.render_type = DynamicRenderType::LineRender;
     Transformation* boule1_transformation = scene.addDynamicObject(boule1_desc);
     boule1_transformation->setTranslation(glm::vec3(3.f, 3.f, 3.f));
 
     DynamicObjectDesc boule2_desc("boule2", 1, DynamicObjectDescPreset::RigidBody);
-    boule2_desc.render_type = DynamicRenderType::LineRender;
     Transformation* boule2_transformation = scene.addDynamicObject(boule2_desc);
     boule2_transformation->setTranslation(glm::vec3(0.f, 3.f, 0.f));
 
     DynamicObjectDesc boule3_desc("boule3", 1, DynamicObjectDescPreset::RigidBody);
-    boule3_desc.render_type = DynamicRenderType::LineRender;
     Transformation* boule3_transformation = scene.addDynamicObject(boule3_desc);
     boule3_transformation->setTranslation(glm::vec3(-1.f, 1.25f, -1.f));
 
@@ -150,7 +146,7 @@ int main(void) {
         camera.update(window, deltaTime, cursor_vel, scroll, disable_mouse_actions);
 
         // RENDERING
-        scene.render(dynamic_shader, mesh_shader, camera.getProjectionMatrix(), camera.getViewMatrix());
+        scene.render(dynamic_shader, mesh_shader, camera);
 
         // ImGui Render
         ImGui::Render();
