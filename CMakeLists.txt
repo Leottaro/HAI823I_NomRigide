@@ -20,7 +20,9 @@ set(APP_SOURCES
     src/ShaderProgram.hpp
     src/ShaderProgram.cpp
 
+    src/PositionHasher.hpp
     src/Transformation.hpp
+    src/AABB.hpp
 
     src/Camera.hpp
     src/Camera.cpp
@@ -29,9 +31,11 @@ set(APP_SOURCES
     src/Mesh.cpp
     src/MeshGenerator.cpp
     src/DynamicObjectGenerator.cpp
+    src/DynamicObjectConstraints.cpp
 
     src/DynamicObject.hpp
     src/DynamicObject.cpp
+    src/DynamicObjectCollision.cpp
 
     src/Scene.hpp
     src/Scene.cpp
@@ -84,6 +88,12 @@ include_directories(external/imgui)
 target_link_libraries(imgui PRIVATE glfw)
 target_link_libraries(${APP_TARGET_DEBUG} imgui)
 target_link_libraries(${APP_TARGET_OPT} imgui)
+
+# poly34
+add_subdirectory(external/poly34)
+include_directories(external/poly34)
+target_link_libraries(${APP_TARGET_DEBUG} poly34)
+target_link_libraries(${APP_TARGET_OPT} poly34)
 
 # glm
 add_subdirectory(external/glm)

@@ -41,7 +41,7 @@ glm::vec3 cursor_worldpos = glm::vec3(0, 0, 0);
 glm::vec2 cursor_vel = glm::vec2(0, 0);
 glm::vec2 scroll = glm::vec2(0, 0);
 int polygon_mode = GL_FILL;
-GLFWwindow *window;
+GLFWwindow* window;
 
 Camera camera;
 bool run_simulation = false;
@@ -57,23 +57,33 @@ int main(void) {
     dynamic_shader.link();
 
     Scene scene = Scene();
+    scene.do_fixed_delta_time = true;
+    scene.fixed_delta_time = 0.01;
 
-    uint size = 5;
-    scene.addMesh(CubeMesh{2});
-    scene.addMesh(CubeSphereMesh{size});
+    uint size = 25;
+    scene.addMesh(SimpleGridMesh{size, size});
+    scene.addMesh(CubeSphereMesh{3});
 
-    Transformation *floor_transfo = scene.addStaticBody(StaticBodyDesc("sol", 0));
-    floor_transfo->setTranslation(glm::vec3(0.f, -3.f, 0.f));
-    floor_transfo->setScale(glm::vec3(10.f, 4.f, 50.f));
-    floor_transfo->setEulerAngles(glm::vec3(glm::pi<float>() / 8.f, 0.f, 0.f));
+    DynamicObjectDesc filet_desc("filet", 0, DynamicObjectDescPreset::ClothObject);
+    filet_desc.render_type = DynamicRenderType::LineRender;
+    filet_desc.fixed_vertices = {0, size - 1, size * (size - 1), size * size - 1};
+    Transformation* filet_transfo = scene.addDynamicObject(filet_desc);
+    filet_transfo->setScale(glm::vec3(10.f));
 
-    DynamicObjectDesc dynamic_object_desc("boule", 1, .9f, 0.f, 0.f, 1.f);
-    dynamic_object_desc.render_type = DynamicRenderType::LineRender;
-    // dynamic_object_desc.fixed_vertices = {0, size - 1, size * (size - 1)};
-    Transformation *dynamic_body_transformation = scene.addDynamicObject(dynamic_object_desc);
-    dynamic_body_transformation->setTranslation(glm::vec3(0.f, 3.f, 0.f));
-    dynamic_body_transformation->setScale(glm::vec3(1.f));
-    dynamic_body_transformation->setEulerAngles(glm::vec3(0.f));
+    DynamicObjectDesc boule1_desc("boule1", 1, DynamicObjectDescPreset::RigidBody);
+    boule1_desc.render_type = DynamicRenderType::LineRender;
+    Transformation* boule1_transformation = scene.addDynamicObject(boule1_desc);
+    boule1_transformation->setTranslation(glm::vec3(3.f, 3.f, 3.f));
+
+    DynamicObjectDesc boule2_desc("boule2", 1, DynamicObjectDescPreset::RigidBody);
+    boule2_desc.render_type = DynamicRenderType::LineRender;
+    Transformation* boule2_transformation = scene.addDynamicObject(boule2_desc);
+    boule2_transformation->setTranslation(glm::vec3(0.f, 3.f, 0.f));
+
+    DynamicObjectDesc boule3_desc("boule3", 1, DynamicObjectDescPreset::RigidBody);
+    boule3_desc.render_type = DynamicRenderType::LineRender;
+    Transformation* boule3_transformation = scene.addDynamicObject(boule3_desc);
+    boule3_transformation->setTranslation(glm::vec3(-1.f, 1.25f, -1.f));
 
     scene.resetObjects();
 
@@ -128,7 +138,7 @@ int main(void) {
             float sub_dt = clamped_dt / (float)num_subSteps;
 
             for (int i = 0; i < num_subSteps; i++) {
-                if (!scene.updateSimulation(sub_dt, clamped_dt, i==0)) {
+                if (!scene.updateSimulation(sub_dt, clamped_dt, i == 0)) {
                     run_simulation = false;
                     break;
                 }
@@ -160,7 +170,7 @@ int main(void) {
     return 0;
 }
 
-void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
+void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     // cout << "framebuffer size: " << width << ", " << height << endl;
     window_width = width;
     window_height = height;
@@ -168,7 +178,7 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
 }
 
 bool space_key_pressed = false;
-void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     // cout << "key:" << key << " scancode:" << scancode << " action:" << action << " mods:" << mods << endl;
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
         glfwSetWindowShouldClose(window, GLFW_TRUE);
@@ -197,14 +207,14 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
     }
 }
 
-void mouse_button_callback(GLFWwindow *window, int button, int action, int mods) {
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
     // cout << "mouse button:" << button << " action:" << action << " mods:" << mods << endl;
     if (button == GLFW_MOUSE_BUTTON_LEFT && mods == 0) {
         glfwSetInputMode(window, GLFW_CURSOR, action == GLFW_PRESS ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
     }
 }
 
-void cursor_pos_callback(GLFWwindow *window, double xpos, double ypos) {
+void cursor_pos_callback(GLFWwindow* window, double xpos, double ypos) {
     cursor_vel.x = xpos - cursor_pos.x;
     cursor_vel.y = ypos - cursor_pos.y;
     cursor_pos.x = xpos;
@@ -213,7 +223,7 @@ void cursor_pos_callback(GLFWwindow *window, double xpos, double ypos) {
     // cout << "cursor_pos: (" << cursor_pos.x << ", " << cursor_pos.y << ")\tcursor_vel: (" << cursor_vel.x << ", " << cursor_vel.y << ")" << endl;
 }
 
-void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
     // cout << "scroll: (" << xoffset << ", " << yoffset << ")" << endl;
     scroll.x = xoffset;
     scroll.y = yoffset;
