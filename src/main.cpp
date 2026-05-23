@@ -62,22 +62,28 @@ int main(void) {
     scene.num_subSteps = 1;
 
     uint size = 25;
-    scene.addMesh(SimpleGridMesh{size, size});
     scene.addMesh(CubeSphereMesh{3});
+    scene.addMesh(CubeMesh{3});
     //scene.addMesh(LoadedMesh{"ressources/models/bunny2.off"});
 
-    DynamicObjectDesc filet_desc("filet", 0, DynamicObjectDescPreset::ClothObject);
-    //filet_desc.fixed_vertices = {0, size - 1, size * (size - 1), size * size - 1};
-    filet_desc.render_type = DynamicRenderType::LineRender;
-    Transformation* filet_transfo = scene.addDynamicObject(filet_desc);
-    filet_transfo->setScale(glm::vec3(8.f));
-    filet_transfo->setTranslation(glm::vec3(0.f, 2.f, 0.f));
+    DynamicObjectDesc boule1("boule1", 0, DynamicObjectDescPreset::RigidBody);
+    boule1.render_type = DynamicRenderType::TriangleRender;
+    boule1.vertex_mass = 2.f;
+    boule1.restitution_coefficient = 1.f;
+    Transformation* boule1_transfo = scene.addDynamicObject(boule1);
+    boule1_transfo->setTranslation(glm::vec3(0.5f, 5.f, 0.f));
+    
 
-    Transformation *floor_transfo = scene.addStaticBody(StaticBodyDesc("boule1", 1));
-    floor_transfo->setTranslation(glm::vec3(2.f, 0.f, 0.f));
+    DynamicObjectDesc boule2("boule2", 0, DynamicObjectDescPreset::SoftBody);
+    boule2.render_type = DynamicRenderType::TriangleRender;
+    boule2.restitution_coefficient = 1.f;
+    Transformation* boule2_transfo = scene.addDynamicObject(boule2);
+    boule2_transfo->setScale(glm::vec3(0.5f));
+    boule2_transfo->setTranslation(glm::vec3(0.f, 1.5f, 0.f));
 
-    Transformation *floor_transfo2 = scene.addStaticBody(StaticBodyDesc("boule2", 1));
-    floor_transfo2->setTranslation(glm::vec3(-2.f, 0.f, 0.f));
+    Transformation *floor_transfo = scene.addStaticBody(StaticBodyDesc("sol", 1));
+    floor_transfo->setTranslation(glm::vec3(0.f, 0.f, 0.f));
+    floor_transfo->setScale(glm::vec3(10.f, 1.f, 10.f));
 
     scene.resetObjects();
 
