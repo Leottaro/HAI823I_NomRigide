@@ -59,27 +59,25 @@ int main(void) {
     Scene scene = Scene();
     scene.do_fixed_delta_time = true;
     scene.fixed_delta_time = 0.01;
+    scene.num_subSteps = 1;
 
     uint size = 25;
     scene.addMesh(SimpleGridMesh{size, size});
     scene.addMesh(CubeSphereMesh{3});
+    //scene.addMesh(LoadedMesh{"ressources/models/bunny2.off"});
 
     DynamicObjectDesc filet_desc("filet", 0, DynamicObjectDescPreset::ClothObject);
-    filet_desc.fixed_vertices = {0, size - 1, size * (size - 1), size * size - 1};
+    //filet_desc.fixed_vertices = {0, size - 1, size * (size - 1), size * size - 1};
+    filet_desc.render_type = DynamicRenderType::LineRender;
     Transformation* filet_transfo = scene.addDynamicObject(filet_desc);
-    filet_transfo->setScale(glm::vec3(10.f));
+    filet_transfo->setScale(glm::vec3(8.f));
+    filet_transfo->setTranslation(glm::vec3(0.f, 2.f, 0.f));
 
-    DynamicObjectDesc boule1_desc("boule1", 1, DynamicObjectDescPreset::RigidBody);
-    Transformation* boule1_transformation = scene.addDynamicObject(boule1_desc);
-    boule1_transformation->setTranslation(glm::vec3(3.f, 3.f, 3.f));
+    Transformation *floor_transfo = scene.addStaticBody(StaticBodyDesc("boule1", 1));
+    floor_transfo->setTranslation(glm::vec3(2.f, 0.f, 0.f));
 
-    DynamicObjectDesc boule2_desc("boule2", 1, DynamicObjectDescPreset::RigidBody);
-    Transformation* boule2_transformation = scene.addDynamicObject(boule2_desc);
-    boule2_transformation->setTranslation(glm::vec3(0.f, 3.f, 0.f));
-
-    DynamicObjectDesc boule3_desc("boule3", 1, DynamicObjectDescPreset::RigidBody);
-    Transformation* boule3_transformation = scene.addDynamicObject(boule3_desc);
-    boule3_transformation->setTranslation(glm::vec3(-1.f, 1.25f, -1.f));
+    Transformation *floor_transfo2 = scene.addStaticBody(StaticBodyDesc("boule2", 1));
+    floor_transfo2->setTranslation(glm::vec3(-2.f, 0.f, 0.f));
 
     scene.resetObjects();
 
