@@ -51,7 +51,7 @@ void DynamicObject::addObject(const DynamicObject& _object) {
     }
 }
 
-DynamicObject DynamicObject::bodyFromMesh(const StaticBody& _static_body, float _distance_stiffness, float _angle_stiffness, float _volume_stiffness, float _volume_pressure) {
+DynamicObject DynamicObject::bodyFromMesh(const StaticBody& _static_body, float _distance_stiffness, float _angle_stiffness, float _volume_stiffness, float _volume_pressure, float _vertex_mass) {
     const std::vector<glm::uvec3>& mesh_triangles = _static_body.m_mesh->triangleIndices();
     const glm::mat4 transformation = _static_body.m_transformation->computeTransformationMatrix();
 
@@ -65,7 +65,7 @@ DynamicObject DynamicObject::bodyFromMesh(const StaticBody& _static_body, float 
     for (uint i = 0; i < mesh_positions.size(); i++) {
         const glm::vec3& pos = mesh_positions[i];
         if (seen_positions.find(pos) == seen_positions.end()) {
-            object.addVertex(applyTransformation(pos, 1.f, transformation), glm::vec3(0.f), 1.f, false);
+            object.addVertex(applyTransformation(pos, 1.f, transformation), glm::vec3(0.f), _vertex_mass, false);
             seen_positions.insert(std::make_pair(pos, pj));
             positions_map.insert(std::make_pair(i, pj));
             pj++;

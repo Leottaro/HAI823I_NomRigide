@@ -463,22 +463,31 @@ void DynamicObject::initRendering() {
     glGenVertexArrays(1, &m_VAO);
     glBindVertexArray(m_VAO);
 
+    // 1. Configuration des Positions
     glGenBuffers(1, &m_positions_VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_positions_VBO); // <-- Crucial !
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
+    // 2. Configuration des Normales
     glGenBuffers(1, &m_normals_VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_normals_VBO); // <-- Crucial !
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
+    // 3. Génération des EBOs (pense à les lier/remplir dans updateRenderedConstraints)
     glGenBuffers(1, &m_lines_EBO);
     glGenBuffers(1, &m_triangles_EBO);
+
+    // On nettoie l'état d'OpenGL en déliant le VAO et le ARRAY_BUFFER
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+
     updateRenderedPositions();
     updateRenderedConstraints();
 }
 
 void DynamicObject::updateRenderedPositions() {
-    std::cout << "positions ptr: " << m_positions.data() << std::endl;
     glBindVertexArray(m_VAO);
     std::vector<glm::vec3> positions_float(m_positions.begin(), m_positions.end());
     glBindBuffer(GL_ARRAY_BUFFER, m_positions_VBO);

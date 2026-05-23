@@ -191,9 +191,9 @@ public:
 
     // Objects creation
     void addObject(const DynamicObject& _object);
-    static DynamicObject bodyFromMesh(const StaticBody& _static_body, float _distance_stiffness, float _angle_stiffness, float _volume_stiffness, float _volume_pressure);
-    static DynamicObject bodyFromMesh(const StaticBody& _static_body, float _stiffness) { return bodyFromMesh(_static_body, _stiffness, _stiffness, 1.f, 0.f); }
-    static DynamicObject rigidBodyFromMesh(const StaticBody& _static_body) { return bodyFromMesh(_static_body, 1.f, 1.f, 1.f, 0.f); }
+    static DynamicObject bodyFromMesh(const StaticBody& _static_body, float _distance_stiffness, float _angle_stiffness, float _volume_stiffness, float _volume_pressure, float _vertex_mass);
+    static DynamicObject bodyFromMesh(const StaticBody& _static_body, float _stiffness, float _vertex_mass) { return bodyFromMesh(_static_body, _stiffness, _stiffness, 1.f, 0.f, _vertex_mass); }
+    static DynamicObject rigidBodyFromMesh(const StaticBody& _static_body, float _vertex_mass) { return bodyFromMesh(_static_body, 1.f, 1.f, 1.f, 0.f, _vertex_mass); }
 
     // Object interaction
 private:

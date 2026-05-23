@@ -15,7 +15,7 @@ void Scene::resetStaticBody(uint _i) {
 }
 void Scene::resetDynamicObject(uint _i) {
     m_dynamic_objects[_i].clear();
-    m_dynamic_objects[_i] = DynamicObject::bodyFromMesh({&m_meshes[m_dynamic_objects_desc[_i].mesh_i], &m_dynamic_objects_desc[_i].transfo}, m_dynamic_objects_desc[_i].distance_stiffness, m_dynamic_objects_desc[_i].angle_stiffness, m_dynamic_objects_desc[_i].volume_stiffness, m_dynamic_objects_desc[_i].volume_pressure);
+    m_dynamic_objects[_i] = DynamicObject::bodyFromMesh({&m_meshes[m_dynamic_objects_desc[_i].mesh_i], &m_dynamic_objects_desc[_i].transfo}, m_dynamic_objects_desc[_i].distance_stiffness, m_dynamic_objects_desc[_i].angle_stiffness, m_dynamic_objects_desc[_i].volume_stiffness, m_dynamic_objects_desc[_i].volume_pressure, m_dynamic_objects_desc[_i].vertex_mass);
     for (uint pj : m_dynamic_objects_desc[_i].fixed_vertices) {
         m_dynamic_objects[_i].setVertexFixed(pj, true);
     }
@@ -216,6 +216,7 @@ void Scene::dynamicObjectInterface(uint _i) {
     ImGui::DragFloat(("angle stiffness##dynamic" + object.name).c_str(), &object.angle_stiffness, 0.001f, 0.f, 1.f);
     ImGui::DragFloat(("volume stiffness##dynamic" + object.name).c_str(), &object.volume_stiffness, 0.001f, 0.f, 1.f);
     ImGui::DragFloat(("volume pressure##dynamic" + object.name).c_str(), &object.volume_pressure, 0.001f, 0.f, 1.f);
+    ImGui::DragFloat(("vertex mass##dynamic" + object.name).c_str(), &object.vertex_mass, 0.001f, 0.f, 1.f);
 
     ImGui::Spacing();
     int render_type_int = int(object.render_type);
@@ -392,9 +393,9 @@ void Scene::render(const ShaderProgram& _dynamic_shader, const ShaderProgram& _m
     _dynamic_shader.set("model", glm::mat4(1.f));
     _dynamic_shader.set("projection", _camera.getProjectionMatrix());
     _dynamic_shader.set("view", _camera.getViewMatrix());
-    _dynamic_shader.set("lightPos", glm::vec3(10.f, 10.f, 0.f));
+    _dynamic_shader.set("lightPos", glm::vec3(5.f, 10.f, 0.f));
     _dynamic_shader.set("viewPos", _camera.m_position);
-    _dynamic_shader.set("lightColor", glm::vec3(1.f));
+    _dynamic_shader.set("lightColor", glm::vec3(1.f)); 
     _dynamic_shader.set("objectColor", glm::vec3(1.f, 0.5f, 0.3f));
     for (uint i = 0; i < m_dynamic_objects_desc.size(); i++) {
         m_dynamic_objects[i].render(m_dynamic_objects_desc[i].render_type);
