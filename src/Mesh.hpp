@@ -20,6 +20,7 @@
 
 // USUAL INCLUDES
 #include "Transformation.hpp"
+#include "KdTree.hpp"
 #include <vector>
 #include <string>
 #include <variant>
@@ -54,29 +55,39 @@ using MeshType = std::variant<
     CubeMesh,
     CubeSphereMesh>;
 MeshType meshTypeFromInt(int _i);
-int meshTypeToInt(const MeshType &_type);
-std::string meshTypeToString(const MeshType &_type);
+int meshTypeToInt(const MeshType& _type);
+std::string meshTypeToString(const MeshType& _type);
 
 class Mesh {
-    std::vector<glm::vec3> m_positions;
-    std::vector<glm::vec3> m_normals;
-    std::vector<glm::vec2> m_uvs;
-    std::vector<glm::uvec3> m_triangles;
+    std::vector<glm::vec3> m_positions{};
+    std::vector<glm::vec3> m_normals{};
+    std::vector<glm::vec2> m_uvs{};
+    std::vector<glm::uvec3> m_triangles{};
 
-    GLuint m_VAO;
-    GLuint m_positions_VBO;
-    GLuint m_normals_VBO;
-    GLuint m_uvs_VBO;
-    GLuint m_triangles_EBO;
+    GLuint m_VAO{0};
+    GLuint m_positions_VBO{0};
+    GLuint m_normals_VBO{0};
+    GLuint m_uvs_VBO{0};
+    GLuint m_triangles_EBO{0};
+
+    KdTree* m_tree{nullptr};
+    AABB<float> m_aabb{};
 
 public:
     virtual ~Mesh();
 
     // INITIALIZERS
     Mesh() {}
-    Mesh(const MeshType &_type) {
+    Mesh(const MeshType& _type) { setType(_type); }
+    void loadOFF(const std::string& filename);
+    void setSingleTriangle();
+    void setSimpleGrid(size_t _nx, size_t _nz);                                           // Create a grid where x and z varies in [0;1]
+    void setSimpleTerrain(size_t _nx, size_t _nz, glm::vec2 y_range = glm::vec2(0., 1.)); // Create a terrain where x and z varies in [0;1] and y varies in y_range
+    void setCube(size_t _n);                                                              // Create a cube where x, y and z varies in [0;1]
+    void setCubeSphere(size_t _n);                                                        // Create a CubeSphere of center (0,0,0) and radius 1
+    void setType(const MeshType& _type) {
         std::visit(
-            [this](const auto &mesh_spec) {
+            [this](const auto& mesh_spec) {
                 using T = std::decay_t<decltype(mesh_spec)>;
                 if constexpr (std::is_same_v<T, LoadedMesh>) {
                     loadOFF(mesh_spec.path);
@@ -94,28 +105,20 @@ public:
             },
             _type);
     }
-    void loadOFF(const std::string &filename);
-    void setSingleTriangle();
-    void setSimpleGrid(size_t _nx, size_t _nz);                                           // Create a grid where x and z varies in [0;1]
-    void setSimpleTerrain(size_t _nx, size_t _nz, glm::vec2 y_range = glm::vec2(0., 1.)); // Create a terrain where x and z varies in [0;1] and y varies in y_range
-    void setCube(size_t _n);                                                              // Create a cube where x, y and z varies in [0;1]
-    void setCubeSphere(size_t _n);                                                        // Create a CubeSphere of center (0,0,0) and radius 1
 
     // GETTERS
-    inline const std::vector<glm::vec3> &vertexPositions() const { return m_positions; }
-    inline std::vector<glm::vec3> &vertexPositions() { return m_positions; }
-    inline const std::vector<glm::vec3> &vertexNormals() const { return m_normals; }
-    inline std::vector<glm::vec3> &vertexNormals() { return m_normals; }
-    inline const std::vector<glm::vec2> &vertexTexCoords() const { return m_uvs; }
-    inline std::vector<glm::vec2> &vertexTexCoords() { return m_uvs; }
-    inline const std::vector<glm::uvec3> &triangleIndices() const { return m_triangles; }
-    inline std::vector<glm::uvec3> &triangleIndices() { return m_triangles; }
+    inline const AABB<float>& aabb() const { return m_aabb; }
+    inline const std::vector<glm::vec3>& vertexPositions() const { return m_positions; }
+    inline const std::vector<glm::vec3>& vertexNormals() const { return m_normals; }
+    inline const std::vector<glm::vec2>& vertexTexCoords() const { return m_uvs; }
+    inline const std::vector<glm::uvec3>& triangleIndices() const { return m_triangles; }
 
     void centerAndScaleToUnit();
-    void computeBoundingSphere(glm::vec3 &center, float &radius) const;
 
     void recomputePerVertexNormals(bool angleBased = false);
     void recomputePerVertexTextureCoordinates();
+    void recomputeStructs();
+    bool rayIntersection(const glm::vec3& _origin, const glm::vec3& _direction, float& min_t, size_t& triangle_index, glm::vec3& intersection, glm::vec3& barycentrics) const;
 
     // OpenGL interface
     void init();

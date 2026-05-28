@@ -74,7 +74,7 @@
 
 template <typename T>
 class PositionHasher {
-    using vec3 = glm::vec<3, T, glm::packed_highp>;
+    using vec3 = glm::vec<3, T, glm::defaultp>;
 
     static constexpr size_t P1{73856093};
     static constexpr size_t P2{19349663};

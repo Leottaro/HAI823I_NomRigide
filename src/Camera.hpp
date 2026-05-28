@@ -22,13 +22,13 @@ public:
     float m_translation_speed = 2.5f;
 
     glm::vec2 m_orientation = glm::vec2(-M_PI_4 * 0.5, 0.); // (pitch, yaw)
-    float m_rotation_speed = 0.001f;
+    float m_rotation_speed = 0.5f;
 
     float m_aspect_ratio = 1.f;
     float m_fovy = glm::pi<float>() / 2.f;
     glm::vec2 m_near_far = glm::vec2(1.e-1f, 1.e4f);
 
-    const glm::vec3 *m_center = &VEC_ZERO; // Only in oribtal type
+    const glm::vec3* m_center = &VEC_ZERO; // Only in oribtal type
     float m_distance_to_center = 5.f;      // Only in oribtal type
     float m_zoom_rate = 0.05f;             // Only in oribtal type
 
@@ -42,14 +42,14 @@ private:
 
     void updateData();
 
-    void updateKeyboardInput(GLFWwindow *_window, float _deltaTime);
-    void updateMouseInput(GLFWwindow *_window, float _deltaTime, const glm::vec2 &_cursor_vel, const glm::vec2 &_scroll, bool _disable_actions);
+    void updateKeyboardInput(GLFWwindow* _window, float _deltaTime);
+    void updateMouseInput(GLFWwindow* _window, float _deltaTime, const glm::vec2& _cursor_vel, const glm::vec2& _scroll, bool _disable_actions);
 
 public:
     Camera() { updateData(); };
 
     bool updateInterface();
-    void update(GLFWwindow *_window, float _deltaTime, const glm::vec2 &_cursor_vel, const glm::vec2 &_scroll, bool _disable_mouse_actions);
+    void update(GLFWwindow* _window, float _deltaTime, const glm::vec2& _cursor_vel, const glm::vec2& _scroll, bool _disable_mouse_actions);
 
     glm::vec3 getFront() const { return m_front; }
     glm::vec3 getRight() const { return m_right; }

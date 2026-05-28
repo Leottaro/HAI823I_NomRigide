@@ -1,0 +1,9 @@
+Compiling opt executable...
+[  2%] Built target glew
+[  5%] Built target poly34
+[  8%] Built target glm
+[ 72%] Built target glfw
+[ 84%] Built target imgui
+[ 85%] Building CXX object CMakeFiles/hai823i_nomrigide_opt.dir/src/DynamicObjectCollision.cpp.o
+[ 87%] Linking CXX executable hai823i_nomrigide_opt
+[100%] Built target hai823i_nomrigide_opt

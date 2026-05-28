@@ -26,9 +26,9 @@ MeshType meshTypeFromInt(int _i) {
     }
 }
 
-int meshTypeToInt(const MeshType &_type) {
+int meshTypeToInt(const MeshType& _type) {
     return std::visit(
-        [](const auto &mesh_spec) {
+        [](const auto& mesh_spec) {
             using T = std::decay_t<decltype(mesh_spec)>;
             if constexpr (std::is_same_v<T, LoadedMesh>) {
                 return 0;
@@ -47,9 +47,9 @@ int meshTypeToInt(const MeshType &_type) {
         _type);
 }
 
-std::string meshTypeToString(const MeshType &_type) {
+std::string meshTypeToString(const MeshType& _type) {
     return std::visit(
-        [](const auto &mesh_spec) {
+        [](const auto& mesh_spec) {
             using T = std::decay_t<decltype(mesh_spec)>;
             if constexpr (std::is_same_v<T, LoadedMesh>) {
                 return std::filesystem::path(mesh_spec.path).stem().string();
@@ -88,7 +88,7 @@ void Mesh::centerAndScaleToUnit() {
         m_positions[i] = (m_positions[i] - center) / maxD;
 }
 
-void Mesh::loadOFF(const std::string &filename) {
+void Mesh::loadOFF(const std::string& filename) {
     ifstream in(filename.c_str());
     if (!in)
         return;
@@ -137,19 +137,6 @@ void Mesh::loadOFF(const std::string &filename) {
     recomputePerVertexTextureCoordinates();
 }
 
-void Mesh::computeBoundingSphere(glm::vec3 &center, float &radius) const {
-    center = glm::vec3(0.0);
-    for (const glm::vec3 &p : m_positions) {
-        center += p;
-    }
-    center /= m_positions.size();
-
-    radius = 0.f;
-    for (const glm::vec3 &p : m_positions) {
-        radius = std::max(radius, distance(center, p));
-    }
-}
-
 void Mesh::recomputePerVertexNormals(bool angleBased) {
     m_normals.clear();
     m_normals.resize(m_positions.size(), glm::vec3(0.0, 0.0, 0.0));
@@ -172,7 +159,7 @@ void Mesh::recomputePerVertexTextureCoordinates() {
 
     float xMin = FLT_MAX, xMax = FLT_MIN;
     float yMin = FLT_MAX, yMax = FLT_MIN;
-    for (glm::vec3 &p : m_positions) {
+    for (glm::vec3& p : m_positions) {
         xMin = std::min(xMin, p[0]);
         xMax = std::max(xMax, p[0]);
         yMin = std::min(yMin, p[1]);
@@ -181,6 +168,48 @@ void Mesh::recomputePerVertexTextureCoordinates() {
     for (unsigned int pIt = 0; pIt < m_uvs.size(); ++pIt) {
         m_uvs[pIt] = glm::vec2((m_positions[pIt][0] - xMin) / (xMax - xMin), (m_positions[pIt][1] - yMin) / (yMax - yMin));
     }
+}
+
+void Mesh::recomputeStructs() {
+    m_aabb = AABB<float>();
+    std::vector<KdTriangle> kd_triangles;
+    kd_triangles.reserve(m_triangles.size());
+    for (size_t i = 0; i < m_triangles.size(); i++) {
+        kd_triangles.push_back(KdTriangle(m_positions[m_triangles[i][0]], m_positions[m_triangles[i][1]], m_positions[m_triangles[i][2]], i));
+        m_aabb.addPosition(m_positions[m_triangles[i][0]]);
+        m_aabb.addPosition(m_positions[m_triangles[i][1]]);
+        m_aabb.addPosition(m_positions[m_triangles[i][2]]);
+    }
+    glm::vec3 m_aabb_size = m_aabb.max - m_aabb.min;
+    uint8_t max_axis = m_aabb_size.x < m_aabb_size.y && m_aabb_size.x < m_aabb_size.z ? 0
+                       : m_aabb_size.y < m_aabb_size.z                                ? 1
+                                                                                      : 2;
+    *m_tree = KdTree(kd_triangles, m_aabb, 32, max_axis);
+}
+
+bool Mesh::rayIntersection(const glm::vec3& _origin, const glm::vec3& _direction, float& t, size_t& triangle_index, glm::vec3& intersection, glm::vec3& barycentrics) const {
+    if (m_tree != nullptr)
+        return m_tree->intersect(_origin, _direction, t, triangle_index, intersection, barycentrics);
+
+    t = FLT_MAX;
+    float tmp_t;
+    glm::vec3 tmp_inter, tmp_bary;
+    for (size_t i = 0; i < m_triangles.size(); i++) {
+        const glm::vec3& v0 = m_positions[m_triangles[i][0]];
+        const glm::vec3& v1 = m_positions[m_triangles[i][1]];
+        const glm::vec3& v2 = m_positions[m_triangles[i][2]];
+        const glm::vec3& triangle_normal = glm::cross(v1 - v0, v2 - v0);
+
+        // ray intersections
+        if (!rayTriangleIntersection(_origin, _direction, v0, v1, v2, triangle_normal, tmp_t, tmp_inter, tmp_bary) || tmp_t >= t)
+            continue;
+
+        t = tmp_t;
+        intersection = tmp_inter;
+        barycentrics = tmp_bary;
+        triangle_index = i;
+    }
+    return t == FLT_MAX;
 }
 
 void Mesh::init() {

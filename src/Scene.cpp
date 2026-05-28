@@ -6,7 +6,8 @@
 
 void Scene::resetMesh(uint _i) {
     m_meshes[_i].clear();
-    m_meshes[_i] = Mesh(m_meshes_type[_i]);
+    m_meshes[_i].setType(m_meshes_type[_i]);
+    // m_meshes[_i].recomputeStructs();
     m_meshes[_i].init();
 }
 void Scene::resetStaticBody(uint _i) {
@@ -197,6 +198,15 @@ void Scene::dynamicObjectInterface(uint _i) {
     }
 
     ImGui::Spacing();
+    int render_type_int = int(object.render_type);
+    if (ImGui::Combo(("render type##dynamic" + object.name).c_str(), &render_type_int, IMGUI_DYNAMIC_RENDER_TYPES)) {
+        object.render_type = DynamicRenderType(render_type_int);
+    }
+    if (ImGui::DragFloat3(("Object color##dynamic" + object.name).c_str(), glm::value_ptr(object.render_color), 0.01f, 0.f, 1.f)) {
+        object.render_color = glm::clamp(object.render_color, 0.f, 1.f);
+    }
+
+    ImGui::Spacing();
     ImGui::DragFloat3(("Position##dynamic" + object.name).c_str(), glm::value_ptr(object.transfo.getTranslation()), .01f, -FLT_MAX, FLT_MAX);
     ImGui::DragFloat3(("Scale##dynamic" + object.name).c_str(), glm::value_ptr(object.transfo.getScale()), .01f, -FLT_MAX, FLT_MAX);
     glm::vec3 ea_degree = glm::degrees(object.transfo.getEulerAngles());
@@ -215,14 +225,8 @@ void Scene::dynamicObjectInterface(uint _i) {
     ImGui::DragFloat(("distance stiffness##dynamic" + object.name).c_str(), &object.distance_stiffness, 0.001f, 0.f, 1.f);
     ImGui::DragFloat(("angle stiffness##dynamic" + object.name).c_str(), &object.angle_stiffness, 0.001f, 0.f, 1.f);
     ImGui::DragFloat(("volume stiffness##dynamic" + object.name).c_str(), &object.volume_stiffness, 0.001f, 0.f, 1.f);
-    ImGui::DragFloat(("volume pressure##dynamic" + object.name).c_str(), &object.volume_pressure, 0.001f, 0.f, 1.f);
-    ImGui::DragFloat(("vertex mass##dynamic" + object.name).c_str(), &object.vertex_mass, 0.001f, 0.f, 1.f);
-
-    ImGui::Spacing();
-    int render_type_int = int(object.render_type);
-    if (ImGui::Combo(("render type##dynamic" + object.name).c_str(), &render_type_int, IMGUI_DYNAMIC_RENDER_TYPES)) {
-        object.render_type = DynamicRenderType(render_type_int);
-    }
+    ImGui::DragFloat(("volume pressure##dynamic" + object.name).c_str(), &object.volume_pressure, 0.001f, 0.f);
+    ImGui::DragFloat(("vertex mass##dynamic" + object.name).c_str(), &object.vertex_mass, 0.001f, 0.f);
 
     ImGui::Spacing();
     ImGui::Text("Fixed Vertices: ");
@@ -268,12 +272,19 @@ bool Scene::updateInterface() {
         if (ImGui::DragInt("Solver iterations", &si, 0.5f, 1, 1000)) {
             solver_iterations = si;
         };
+
         ImGui::Checkbox("Do fixed delta time", &do_fixed_delta_time);
-        if (do_fixed_delta_time) {
-            if (ImGui::InputDouble("Fixed delta time", &fixed_delta_time, 1.e-6, 0.0001)) {
-                fixed_delta_time = std::clamp(fixed_delta_time, 1.e-6, 1.);
-            }
+        ImGui::BeginDisabled(!do_fixed_delta_time);
+        if (ImGui::InputDouble("Fixed delta time", &fixed_delta_time, 1.e-6, 0.0001)) {
+            fixed_delta_time = std::clamp(fixed_delta_time, 1.e-6, 1.);
         }
+        ImGui::EndDisabled();
+
+        ImGui::Checkbox("Do dynamic self collision", &do_self_collision);
+        ImGui::BeginDisabled(!do_self_collision);
+        ImGui::Checkbox("Do inter dynamic collision (EXPERIMENTAL)", &do_inter_dynamic_collision);
+        ImGui::EndDisabled();
+
         if (ImGui::Button("Reset Objects")) {
             resetObjects();
         }
@@ -372,13 +383,30 @@ bool Scene::updateSimulation(float _subDeltaTime, float _fullDeltaTime, bool _is
         static_bodies[i].m_transformation = &m_static_bodies_transfo[i];
     }
 
+    if (do_self_collision && do_inter_dynamic_collision) {
+        uint sub_iterations = solver_iterations / num_subSteps;
+        if (sub_iterations < 1)
+            sub_iterations = 1;
+        float sdt = do_fixed_delta_time ? (fixed_delta_time / (float)num_subSteps) : _subDeltaTime;
+        float fdt = do_fixed_delta_time ? fixed_delta_time : _fullDeltaTime;
+        bool res = DynamicObject::update(m_dynamic_objects, static_bodies, sdt, fdt, sub_iterations * m_dynamic_objects.size(), _is_first_step);
+        return res;
+    }
+
     uint sub_iterations = solver_iterations / num_subSteps;
     if (sub_iterations < 1)
         sub_iterations = 1;
-    float sdt = do_fixed_delta_time ? (fixed_delta_time / (float)num_subSteps) : _subDeltaTime;
-    float fdt = do_fixed_delta_time ? fixed_delta_time : _fullDeltaTime;
-    bool res = DynamicObject::update(m_dynamic_objects, static_bodies, sdt, fdt, sub_iterations, _is_first_step);
-    return res;
+    for (DynamicObject& obj : m_dynamic_objects) {
+        float sdt = do_fixed_delta_time ? (fixed_delta_time / (float)num_subSteps) : _subDeltaTime;
+        float fdt = do_fixed_delta_time ? fixed_delta_time : _fullDeltaTime;
+        if (!obj.update(static_bodies, sdt, fdt, sub_iterations, _is_first_step, do_self_collision)) {
+            obj.updateRenderedPositions();
+            return false;
+        }
+        // obj.updateRenderedPositions();
+    }
+
+    return true;
 }
 
 void Scene::updateAllRendredPositions() {
@@ -395,9 +423,9 @@ void Scene::render(const ShaderProgram& _dynamic_shader, const ShaderProgram& _m
     _dynamic_shader.set("view", _camera.getViewMatrix());
     _dynamic_shader.set("lightPos", glm::vec3(5.f, 10.f, 0.f));
     _dynamic_shader.set("viewPos", _camera.m_position);
-    _dynamic_shader.set("lightColor", glm::vec3(1.f)); 
-    _dynamic_shader.set("objectColor", glm::vec3(1.f, 0.5f, 0.3f));
+    _dynamic_shader.set("lightColor", glm::vec3(1.f));
     for (uint i = 0; i < m_dynamic_objects_desc.size(); i++) {
+        _dynamic_shader.set("objectColor", m_dynamic_objects_desc[i].render_color);
         m_dynamic_objects[i].render(m_dynamic_objects_desc[i].render_type);
     }
 
