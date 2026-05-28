@@ -172,6 +172,7 @@ void Mesh::recomputePerVertexTextureCoordinates() {
 
 void Mesh::recomputeStructs() {
     m_aabb = AABB<float>();
+    double hash_grid_size = 0.;
     std::vector<KdTriangle> kd_triangles;
     kd_triangles.reserve(m_triangles.size());
     for (size_t i = 0; i < m_triangles.size(); i++) {
@@ -179,17 +180,32 @@ void Mesh::recomputeStructs() {
         m_aabb.addPosition(m_positions[m_triangles[i][0]]);
         m_aabb.addPosition(m_positions[m_triangles[i][1]]);
         m_aabb.addPosition(m_positions[m_triangles[i][2]]);
+        hash_grid_size += glm::distance(m_positions[m_triangles[i][0]], m_positions[m_triangles[i][1]]) +
+                          glm::distance(m_positions[m_triangles[i][0]], m_positions[m_triangles[i][2]]) +
+                          glm::distance(m_positions[m_triangles[i][1]], m_positions[m_triangles[i][2]]);
     }
     glm::vec3 m_aabb_size = m_aabb.max - m_aabb.min;
-    uint8_t max_axis = m_aabb_size.x < m_aabb_size.y && m_aabb_size.x < m_aabb_size.z ? 0
-                       : m_aabb_size.y < m_aabb_size.z                                ? 1
+    uint8_t max_axis = m_aabb_size.x > m_aabb_size.y && m_aabb_size.x > m_aabb_size.z ? 0
+                       : m_aabb_size.y > m_aabb_size.z                                ? 1
                                                                                       : 2;
-    *m_tree = KdTree(kd_triangles, m_aabb, 32, max_axis);
+    m_tree = KdTree(kd_triangles, m_aabb, 32, max_axis);
+
+    m_positions_hasher = PositionHasher<float>(m_positions.size(), hash_grid_size);
+    for (const glm::uvec3& triangle : m_triangles) {
+        AABB<float> aabb;
+        aabb.addPosition(m_positions[triangle[0]]);
+        aabb.addPosition(m_positions[triangle[1]]);
+        aabb.addPosition(m_positions[triangle[2]]);
+        m_positions_hasher.insertRange(aabb, triangle[0]);
+        m_positions_hasher.insertRange(aabb, triangle[1]);
+        m_positions_hasher.insertRange(aabb, triangle[2]);
+    }
+    constructed_structs = true;
 }
 
 bool Mesh::rayIntersection(const glm::vec3& _origin, const glm::vec3& _direction, float& t, size_t& triangle_index, glm::vec3& intersection, glm::vec3& barycentrics) const {
-    if (m_tree != nullptr)
-        return m_tree->intersect(_origin, _direction, t, triangle_index, intersection, barycentrics);
+    if (constructed_structs)
+        return m_tree.intersect(_origin, _direction, t, triangle_index, intersection, barycentrics);
 
     t = FLT_MAX;
     float tmp_t;
@@ -251,6 +267,7 @@ void Mesh::render() const {
 }
 
 void Mesh::clear() {
+    constructed_structs = false;
     m_positions.clear();
     m_normals.clear();
     m_uvs.clear();

@@ -21,6 +21,7 @@
 // USUAL INCLUDES
 #include "Transformation.hpp"
 #include "KdTree.hpp"
+#include "PositionHasher.hpp"
 #include <vector>
 #include <string>
 #include <variant>
@@ -70,7 +71,9 @@ class Mesh {
     GLuint m_uvs_VBO{0};
     GLuint m_triangles_EBO{0};
 
-    KdTree* m_tree{nullptr};
+    bool constructed_structs{false};
+    KdTree m_tree{};
+    PositionHasher<float> m_positions_hasher{};
     AABB<float> m_aabb{};
 
 public:
@@ -108,6 +111,7 @@ public:
 
     // GETTERS
     inline const AABB<float>& aabb() const { return m_aabb; }
+    inline const PositionHasher<float>& positionHasher() const { return m_positions_hasher; }
     inline const std::vector<glm::vec3>& vertexPositions() const { return m_positions; }
     inline const std::vector<glm::vec3>& vertexNormals() const { return m_normals; }
     inline const std::vector<glm::vec2>& vertexTexCoords() const { return m_uvs; }
