@@ -109,7 +109,7 @@ void DynamicObject::detectPointTriangleCollision(const std::vector<glm::dvec3>& 
         }
     }
 }
-void DynamicObject::detectEdgeEdgeCollision(const std::vector<glm::dvec3>& full_frame_positions, const std::vector<StaticBody>& static_bodies, std::map<uint, glm::dvec3>& _collisions_responses, uint start, uint end) {
+void DynamicObject::detectEdgeTriangleCollision(const std::vector<glm::dvec3>& full_frame_positions, const std::vector<StaticBody>& static_bodies, std::map<uint, glm::dvec3>& _collisions_responses, uint start, uint end) {
     for (uint edge_i = start; edge_i < end; edge_i++) {
         uint e0 = m_lines[edge_i][0];
         uint e1 = m_lines[edge_i][1];

@@ -263,7 +263,7 @@ bool DynamicObject::update(const std::vector<StaticBody>& static_bodies, double 
             hasher.insertRange(aabb, pj);
         }
         detectPointTriangleCollision(full_frame_positions, static_bodies, collisions_responses, 0, N);
-        detectEdgeEdgeCollision(full_frame_positions, static_bodies, collisions_responses, 0, m_lines.size());
+        detectEdgeTriangleCollision(full_frame_positions, static_bodies, collisions_responses, 0, m_lines.size());
         detectTrianglePointCollision(full_frame_positions, static_bodies, collisions_responses, 0, m_triangles.size());
         detectSelfPointTriangleCollision(hasher, full_frame_positions, collisions_responses, 0, m_triangles.size());
     }
@@ -338,7 +338,7 @@ bool DynamicObject::update(std::vector<DynamicObject>& dynamic_objects, const st
         all_objects.detectPointTriangleCollision(full_frame_positions, static_bodies, collisions_responses, 0, all_objects.N);
         for (uint i = 0; i < nb_objects; i++) {
             all_objects.m_surface_thickness = dynamic_objects[i].m_surface_thickness;
-            all_objects.detectEdgeEdgeCollision(full_frame_positions, static_bodies, collisions_responses, lines_offsets[i], lines_offsets[i + 1]);
+            all_objects.detectEdgeTriangleCollision(full_frame_positions, static_bodies, collisions_responses, lines_offsets[i], lines_offsets[i + 1]);
             all_objects.detectTrianglePointCollision(full_frame_positions, static_bodies, collisions_responses, triangles_offsets[i], triangles_offsets[i + 1]);
             all_objects.detectSelfPointTriangleCollision(hasher, full_frame_positions, collisions_responses, triangles_offsets[i], triangles_offsets[i + 1]);
         }
