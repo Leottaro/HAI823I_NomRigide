@@ -213,7 +213,7 @@ void Mesh::recomputeStructs() {
     constructed_structs = true;
 }
 
-bool Mesh::rayIntersection(const glm::vec3& _origin, const glm::vec3& _direction, RayIntersection& min_intersection, RayIntersection max_intersection) const {
+bool Mesh::rayIntersection(const glm::vec3& _origin, const glm::vec3& _direction, RayIntersection& min_intersection, RayIntersection& max_intersection) const {
     min_intersection.t = FLT_MAX;
     max_intersection.t = -FLT_MAX;
 
@@ -252,6 +252,7 @@ bool Mesh::rayIntersection(const glm::vec3& _origin, const glm::vec3& _direction
             max_intersection.intersection = intersection;
             max_intersection.barycentrics = barycentrics;
         }
+        intersected = true;
     }
     return intersected;
 }

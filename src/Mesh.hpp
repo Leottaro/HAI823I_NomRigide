@@ -125,7 +125,7 @@ public:
     void recomputePerVertexNormals(bool angleBased = false);
     void recomputePerVertexTextureCoordinates();
     void recomputeStructs();
-    bool rayIntersection(const glm::vec3& _origin, const glm::vec3& _direction, RayIntersection& min_intersection, RayIntersection max_intersection) const;
+    bool rayIntersection(const glm::vec3& _origin, const glm::vec3& _direction, RayIntersection& min_intersection, RayIntersection& max_intersection) const;
 
     // OpenGL interface
     void init();
