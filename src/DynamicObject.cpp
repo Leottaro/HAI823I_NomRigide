@@ -166,6 +166,142 @@ bool DynamicObject::projectConstraints(uint _solver_iterations, std::vector<glm:
     return true;
 }
 
+bool DynamicObject::projectConstraintsJacobi(uint _solver_iterations, std::vector<glm::dvec3>& new_positions, std::map<uint, glm::dvec3>& _collisions_responses) {
+    constexpr double jacobi_relaxation = 0.8;
+
+    const std::vector<glm::dvec3> old_positions = new_positions;
+    std::vector<glm::dvec3> delta_sums(N, glm::dvec3(0.));
+    std::vector<uint> delta_counts(N, 0);
+    bool success = true;
+
+#ifdef USE_OPENMP
+#pragma omp parallel
+#endif
+    {
+        std::vector<glm::dvec3> local_delta_sums(N, glm::dvec3(0.));
+        std::vector<uint> local_delta_counts(N, 0);
+        std::map<uint, glm::dvec3> local_collisions_responses;
+        bool local_success = true;
+
+#ifdef USE_OPENMP
+#pragma omp for schedule(dynamic, 8)
+#endif
+        for (int ci_int = 0; ci_int < static_cast<int>(M + Mcoll); ci_int++) {
+            if (!local_success) {
+                continue;
+            }
+
+            uint ci = static_cast<uint>(ci_int);
+            std::vector<glm::dvec3> affected_points(m_cardinalities[ci]);
+            double total_weigths = 0.;
+            for (uint i = 0; i < m_cardinalities[ci]; i++) {
+                uint pj = m_indices[ci][i];
+                affected_points[i] = old_positions[pj];
+                total_weigths += m_weights[pj];
+            }
+            if (total_weigths == 0.) {
+                continue;
+            }
+
+            if (total_weigths != total_weigths) {
+                local_success = false;
+                continue;
+            }
+
+            double function_value = m_functions[ci](affected_points);
+            if (m_types[ci] == INEQUALITY_CONSTRAINT) {
+                if (function_value >= 0) {
+                    continue;
+                }
+
+                bool is_collision_constraint = (m_debug_types[ci] == VERTEX_COLLISION_CONSTRAINT ||
+                                                m_debug_types[ci] == EDGE_COLLISION_CONSTRAINT ||
+                                                m_debug_types[ci] == TRAINGLE_COLLISION_CONSTRAINT);
+                if (is_collision_constraint) {
+                    std::vector<glm::dvec3> grads = m_gradients[ci](affected_points);
+                    for (uint idx = 0; idx < m_cardinalities[ci]; idx++) {
+                        uint global_pj = m_indices[ci][idx];
+                        if (glm::length2(grads[idx]) > 1e-12) {
+                            glm::dvec3 normal = glm::normalize(grads[idx]);
+                            accumulateCollisionsResponse(global_pj, normal, local_collisions_responses);
+                        }
+                    }
+                }
+            }
+
+            std::vector<glm::dvec3> gradients = m_gradients[ci](affected_points);
+            double denominator = 0.;
+            for (uint i = 0; i < m_cardinalities[ci]; i++) {
+                if (gradients[i] != gradients[i]) {
+                    local_success = false;
+                    break;
+                }
+                denominator += glm::length2(gradients[i]);
+            }
+            if (!local_success) {
+                continue;
+            }
+            if (denominator != denominator || denominator == 0.) {
+                local_success = false;
+                continue;
+            }
+
+            double s = function_value / denominator;
+            double k_prime = 1. - std::pow(1. - m_stiffnesses[ci], 1. / _solver_iterations);
+
+            for (uint i = 0; i < m_cardinalities[ci]; i++) {
+                uint pj = m_indices[ci][i];
+                glm::dvec3 delta_pj = -s * (double(m_cardinalities[ci]) * m_weights[pj] / total_weigths) * gradients[i];
+                if (delta_pj != delta_pj) {
+                    local_success = false;
+                    break;
+                }
+
+                local_delta_sums[pj] += k_prime * delta_pj;
+                local_delta_counts[pj]++;
+            }
+        }
+
+#ifdef USE_OPENMP
+#pragma omp critical
+#endif
+        {
+            if (!local_success) {
+                success = false;
+            }
+            for (uint pj = 0; pj < N; pj++) {
+                if (local_delta_counts[pj] == 0) {
+                    continue;
+                }
+                delta_sums[pj] += local_delta_sums[pj];
+                delta_counts[pj] += local_delta_counts[pj];
+            }
+            for (const auto& [pj, response] : local_collisions_responses) {
+                accumulateCollisionsResponse(pj, response, _collisions_responses);
+            }
+        }
+    }
+
+    if (!success) {
+        std::cerr << "Invalid value while solving Jacobi constraints. You may need to lower the deltaTime!" << std::endl;
+        return false;
+    }
+
+    for (uint pj = 0; pj < N; pj++) {
+        if (delta_counts[pj] == 0) {
+            continue;
+        }
+
+        new_positions[pj] += jacobi_relaxation * delta_sums[pj] / double(delta_counts[pj]);
+        if (new_positions[pj] != new_positions[pj]) {
+            std::cerr << new_positions[pj] << " new_positions[pj] after Jacobi projection." << std::endl;
+            return false;
+        }
+    }
+
+    return true;
+}
+
 bool DynamicObject::applyNewPositions(double _delta_time, const std::vector<glm::dvec3>& new_positions) {
     // (12)-(15)
     for (uint pj = 0; pj < N; pj++) {
@@ -223,7 +359,7 @@ void DynamicObject::removeCollisionsConstraints() {
     m_gradients.resize(M);
 }
 
-bool DynamicObject::update(const std::vector<StaticBody>& static_bodies, double _sub_delta_time, double _full_delta_time, uint _solver_iterations, bool _is_first_step, bool _do_self_collision) {
+bool DynamicObject::update(const std::vector<StaticBody>& static_bodies, double _sub_delta_time, double _full_delta_time, uint _solver_iterations, ConstraintSolverType _solver_type, bool _is_first_step, bool _do_self_collision) {
     std::vector<glm::dvec3> new_positions(N); // p_i
     std::vector<glm::dvec3> full_frame_velocities(N);
     std::vector<glm::dvec3> full_frame_positions(N);
@@ -277,9 +413,13 @@ bool DynamicObject::update(const std::vector<StaticBody>& static_bodies, double 
     // (9)-(11)
     {
         ScopedTimer timer(g_profile_frame.constraints_ms);
-        for (uint _ = 0; _ < _solver_iterations; _++)
-            if (!projectConstraints(_solver_iterations, new_positions, collisions_responses))
+        for (uint _ = 0; _ < _solver_iterations; _++) {
+            bool projected = _solver_type == JacobiSolver
+                                 ? projectConstraintsJacobi(_solver_iterations, new_positions, collisions_responses)
+                                 : projectConstraints(_solver_iterations, new_positions, collisions_responses);
+            if (!projected)
                 return false;
+        }
     }
 
     if (!applyNewPositions(_sub_delta_time, new_positions)) // (12)-(15)
@@ -290,7 +430,7 @@ bool DynamicObject::update(const std::vector<StaticBody>& static_bodies, double 
     return true;
 }
 
-bool DynamicObject::update(std::vector<DynamicObject>& dynamic_objects, const std::vector<StaticBody>& static_bodies, double _sub_delta_time, double _full_delta_time, uint _solver_iterations, bool _is_first_step) {
+bool DynamicObject::update(std::vector<DynamicObject>& dynamic_objects, const std::vector<StaticBody>& static_bodies, double _sub_delta_time, double _full_delta_time, uint _solver_iterations, ConstraintSolverType _solver_type, bool _is_first_step) {
     uint nb_objects = dynamic_objects.size();
     DynamicObject all_objects;
     std::vector<uint> vertices_offsets(nb_objects + 1, 0);
@@ -358,9 +498,13 @@ bool DynamicObject::update(std::vector<DynamicObject>& dynamic_objects, const st
 
     {
         ScopedTimer timer(g_profile_frame.constraints_ms);
-        for (uint _ = 0; _ < _solver_iterations; _++)
-            if (!all_objects.projectConstraints(_solver_iterations, new_positions, collisions_responses))
+        for (uint _ = 0; _ < _solver_iterations; _++) {
+            bool projected = _solver_type == JacobiSolver
+                                 ? all_objects.projectConstraintsJacobi(_solver_iterations, new_positions, collisions_responses)
+                                 : all_objects.projectConstraints(_solver_iterations, new_positions, collisions_responses);
+            if (!projected)
                 return false;
+        }
     }
 
     if (!all_objects.applyNewPositions(_sub_delta_time, new_positions))

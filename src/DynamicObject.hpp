@@ -72,6 +72,13 @@ enum DynamicRenderType {
     Auto,
 };
 
+#define CONSTRAINT_SOLVER_TYPES_N 2
+#define IMGUI_CONSTRAINT_SOLVER_TYPES "Gauss-Seidel\0Jacobi\0"
+enum ConstraintSolverType {
+    GaussSeidelSolver,
+    JacobiSolver,
+};
+
 class DynamicObject {
 public:
     static inline void accumulateCollisionsResponse(uint _pj, const glm::dvec3& _normal, std::map<uint, glm::dvec3>& _collisions_responses) {
@@ -155,13 +162,14 @@ private:
     void detectTrianglePointCollision(const std::vector<glm::dvec3>& full_frame_positions, const std::vector<StaticBody>& static_bodies, std::map<uint, glm::dvec3>& _collisions_responses, uint start, uint end);
     void detectSelfPointTriangleCollision(const PositionHasher<double>& hasher, const std::vector<glm::dvec3>& full_frame_positions, std::map<uint, glm::dvec3>& _collisions_responses, uint start, uint end);
     bool projectConstraints(uint _solver_iterations, std::vector<glm::dvec3>& new_positions, std::map<uint, glm::dvec3>& _collisions_responses);
+    bool projectConstraintsJacobi(uint _solver_iterations, std::vector<glm::dvec3>& new_positions, std::map<uint, glm::dvec3>& _collisions_responses);
     bool applyNewPositions(double _delta_time, const std::vector<glm::dvec3>& new_positions);
     bool applyCollisions(const std::map<uint, glm::dvec3>& collisions_responses, uint _start, uint _end);
     void removeCollisionsConstraints();
 
 public:
-    bool update(const std::vector<StaticBody>& static_bodies, double _delta_time, double _full_delta_time, uint _solver_iterations, bool is_first_step, bool _do_self_collision);
-    static bool update(std::vector<DynamicObject>& dynamic_objects, const std::vector<StaticBody>& static_bodies, double _delta_time, double _full_delta_time, uint _solver_iterations, bool is_first_step);
+    bool update(const std::vector<StaticBody>& static_bodies, double _delta_time, double _full_delta_time, uint _solver_iterations, ConstraintSolverType _solver_type, bool is_first_step, bool _do_self_collision);
+    static bool update(std::vector<DynamicObject>& dynamic_objects, const std::vector<StaticBody>& static_bodies, double _delta_time, double _full_delta_time, uint _solver_iterations, ConstraintSolverType _solver_type, bool is_first_step);
 
     void addVertex(const glm::dvec3& _position, const glm::dvec3& _velocity, double _mass, bool _fixed);
     inline void setVertexPosition(uint _pj, glm::dvec3 _position) { m_positions[_pj] = _position; }

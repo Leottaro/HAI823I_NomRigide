@@ -109,6 +109,7 @@ private:
 public:
     uint solver_iterations{100};
     uint num_subSteps{4};
+    ConstraintSolverType constraint_solver{GaussSeidelSolver};
     bool do_fixed_delta_time{false};
     double fixed_delta_time{1.e-6};
     bool do_self_collision{false};

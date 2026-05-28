@@ -4,6 +4,7 @@
 // GLM
 #include <glm/ext.hpp>
 #include <glm/glm.hpp>
+#include <glm/gtc/constants.hpp>
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/string_cast.hpp>
 
@@ -69,7 +70,7 @@ void BunnyClothScene(Scene& scene) {
 
     Transformation* lapin_transfo = scene.addStaticBody(StaticBodyDesc{"Lapin", 0});
     lapin_transfo->setTranslation(glm::vec3(0.f, 0.f, 0.f));
-    lapin_transfo->setEulerAngles(glm::vec3(-M_PIf / 2.f, 0.f, M_PIf));
+    lapin_transfo->setEulerAngles(glm::vec3(-glm::pi<float>() / 2.f, 0.f, glm::pi<float>()));
     lapin_transfo->setScale(glm::vec3(5.f, 5.f, 5.f));
 
     DynamicObjectDesc filet_desc("filet", 1, DynamicObjectDescPreset::ClothObject);

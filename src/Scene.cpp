@@ -272,6 +272,10 @@ bool Scene::updateInterface() {
         if (ImGui::DragInt("Solver iterations", &si, 0.5f, 1, 1000)) {
             solver_iterations = si;
         };
+        int solver_type = static_cast<int>(constraint_solver);
+        if (ImGui::Combo("Constraint solver", &solver_type, IMGUI_CONSTRAINT_SOLVER_TYPES)) {
+            constraint_solver = static_cast<ConstraintSolverType>(solver_type);
+        }
 
         ImGui::Checkbox("Do fixed delta time", &do_fixed_delta_time);
         ImGui::BeginDisabled(!do_fixed_delta_time);
@@ -389,7 +393,7 @@ bool Scene::updateSimulation(float _subDeltaTime, float _fullDeltaTime, bool _is
             sub_iterations = 1;
         float sdt = do_fixed_delta_time ? (fixed_delta_time / (float)num_subSteps) : _subDeltaTime;
         float fdt = do_fixed_delta_time ? fixed_delta_time : _fullDeltaTime;
-        bool res = DynamicObject::update(m_dynamic_objects, static_bodies, sdt, fdt, sub_iterations * m_dynamic_objects.size(), _is_first_step);
+        bool res = DynamicObject::update(m_dynamic_objects, static_bodies, sdt, fdt, sub_iterations * m_dynamic_objects.size(), constraint_solver, _is_first_step);
         return res;
     }
 
@@ -399,7 +403,7 @@ bool Scene::updateSimulation(float _subDeltaTime, float _fullDeltaTime, bool _is
     for (DynamicObject& obj : m_dynamic_objects) {
         float sdt = do_fixed_delta_time ? (fixed_delta_time / (float)num_subSteps) : _subDeltaTime;
         float fdt = do_fixed_delta_time ? fixed_delta_time : _fullDeltaTime;
-        if (!obj.update(static_bodies, sdt, fdt, sub_iterations, _is_first_step, do_self_collision)) {
+        if (!obj.update(static_bodies, sdt, fdt, sub_iterations, constraint_solver, _is_first_step, do_self_collision)) {
             obj.updateRenderedPositions();
             return false;
         }
