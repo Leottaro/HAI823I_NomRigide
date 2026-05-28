@@ -359,7 +359,7 @@ void DynamicObject::removeCollisionsConstraints() {
     m_gradients.resize(M);
 }
 
-bool DynamicObject::update(const std::vector<StaticBody>& static_bodies, double _sub_delta_time, double _full_delta_time, uint _solver_iterations, ConstraintSolverType _solver_type, bool _is_first_step, bool _do_self_collision) {
+bool DynamicObject::update(const std::vector<StaticBody>& static_bodies, double _sub_delta_time, double _full_delta_time, uint _solver_iterations, ConstraintSolverType _solver_type, const CollisionDetectionSettings& _collision_settings, bool _is_first_step) {
     std::vector<glm::dvec3> new_positions(N); // p_i
     std::vector<glm::dvec3> full_frame_velocities(N);
     std::vector<glm::dvec3> full_frame_positions(N);
@@ -402,10 +402,16 @@ bool DynamicObject::update(const std::vector<StaticBody>& static_bodies, double 
             aabb.addPosition(new_positions[pj]);
             hasher.insertRange(aabb, pj);
         }
-        detectPointTriangleCollision(full_frame_positions, static_bodies, collisions_responses, 0, N);
-        detectEdgeTriangleCollision(full_frame_positions, static_bodies, collisions_responses, 0, m_lines.size());
-        detectTrianglePointCollision(full_frame_positions, static_bodies, collisions_responses, 0, m_triangles.size());
-        if (_do_self_collision) {
+        if (_collision_settings.point_triangle) {
+            detectPointTriangleCollision(full_frame_positions, static_bodies, collisions_responses, 0, N);
+        }
+        if (_collision_settings.edge_triangle) {
+            detectEdgeTriangleCollision(full_frame_positions, static_bodies, collisions_responses, 0, m_lines.size());
+        }
+        if (_collision_settings.triangle_point) {
+            detectTrianglePointCollision(full_frame_positions, static_bodies, collisions_responses, 0, m_triangles.size());
+        }
+        if (_collision_settings.self_point_triangle) {
             detectSelfPointTriangleCollision(hasher, full_frame_positions, collisions_responses, 0, m_triangles.size());
         }
     }
@@ -430,7 +436,7 @@ bool DynamicObject::update(const std::vector<StaticBody>& static_bodies, double 
     return true;
 }
 
-bool DynamicObject::update(std::vector<DynamicObject>& dynamic_objects, const std::vector<StaticBody>& static_bodies, double _sub_delta_time, double _full_delta_time, uint _solver_iterations, ConstraintSolverType _solver_type, bool _is_first_step) {
+bool DynamicObject::update(std::vector<DynamicObject>& dynamic_objects, const std::vector<StaticBody>& static_bodies, double _sub_delta_time, double _full_delta_time, uint _solver_iterations, ConstraintSolverType _solver_type, const CollisionDetectionSettings& _collision_settings, bool _is_first_step) {
     uint nb_objects = dynamic_objects.size();
     DynamicObject all_objects;
     std::vector<uint> vertices_offsets(nb_objects + 1, 0);
@@ -487,13 +493,21 @@ bool DynamicObject::update(std::vector<DynamicObject>& dynamic_objects, const st
                 hasher.insertRange(aabb, pj);
             }
         }
-        all_objects.detectPointTriangleCollision(full_frame_positions, static_bodies, collisions_responses, 0, all_objects.N);
+        if (_collision_settings.point_triangle) {
+            all_objects.detectPointTriangleCollision(full_frame_positions, static_bodies, collisions_responses, 0, all_objects.N);
+        }
         for (uint i = 0; i < nb_objects; i++) {
             all_objects.m_surface_thickness = dynamic_objects[i].m_surface_thickness;
             all_objects.m_collision_detection_margin = dynamic_objects[i].m_collision_detection_margin;
-            all_objects.detectEdgeTriangleCollision(full_frame_positions, static_bodies, collisions_responses, lines_offsets[i], lines_offsets[i + 1]);
-            all_objects.detectTrianglePointCollision(full_frame_positions, static_bodies, collisions_responses, triangles_offsets[i], triangles_offsets[i + 1]);
-            all_objects.detectSelfPointTriangleCollision(hasher, full_frame_positions, collisions_responses, triangles_offsets[i], triangles_offsets[i + 1]);
+            if (_collision_settings.edge_triangle) {
+                all_objects.detectEdgeTriangleCollision(full_frame_positions, static_bodies, collisions_responses, lines_offsets[i], lines_offsets[i + 1]);
+            }
+            if (_collision_settings.triangle_point) {
+                all_objects.detectTrianglePointCollision(full_frame_positions, static_bodies, collisions_responses, triangles_offsets[i], triangles_offsets[i + 1]);
+            }
+            if (_collision_settings.self_point_triangle) {
+                all_objects.detectSelfPointTriangleCollision(hasher, full_frame_positions, collisions_responses, triangles_offsets[i], triangles_offsets[i + 1]);
+            }
         }
     }
 

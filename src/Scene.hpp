@@ -113,6 +113,9 @@ public:
     ConstraintSolverType constraint_solver{GaussSeidelSolver};
     bool do_fixed_delta_time{false};
     double fixed_delta_time{1.e-6};
+    bool do_point_triangle_collision{true};
+    bool do_edge_triangle_collision{true};
+    bool do_triangle_point_collision{true};
     bool do_self_collision{false};
     bool do_inter_dynamic_collision{false};
 

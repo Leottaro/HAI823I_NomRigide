@@ -79,6 +79,13 @@ enum ConstraintSolverType {
     JacobiSolver,
 };
 
+struct CollisionDetectionSettings {
+    bool point_triangle = true;
+    bool edge_triangle = true;
+    bool triangle_point = true;
+    bool self_point_triangle = false;
+};
+
 class DynamicObject {
 public:
     static inline void accumulateCollisionsResponse(uint _pj, const glm::dvec3& _normal, std::map<uint, glm::dvec3>& _collisions_responses) {
@@ -171,8 +178,8 @@ private:
     void removeCollisionsConstraints();
 
 public:
-    bool update(const std::vector<StaticBody>& static_bodies, double _delta_time, double _full_delta_time, uint _solver_iterations, ConstraintSolverType _solver_type, bool is_first_step, bool _do_self_collision);
-    static bool update(std::vector<DynamicObject>& dynamic_objects, const std::vector<StaticBody>& static_bodies, double _delta_time, double _full_delta_time, uint _solver_iterations, ConstraintSolverType _solver_type, bool is_first_step);
+    bool update(const std::vector<StaticBody>& static_bodies, double _delta_time, double _full_delta_time, uint _solver_iterations, ConstraintSolverType _solver_type, const CollisionDetectionSettings& _collision_settings, bool is_first_step);
+    static bool update(std::vector<DynamicObject>& dynamic_objects, const std::vector<StaticBody>& static_bodies, double _delta_time, double _full_delta_time, uint _solver_iterations, ConstraintSolverType _solver_type, const CollisionDetectionSettings& _collision_settings, bool is_first_step);
 
     void addVertex(const glm::dvec3& _position, const glm::dvec3& _velocity, double _mass, bool _fixed);
     inline void setVertexPosition(uint _pj, glm::dvec3 _position) { m_positions[_pj] = _position; }

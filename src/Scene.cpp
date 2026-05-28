@@ -286,7 +286,12 @@ bool Scene::updateInterface() {
         }
         ImGui::EndDisabled();
 
-        ImGui::Checkbox("Do dynamic self collision", &do_self_collision);
+        ImGui::Spacing();
+        ImGui::SeparatorText("Collision detection");
+        ImGui::Checkbox("Point -> Triangle", &do_point_triangle_collision);
+        ImGui::Checkbox("Edge -> Triangle", &do_edge_triangle_collision);
+        ImGui::Checkbox("Triangle -> Point", &do_triangle_point_collision);
+        ImGui::Checkbox("Self Point -> Triangle", &do_self_collision);
         ImGui::BeginDisabled(!do_self_collision);
         ImGui::Checkbox("Do inter dynamic collision (EXPERIMENTAL)", &do_inter_dynamic_collision);
         ImGui::EndDisabled();
@@ -389,13 +394,20 @@ bool Scene::updateSimulation(float _subDeltaTime, float _fullDeltaTime, bool _is
         static_bodies[i].m_transformation = &m_static_bodies_transfo[i];
     }
 
+    CollisionDetectionSettings collision_settings{
+        do_point_triangle_collision,
+        do_edge_triangle_collision,
+        do_triangle_point_collision,
+        do_self_collision,
+    };
+
     if (do_self_collision && do_inter_dynamic_collision) {
         uint sub_iterations = solver_iterations / num_subSteps;
         if (sub_iterations < 1)
             sub_iterations = 1;
         float sdt = do_fixed_delta_time ? (fixed_delta_time / (float)num_subSteps) : _subDeltaTime;
         float fdt = do_fixed_delta_time ? fixed_delta_time : _fullDeltaTime;
-        bool res = DynamicObject::update(m_dynamic_objects, static_bodies, sdt, fdt, sub_iterations * m_dynamic_objects.size(), constraint_solver, _is_first_step);
+        bool res = DynamicObject::update(m_dynamic_objects, static_bodies, sdt, fdt, sub_iterations * m_dynamic_objects.size(), constraint_solver, collision_settings, _is_first_step);
         return res;
     }
 
@@ -405,7 +417,7 @@ bool Scene::updateSimulation(float _subDeltaTime, float _fullDeltaTime, bool _is
     for (DynamicObject& obj : m_dynamic_objects) {
         float sdt = do_fixed_delta_time ? (fixed_delta_time / (float)num_subSteps) : _subDeltaTime;
         float fdt = do_fixed_delta_time ? fixed_delta_time : _fullDeltaTime;
-        if (!obj.update(static_bodies, sdt, fdt, sub_iterations, constraint_solver, _is_first_step, do_self_collision)) {
+        if (!obj.update(static_bodies, sdt, fdt, sub_iterations, constraint_solver, collision_settings, _is_first_step)) {
             obj.updateRenderedPositions();
             return false;
         }
