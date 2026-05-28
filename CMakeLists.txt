@@ -6,7 +6,7 @@ set(APP_VERSION_MINOR 0)
 set(CMAKE_CXX_STANDARD 17)
 set(OpenGL_GL_PREFERENCE GLVND) # asked me to set this to GLVND or LEGACY
 # set(CMAKE_VERBOSE_MAKEFILE 1) # If you want verbose
-option(ENABLE_OPENMP "Enable OpenMP  when available" ON)
+option(ENABLE_OPENMP "Enable OpenMP  when available" OFF)
 
 # target setting
 set(APP_TARGET hai823i_nomrigide)

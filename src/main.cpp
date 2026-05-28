@@ -271,6 +271,15 @@ void renderProfilingInterface(float deltaTime, const ProfileFrame& profile_avera
         ImGui::Text("Constraint projection: %.3f ms", profile_average.constraints_ms);
         ImGui::Separator();
 
+        ImGui::Text("Collision counts");
+        ImGui::Indent();
+        ImGui::Text("Point -> Triangle: %.1f", profile_average.point_triangle_collision_count);
+        ImGui::Text("Edge -> Triangle: %.1f", profile_average.edge_triangle_collision_count);
+        ImGui::Text("Triangle -> Point: %.1f", profile_average.triangle_point_collision_count);
+        ImGui::Text("Self Point -> Triangle: %.1f", profile_average.self_point_triangle_collision_count);
+        ImGui::Unindent();
+        ImGui::Separator();
+
         ImGui::Text("Rendering: %.3f ms", profile_average.rendering_ms);
     }
     ImGui::End();

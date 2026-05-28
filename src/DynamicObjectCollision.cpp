@@ -138,7 +138,7 @@ void DynamicObject::detectPointTriangleCollision(const std::vector<glm::dvec3>& 
 
         for (uint pj = start; pj < end; pj++) {
             glm::dvec3 origin = applyTransformation(m_positions[pj], 1., inverse_transformation);
-            glm::dvec3 arrival = applyTransformation(full_frame_positions[pj] - m_positions[pj], 1., inverse_transformation);
+            glm::dvec3 arrival = applyTransformation(full_frame_positions[pj], 1., inverse_transformation);
             glm::dvec3 direction = arrival - origin;
 
             // Broad phase
@@ -193,7 +193,7 @@ void DynamicObject::detectPointTriangleCollision(const std::vector<glm::dvec3>& 
             double movement_length = glm::length(direction);
             double t_margin = (movement_length > 1e-8) ? (collision_detection_margin / movement_length) : 0.0;
             bool is_ray_hit = (min_t >= -t_margin && min_t <= 1.0 + t_margin);
-            bool is_close_proximity = (dist < collision_detection_margin);
+            bool is_close_proximity = (min_dist < collision_detection_margin);
 
             if (is_ray_hit || is_close_proximity) {
                 // WILL ENTER THE OBJECT
@@ -213,6 +213,7 @@ void DynamicObject::detectPointTriangleCollision(const std::vector<glm::dvec3>& 
                     final_intersection = applyTransformation(final_intersection, 1., transformation);
                     final_normal = applyTransformation(glm::normalize(final_normal), 0., transformation);
                     addCollisionConstraint(pj, final_intersection, final_normal);
+                    g_profile_frame.point_triangle_collision_count += 1.;
                 }
             } else if (min_t < 0. && max_t > 1.) {
                 // COMPLETLY INSIDE THE OBJECT
@@ -220,6 +221,7 @@ void DynamicObject::detectPointTriangleCollision(const std::vector<glm::dvec3>& 
                 closest_surface = applyTransformation(closest_surface, 1., transformation);
                 closest_surface_normal = applyTransformation(glm::normalize(closest_surface_normal), 0., transformation);
                 addCollisionConstraint(pj, closest_surface, closest_surface_normal);
+                g_profile_frame.point_triangle_collision_count += 1.;
                 // accumulate_collision(pj, closest_surface_normal);
             }
         }
@@ -252,6 +254,7 @@ void DynamicObject::detectEdgeTriangleCollision(const std::vector<glm::dvec3>& f
             glm::dvec3 closest_normal = applyTransformation(glm::dvec3(min_intersection.normal), 0., transformation);
             glm::dvec3 furthest_normal = applyTransformation(glm::dvec3(max_intersection.normal), 0., transformation);
             addEdgeCollisionConstraint(e0, e1, min_intersection.t, closest_intersection, closest_normal, max_intersection.t, furthest_intersection, furthest_normal);
+            g_profile_frame.edge_triangle_collision_count += 1.;
             accumulateCollisionsResponse(e0, 0.5 * glm::normalize((1.0 - min_intersection.t) * closest_normal + (1.0 - max_intersection.t) * furthest_normal), _collisions_responses);
             accumulateCollisionsResponse(e1, 0.5 * glm::normalize(double(min_intersection.t) * closest_normal + double(max_intersection.t) * furthest_normal), _collisions_responses);
         }
@@ -368,6 +371,7 @@ void DynamicObject::detectTrianglePointCollision(const std::vector<glm::dvec3>& 
         }
     }
 
+    g_profile_frame.triangle_point_collision_count += static_cast<double>(candidates.size());
     for (const TrianglePointCollisionCandidate& candidate : candidates) {
         addStaticPointDynamicTriangleConstraint(candidate.p0, candidate.p1, candidate.p2, candidate.static_point, candidate.barycentrics, candidate.push_normal);
         glm::dvec3 response_normal = candidate.push_normal / 3.;
@@ -502,6 +506,7 @@ void DynamicObject::detectSelfPointTriangleCollision(const PositionHasher<double
         }
     }
 
+    g_profile_frame.self_point_triangle_collision_count += static_cast<double>(candidates.size());
     for (const SelfCollisionCandidate& candidate : candidates) {
         addSelfCollisionConstraint(candidate.q, candidate.p0, candidate.p1, candidate.p2);
     }

@@ -11,6 +11,10 @@ struct ProfileFrame {
     double self_point_triangle_collision_ms = 0.;
     double constraints_ms = 0.;
     double rendering_ms = 0.;
+    double point_triangle_collision_count = 0.;
+    double edge_triangle_collision_count = 0.;
+    double triangle_point_collision_count = 0.;
+    double self_point_triangle_collision_count = 0.;
 };
 
 inline ProfileFrame g_profile_frame;
@@ -33,6 +37,10 @@ inline ProfileFrame& operator+=(ProfileFrame& lhs, const ProfileFrame& rhs) {
     lhs.self_point_triangle_collision_ms += rhs.self_point_triangle_collision_ms;
     lhs.constraints_ms += rhs.constraints_ms;
     lhs.rendering_ms += rhs.rendering_ms;
+    lhs.point_triangle_collision_count += rhs.point_triangle_collision_count;
+    lhs.edge_triangle_collision_count += rhs.edge_triangle_collision_count;
+    lhs.triangle_point_collision_count += rhs.triangle_point_collision_count;
+    lhs.self_point_triangle_collision_count += rhs.self_point_triangle_collision_count;
     return lhs;
 }
 
@@ -49,6 +57,10 @@ inline ProfileFrame operator/(const ProfileFrame& frame, double divisor) {
         frame.self_point_triangle_collision_ms / divisor,
         frame.constraints_ms / divisor,
         frame.rendering_ms / divisor,
+        frame.point_triangle_collision_count / divisor,
+        frame.edge_triangle_collision_count / divisor,
+        frame.triangle_point_collision_count / divisor,
+        frame.self_point_triangle_collision_count / divisor,
     };
 }
 
