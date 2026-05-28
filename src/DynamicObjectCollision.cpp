@@ -289,18 +289,18 @@ void DynamicObject::detectTrianglePointCollision(const std::vector<glm::dvec3>& 
                 uint p2 = m_triangles[triangle_i][2];
 
                 // Broad phase
-                AABB<double> bouding_movement;
-                bouding_movement.addPosition(full_frame_positions[p0]);
-                bouding_movement.addPosition(full_frame_positions[p1]);
-                bouding_movement.addPosition(full_frame_positions[p2]);
-                bouding_movement.addPosition(m_positions[p0]);
-                bouding_movement.addPosition(m_positions[p1]);
-                bouding_movement.addPosition(m_positions[p2]);
-                bouding_movement.min = applyTransformation(bouding_movement.min, 1., inverse_transformation);
-                bouding_movement.max = applyTransformation(bouding_movement.max, 1., inverse_transformation);
+                AABB<float> bouding_movement;
+                bouding_movement.addPosition(applyTransformation(full_frame_positions[p0], 1., inverse_transformation));
+                bouding_movement.addPosition(applyTransformation(full_frame_positions[p1], 1., inverse_transformation));
+                bouding_movement.addPosition(applyTransformation(full_frame_positions[p2], 1., inverse_transformation));
+                bouding_movement.addPosition(applyTransformation(m_positions[p0], 1., inverse_transformation));
+                bouding_movement.addPosition(applyTransformation(m_positions[p1], 1., inverse_transformation));
+                bouding_movement.addPosition(applyTransformation(m_positions[p2], 1., inverse_transformation));
                 bouding_movement.expand(collision_detection_margin);
+                if (!bouding_movement.intersectAABB(static_body.m_mesh->aabb()))
+                    continue;
 
-                static_body.m_mesh->positionHasher().forAllGridCells(bouding_movement.min, bouding_movement.max, [&](const glm::u64vec3 _key) {
+                static_body.m_mesh->positionHasher().forAllGridCells(bouding_movement, [&](const glm::u64vec3 _key) {
                     for (uint static_i : static_body.m_mesh->positionHasher().lookupKey(_key)) {
                         glm::dvec3 static_point = static_positions[static_i];
 
