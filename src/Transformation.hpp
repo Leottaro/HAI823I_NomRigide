@@ -101,15 +101,15 @@ glm::vec<3, T, glm::defaultp> fallbackInTriangle(const glm::vec<3, T, glm::defau
 template <typename T>
 inline T closestPointInTriangle(const glm::vec<3, T, glm::defaultp>& point,
                                 const glm::vec<3, T, glm::defaultp>& v0, const glm::vec<3, T, glm::defaultp>& v1, const glm::vec<3, T, glm::defaultp>& v2, const glm::vec<3, T, glm::defaultp>& normal,
-                                glm::vec<3, T, glm::defaultp>& surface, glm::vec<3, T, glm::defaultp>& barycentrics) {
+                                glm::vec<3, T, glm::defaultp>& closest, glm::vec<3, T, glm::defaultp>& barycentrics) {
     glm::vec<3, T, glm::defaultp> project_on_plane = v0 + glm::cross(normal, glm::cross(point - v0, normal));
     computeBarycentrics(v0, v1, v2, normal, project_on_plane, barycentrics);
-    surface = barycentrics[0] < T(0)   ? fallbackInTriangle(v1, v2, project_on_plane)
-              : barycentrics[1] < T(0) ? fallbackInTriangle(v2, v0, project_on_plane)
-              : barycentrics[2] < T(0) ? fallbackInTriangle(v0, v1, project_on_plane)
+    closest = barycentrics[0] < T(0)   ? fallbackInTriangle<T>(v1, v2, project_on_plane)
+              : barycentrics[1] < T(0) ? fallbackInTriangle<T>(v2, v0, project_on_plane)
+              : barycentrics[2] < T(0) ? fallbackInTriangle<T>(v0, v1, project_on_plane)
                                        : project_on_plane;
 
-    return glm::distance(point, surface);
+    return glm::distance(point, closest);
 }
 
 class Transformation {

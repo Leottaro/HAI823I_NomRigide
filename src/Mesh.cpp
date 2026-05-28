@@ -173,6 +173,8 @@ void Mesh::recomputePerVertexTextureCoordinates() {
 void Mesh::recomputeStructs() {
     m_aabb = AABB<float>();
     double hash_grid_size = 0.;
+    m_vertex_to_triangles.clear();
+
     std::vector<KdTriangle> kd_triangles;
     kd_triangles.reserve(m_triangles.size());
     for (size_t i = 0; i < m_triangles.size(); i++) {
@@ -183,6 +185,14 @@ void Mesh::recomputeStructs() {
         hash_grid_size += glm::distance(m_positions[m_triangles[i][0]], m_positions[m_triangles[i][1]]) +
                           glm::distance(m_positions[m_triangles[i][0]], m_positions[m_triangles[i][2]]) +
                           glm::distance(m_positions[m_triangles[i][1]], m_positions[m_triangles[i][2]]);
+
+        for (uint8_t j = 0; j < 3; j++) {
+            auto it = m_vertex_to_triangles.find(m_triangles[i][j]);
+            if (it != m_vertex_to_triangles.end())
+                it->second.push_back(i);
+            else
+                m_vertex_to_triangles.insert({m_triangles[i][j], {i}});
+        }
     }
     glm::vec3 m_aabb_size = m_aabb.max - m_aabb.min;
     uint8_t max_axis = m_aabb_size.x > m_aabb_size.y && m_aabb_size.x > m_aabb_size.z ? 0
@@ -190,7 +200,7 @@ void Mesh::recomputeStructs() {
                                                                                       : 2;
     m_tree = KdTree(kd_triangles, m_aabb, 32, max_axis);
 
-    m_positions_hasher = PositionHasher<float>(m_positions.size(), hash_grid_size);
+    m_positions_hasher = PositionHasher<float>(m_positions.size(), hash_grid_size / 3.);
     for (const glm::uvec3& triangle : m_triangles) {
         AABB<float> aabb;
         aabb.addPosition(m_positions[triangle[0]]);
@@ -203,13 +213,24 @@ void Mesh::recomputeStructs() {
     constructed_structs = true;
 }
 
-bool Mesh::rayIntersection(const glm::vec3& _origin, const glm::vec3& _direction, float& t, size_t& triangle_index, glm::vec3& intersection, glm::vec3& barycentrics) const {
-    if (constructed_structs)
-        return m_tree.intersect(_origin, _direction, t, triangle_index, intersection, barycentrics);
+bool Mesh::rayIntersection(const glm::vec3& _origin, const glm::vec3& _direction, RayIntersection& min_intersection, RayIntersection max_intersection) const {
+    min_intersection.t = FLT_MAX;
+    max_intersection.t = -FLT_MAX;
 
-    t = FLT_MAX;
-    float tmp_t;
-    glm::vec3 tmp_inter, tmp_bary;
+    if (constructed_structs) {
+        bool intersected = m_tree.intersect(_origin, _direction, min_intersection, max_intersection);
+        if (intersected) {
+            const glm::uvec3& min_triangle = m_triangles[min_intersection.triangle_index];
+            min_intersection.normal = glm::normalize(min_intersection.barycentrics[0] * m_normals[min_triangle[0]] + min_intersection.barycentrics[1] * m_normals[min_triangle[1]] + min_intersection.barycentrics[2] * m_normals[min_triangle[2]]);
+            const glm::uvec3& max_triangle = m_triangles[max_intersection.triangle_index];
+            max_intersection.normal = glm::normalize(max_intersection.barycentrics[0] * m_normals[max_triangle[0]] + max_intersection.barycentrics[1] * m_normals[max_triangle[1]] + max_intersection.barycentrics[2] * m_normals[max_triangle[2]]);
+        }
+        return intersected;
+    }
+
+    float t;
+    glm::vec3 intersection, barycentrics;
+    bool intersected = false;
     for (size_t i = 0; i < m_triangles.size(); i++) {
         const glm::vec3& v0 = m_positions[m_triangles[i][0]];
         const glm::vec3& v1 = m_positions[m_triangles[i][1]];
@@ -217,15 +238,22 @@ bool Mesh::rayIntersection(const glm::vec3& _origin, const glm::vec3& _direction
         const glm::vec3& triangle_normal = glm::cross(v1 - v0, v2 - v0);
 
         // ray intersections
-        if (!rayTriangleIntersection(_origin, _direction, v0, v1, v2, triangle_normal, tmp_t, tmp_inter, tmp_bary) || tmp_t >= t)
+        if (!rayTriangleIntersection(_origin, _direction, v0, v1, v2, triangle_normal, t, intersection, barycentrics))
             continue;
-
-        t = tmp_t;
-        intersection = tmp_inter;
-        barycentrics = tmp_bary;
-        triangle_index = i;
+        if (t < min_intersection.t) {
+            min_intersection.t = t;
+            min_intersection.triangle_index = i;
+            min_intersection.intersection = intersection;
+            min_intersection.barycentrics = barycentrics;
+        }
+        if (t > max_intersection.t) {
+            max_intersection.t = t;
+            max_intersection.triangle_index = i;
+            max_intersection.intersection = intersection;
+            max_intersection.barycentrics = barycentrics;
+        }
     }
-    return t == FLT_MAX;
+    return intersected;
 }
 
 void Mesh::init() {

@@ -72,9 +72,10 @@ class Mesh {
     GLuint m_triangles_EBO{0};
 
     bool constructed_structs{false};
+    AABB<float> m_aabb{};
     KdTree m_tree{};
     PositionHasher<float> m_positions_hasher{};
-    AABB<float> m_aabb{};
+    std::unordered_map<size_t, std::vector<size_t>> m_vertex_to_triangles;
 
 public:
     virtual ~Mesh();
@@ -110,19 +111,21 @@ public:
     }
 
     // GETTERS
-    inline const AABB<float>& aabb() const { return m_aabb; }
-    inline const PositionHasher<float>& positionHasher() const { return m_positions_hasher; }
     inline const std::vector<glm::vec3>& vertexPositions() const { return m_positions; }
     inline const std::vector<glm::vec3>& vertexNormals() const { return m_normals; }
     inline const std::vector<glm::vec2>& vertexTexCoords() const { return m_uvs; }
     inline const std::vector<glm::uvec3>& triangleIndices() const { return m_triangles; }
+    inline const AABB<float>& aabb() const { return m_aabb; }
+    inline const PositionHasher<float>& positionHasher() const { return m_positions_hasher; }
+    inline const KdTree& kdtree() const { return m_tree; }
+    inline const std::vector<size_t>& vertexToTriangles(size_t vi) const { return m_vertex_to_triangles.at(vi); }
 
     void centerAndScaleToUnit();
 
     void recomputePerVertexNormals(bool angleBased = false);
     void recomputePerVertexTextureCoordinates();
     void recomputeStructs();
-    bool rayIntersection(const glm::vec3& _origin, const glm::vec3& _direction, float& min_t, size_t& triangle_index, glm::vec3& intersection, glm::vec3& barycentrics) const;
+    bool rayIntersection(const glm::vec3& _origin, const glm::vec3& _direction, RayIntersection& min_intersection, RayIntersection max_intersection) const;
 
     // OpenGL interface
     void init();

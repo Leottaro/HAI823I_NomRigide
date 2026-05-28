@@ -27,6 +27,20 @@ struct KdTriangle {
     }
 };
 
+struct RayIntersection {
+    float t{std::numeric_limits<float>::infinity()};
+    size_t triangle_index{std::numeric_limits<size_t>::infinity()};
+    glm::vec3 intersection{std::numeric_limits<float>::infinity()};
+    glm::vec3 normal{std::numeric_limits<float>::infinity()};
+    glm::vec3 barycentrics{std::numeric_limits<float>::infinity()};
+};
+
+struct RadiusSearchResult {
+    size_t triangle_index{};
+    glm::vec3 closest_point{};
+    float distance{};
+};
+
 class KdTree {
     AABB<float> m_aabb{};
     size_t m_leaf_size{};
@@ -35,6 +49,79 @@ class KdTree {
     std::unique_ptr<KdTree> m_left{};
     std::unique_ptr<KdTree> m_right{};
     std::vector<KdTriangle> m_triangles{};
+
+    inline bool intersect_leaf(const glm::vec3& _origin, const glm::vec3& _direction, RayIntersection& min_intersection, RayIntersection& max_intersection) const {
+        float t;
+        glm::vec3 intersection, barycentrics;
+        bool intersected = false;
+        for (const KdTriangle& kd_triangle : m_triangles) {
+            if (!rayTriangleIntersection<float>(_origin, _direction, kd_triangle.v0, kd_triangle.v1, kd_triangle.v2, kd_triangle.normal, t, intersection, barycentrics))
+                continue;
+            if (t < min_intersection.t) {
+                min_intersection.t = t;
+                min_intersection.triangle_index = kd_triangle.triangle_index;
+                min_intersection.intersection = intersection;
+                min_intersection.barycentrics = barycentrics;
+            }
+            if (t > max_intersection.t) {
+                max_intersection.t = t;
+                max_intersection.triangle_index = kd_triangle.triangle_index;
+                max_intersection.intersection = intersection;
+                max_intersection.barycentrics = barycentrics;
+            }
+            intersected = true;
+        }
+        return intersected;
+    }
+
+    inline bool intersect_nonleaf(const glm::vec3& _origin, const glm::vec3& _direction, RayIntersection& min_intersection, RayIntersection& max_intersection) const {
+        KdTree *first = nullptr, *second = nullptr;
+        float t_first_min = FLT_MAX, t_first_max = FLT_MAX;
+        float t_second_min = FLT_MAX, t_second_max = FLT_MAX;
+
+        // Check intersection with child bounding boxes
+        if (m_left && m_left->m_aabb.intersectRay(_origin, _direction, t_first_min, t_first_max))
+            first = m_left.get();
+        if (m_right && m_right->m_aabb.intersectRay(_origin, _direction, t_second_min, t_second_max))
+            second = m_right.get();
+
+        // Determine traversal order
+        if (t_first_min > t_second_min)
+            std::swap(first, second);
+
+        // Traverse children in order
+        if (first != nullptr && first->intersect(_origin, _direction, min_intersection, max_intersection))
+            return true;
+        return second != nullptr && second->intersect(_origin, _direction, min_intersection, max_intersection);
+    }
+
+    inline bool AABBSphereIntersection(const glm::vec3& center, float radius) const {
+        // Find the closest point on the AABB to `center`, then test distance.
+        glm::vec3 closest = glm::clamp(center, glm::vec3(m_aabb.min), glm::vec3(m_aabb.max));
+        glm::vec3 delta = closest - center;
+        return glm::dot(delta, delta) <= radius * radius;
+    }
+
+    inline void radiusSearch_leaf(const glm::vec3& center, float radius, std::vector<RadiusSearchResult>& out) const {
+        glm::vec3 closest{std::numeric_limits<float>::infinity()}, barycentrics{std::numeric_limits<float>::infinity()};
+        for (const KdTriangle& tri : m_triangles) {
+            float dist = closestPointInTriangle(center, tri.v0, tri.v1, tri.v2, tri.normal, closest, barycentrics);
+            if (dist <= radius) {
+                RadiusSearchResult result;
+                result.triangle_index = tri.triangle_index;
+                result.closest_point = closest;
+                result.distance = dist;
+                out.push_back(result);
+            }
+        }
+    }
+
+    inline void radiusSearch_nonleaf(const glm::vec3& center, float radius, std::vector<RadiusSearchResult>& out) const {
+        if (m_left)
+            m_left->radiusSearch(center, radius, out);
+        if (m_right)
+            m_right->radiusSearch(center, radius, out);
+    }
 
 public:
     KdTree() {}
@@ -127,51 +214,24 @@ public:
         }
     }
 
-    inline bool intersect(const glm::vec3& _origin, const glm::vec3& _direction, float& t, size_t& triangle_index, glm::vec3& intersection, glm::vec3& barycentrics) const {
+    inline bool intersect(const glm::vec3& _origin, const glm::vec3& _direction, RayIntersection& min_intersection, RayIntersection& max_intersection) const {
         float tmin = 0., tmax = 0.;
         if (!m_aabb.intersectRay(_origin, _direction, tmin, tmax)) {
             return false;
         }
 
-        return m_leaf ? intersect_leaf(_origin, _direction, t, triangle_index, intersection, barycentrics)
-                      : intersect_nonleaf(_origin, _direction, t, triangle_index, intersection, barycentrics);
+        return m_leaf ? intersect_leaf(_origin, _direction, min_intersection, max_intersection)
+                      : intersect_nonleaf(_origin, _direction, min_intersection, max_intersection);
     }
 
-    inline bool intersect_leaf(const glm::vec3& _origin, const glm::vec3& _direction, float& t, size_t& triangle_index, glm::vec3& intersection, glm::vec3& barycentrics) const {
-        t = FLT_MAX;
-        float tmp_t;
-        glm::vec3 tmp_inter, tmp_bary;
-        for (const KdTriangle& kd_triangle : m_triangles) {
-            if (rayTriangleIntersection<float>(_origin, _direction, kd_triangle.v0, kd_triangle.v1, kd_triangle.v2, kd_triangle.normal, tmp_t, tmp_inter, tmp_bary) && tmp_t < t) {
-                t = tmp_t;
-                intersection = tmp_inter;
-                barycentrics = tmp_bary;
-                triangle_index = kd_triangle.triangle_index;
-            }
-        }
-        return t == FLT_MAX;
-    }
+    inline void radiusSearch(const glm::vec3& center, float radius, std::vector<RadiusSearchResult>& out) const {
+        if (!AABBSphereIntersection(center, radius))
+            return;
 
-    inline bool intersect_nonleaf(const glm::vec3& _origin, const glm::vec3& _direction, float& t, size_t& triangle_index, glm::vec3& intersection, glm::vec3& barycentrics) const {
-        KdTree *first = nullptr, *second = nullptr;
-        float t_first_min = FLT_MAX, t_first_max = FLT_MAX;
-        float t_second_min = FLT_MAX, t_second_max = FLT_MAX;
-
-        // Check intersection with child bounding boxes
-        if (m_left && m_left->m_aabb.intersectRay(_origin, _direction, t_first_min, t_first_max)) {
-            first = m_left.get();
+        if (m_leaf) {
+            radiusSearch_leaf(center, radius, out);
+        } else {
+            radiusSearch_nonleaf(center, radius, out);
         }
-        if (m_right && m_right->m_aabb.intersectRay(_origin, _direction, t_second_min, t_second_max)) {
-            second = m_right.get();
-        }
-
-        // Determine traversal order
-        if (t_first_min > t_second_min) {
-            std::swap(first, second);
-        }
-
-        // Traverse children in order
-        return (first != nullptr && first->intersect(_origin, _direction, t, triangle_index, intersection, barycentrics)) ||
-               (second != nullptr && second->intersect(_origin, _direction, t, triangle_index, intersection, barycentrics));
     }
 };
