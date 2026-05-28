@@ -6,6 +6,7 @@ set(APP_VERSION_MINOR 0)
 set(CMAKE_CXX_STANDARD 17)
 set(OpenGL_GL_PREFERENCE GLVND) # asked me to set this to GLVND or LEGACY
 # set(CMAKE_VERBOSE_MAKEFILE 1) # If you want verbose
+option(ENABLE_OPENMP "Enable OpenMP  when available" ON)
 
 # target setting
 set(APP_TARGET hai823i_nomrigide)
@@ -43,6 +44,25 @@ set(APP_SOURCES
 
 add_executable(${APP_TARGET_DEBUG} ${APP_SOURCES})
 add_executable(${APP_TARGET_OPT} ${APP_SOURCES})
+
+if(ENABLE_OPENMP)
+    if(APPLE AND EXISTS "/opt/homebrew/opt/libomp")
+        list(APPEND CMAKE_PREFIX_PATH "/opt/homebrew/opt/libomp")
+    endif()
+
+    find_package(OpenMP QUIET)
+    if(OpenMP_CXX_FOUND)
+        target_link_libraries(${APP_TARGET_DEBUG} OpenMP::OpenMP_CXX)
+        target_link_libraries(${APP_TARGET_OPT} OpenMP::OpenMP_CXX)
+        target_compile_definitions(${APP_TARGET_DEBUG} PRIVATE USE_OPENMP)
+        target_compile_definitions(${APP_TARGET_OPT} PRIVATE USE_OPENMP)
+        message(STATUS "OpenMP enabled")
+    else()
+        message(STATUS "OpenMP not found, building without OpenMP")
+    endif()
+else()
+    message(STATUS "OpenMP disabled")
+endif()
 
 target_compile_options(${APP_TARGET_DEBUG} PRIVATE -Wall -O0 -g3)
 target_compile_definitions(${APP_TARGET_DEBUG} PRIVATE DEBUG)

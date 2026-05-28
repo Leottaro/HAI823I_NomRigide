@@ -33,6 +33,12 @@
 #include "Scene.hpp"
 #include "ShaderProgram.hpp"
 
+// OPENMP
+#ifdef USE_OPENMP
+#include <omp.h>
+#endif
+
+
 using namespace std;
 
 // TODO: SINGLETON
@@ -337,4 +343,11 @@ void globalInit() {
     ImGui_ImplOpenGL3_Init();
 
     initOpenGL();
+
+#ifdef USE_OPENMP
+    std::cout << "OpenMP threads: " << omp_get_max_threads() << std::endl;
+#else
+    std::cout << "OpenMP disabled" << std::endl;
+#endif
+
 }
