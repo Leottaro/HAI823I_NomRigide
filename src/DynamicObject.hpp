@@ -116,6 +116,7 @@ private:
     double m_restitution_coefficient = 0.5;
     double m_damping_coefficient = 0.05;
     double m_surface_thickness = 1.e-2;
+    double m_collision_detection_margin = 1.e-2;
 
     // "3.5. Damping" of ./articles/Position_Based_Dynamics.pdf
     void dampVelocities(uint _start, uint _end); // k_damping = 1. -> rigid body
@@ -150,10 +151,12 @@ public:
     inline void setRestitutionCoefficient(double _coeff) { m_restitution_coefficient = _coeff; }
     inline void setDampingCoefficient(double _coeff) { m_damping_coefficient = _coeff; }
     inline void setSurfaceThickness(double _coeff) { m_surface_thickness = _coeff; }
+    inline void setCollisionDetectionMargin(double _coeff) { m_collision_detection_margin = _coeff; }
     inline double getFrictionCoefficient() const { return m_friction_coefficient; }
     inline double getDampingCoefficient() const { return m_damping_coefficient; }
     inline double getRestitutionCoefficient() const { return m_restitution_coefficient; }
     inline double getSurfaceThickness() const { return m_surface_thickness; }
+    inline double getCollisionDetectionMargin() const { return m_collision_detection_margin; }
 
     // "3.1. Algorithm Overview" of ./articles/Position_Based_Dynamics.pdf
 private:

@@ -24,6 +24,7 @@ void Scene::resetDynamicObject(uint _i) {
     m_dynamic_objects[_i].setFrictionCoefficient(m_dynamic_objects_desc[_i].friction_coefficient);
     m_dynamic_objects[_i].setRestitutionCoefficient(m_dynamic_objects_desc[_i].restitution_coefficient);
     m_dynamic_objects[_i].setSurfaceThickness(m_dynamic_objects_desc[_i].surface_thickness);
+    m_dynamic_objects[_i].setCollisionDetectionMargin(m_dynamic_objects_desc[_i].collision_detection_margin);
 
     m_dynamic_objects[_i].initRendering();
 }
@@ -220,6 +221,7 @@ void Scene::dynamicObjectInterface(uint _i) {
     ImGui::DragFloat(("Restitution##dynamic" + object.name).c_str(), &object.restitution_coefficient, .01f, 0.f, 1.f);
     ImGui::DragFloat(("Damping##dynamic" + object.name).c_str(), &object.damping_coefficient, .01f, 0.f, 1.f);
     ImGui::DragFloat(("Thickness##dynamic" + object.name).c_str(), &object.surface_thickness, .001f, .01f, 1.f);
+    ImGui::DragFloat(("Collision detection margin##dynamic" + object.name).c_str(), &object.collision_detection_margin, .001f, .01f, 2.f);
 
     ImGui::Spacing();
     ImGui::DragFloat(("distance stiffness##dynamic" + object.name).c_str(), &object.distance_stiffness, 0.001f, 0.f, 1.f);

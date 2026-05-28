@@ -50,7 +50,7 @@ void DynamicObject::detectPointTriangleCollision(const std::vector<glm::dvec3>& 
             AABB<float> bouding_movement;
             bouding_movement.addPosition(origin);
             bouding_movement.addPosition(arrival);
-            bouding_movement.expand(m_surface_thickness);
+            bouding_movement.expand(m_collision_detection_margin);
             if (!bouding_movement.intersectAABB(static_body.m_mesh->aabb()))
                 continue;
 
@@ -94,9 +94,9 @@ void DynamicObject::detectPointTriangleCollision(const std::vector<glm::dvec3>& 
 
             // Add a margin for predicted collision
             double movement_length = glm::length(direction);
-            double t_margin = (movement_length > 1e-8) ? (m_surface_thickness / movement_length) : 0.0;
+            double t_margin = (movement_length > 1e-8) ? (m_collision_detection_margin / movement_length) : 0.0;
             bool is_ray_hit = (min_t >= -t_margin && min_t <= 1.0 + t_margin);
-            bool is_close_proximity = (dist < m_surface_thickness);
+            bool is_close_proximity = (dist < m_collision_detection_margin);
 
             if (is_ray_hit || is_close_proximity) {
                 // WILL ENTER THE OBJECT
@@ -152,7 +152,7 @@ void DynamicObject::detectEdgeTriangleCollision(const std::vector<glm::dvec3>& f
             bouding_movement.addPosition(arrival);
             bouding_movement.addPosition(applyTransformation(glm::dvec3(m_positions[e0]), 1., inverse_transformation));
             bouding_movement.addPosition(applyTransformation(glm::dvec3(m_positions[e1]), 1., inverse_transformation));
-            bouding_movement.expand(m_surface_thickness);
+            bouding_movement.expand(m_collision_detection_margin);
             if (!bouding_movement.intersectAABB(static_body.m_mesh->aabb()))
                 continue;
 
@@ -234,7 +234,7 @@ void DynamicObject::detectTrianglePointCollision(const std::vector<glm::dvec3>& 
                     bouding_movement.addPosition(m_positions[p0]);
                     bouding_movement.addPosition(m_positions[p1]);
                     bouding_movement.addPosition(m_positions[p2]);
-                    bouding_movement.expand(m_surface_thickness);
+                    bouding_movement.expand(m_collision_detection_margin);
                     if (!bouding_movement.isInside(static_point))
                         continue;
 
@@ -285,7 +285,7 @@ void DynamicObject::detectTrianglePointCollision(const std::vector<glm::dvec3>& 
                     glm::dvec3 push_normal = (side_sign > 0.0) ? -normal : normal;
 
                     // proximity
-                    bool proximity = std::abs(current_dist) < m_surface_thickness * 1.5;
+                    bool proximity = std::abs(current_dist) < m_collision_detection_margin;
                     // simpple continue collision detection
                     bool cross_frame = (old_dist * current_dist < 0.0) && std::abs(old_dist) > 1e-4;
 
@@ -338,7 +338,7 @@ void DynamicObject::detectSelfPointTriangleCollision(const PositionHasher<double
                 aabb.addPosition(m_positions[m_triangles[ti][i]]);
                 aabb.addPosition(full_frame_positions[m_triangles[ti][i]]);
             }
-            aabb.expand(m_surface_thickness);
+            aabb.expand(m_collision_detection_margin);
 
             // Broad phase: Spatial Hasher
             hasher.forAllGridCells(aabb, [&](const glm::u64vec3& _key) {
@@ -361,7 +361,7 @@ void DynamicObject::detectSelfPointTriangleCollision(const PositionHasher<double
                         glm::dvec3 surface_end, bary_end;
                         double dist_end = closestPointInTriangle(full_frame_positions[q], full_frame_positions[p1], full_frame_positions[p2], full_frame_positions[p3], n_end, surface_end, bary_end);
 
-                        if (dist_end <= m_surface_thickness) {
+                        if (dist_end <= m_collision_detection_margin) {
                             local_candidates.push_back({q, p1, from_behind ? p2 : p3, from_behind ? p3 : p2});
                             // std::cout << "SELF COLLISION (PROXIMITY)" << std::endl;
                             continue; // Handled, skip the cubic solver for this pair
@@ -419,7 +419,7 @@ void DynamicObject::detectSelfPointTriangleCollision(const PositionHasher<double
                         double dist = closestPointInTriangle(qt, p1t, p2t, p3t, n, surface, barycentrics);
 
                         // If it crosses the plane within the thickness boundary of the edges
-                        if (dist <= m_surface_thickness) {
+                        if (dist <= m_collision_detection_margin) {
                             // Corrected: Uses the robust 'from_behind' computed at t=0
                             local_candidates.push_back({q, p1, from_behind ? p2 : p3, from_behind ? p3 : p2});
                             // std::cout << "SELF COLLISION (TUNNELLING)" << std::endl;

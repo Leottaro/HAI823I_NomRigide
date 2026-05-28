@@ -40,6 +40,7 @@ struct DynamicObjectDesc {
     float volume_pressure;
     float damping_coefficient{0.05};
     float surface_thickness{1.e-1};
+    float collision_detection_margin{1.e-1};
     float vertex_mass{1.f};
 
     Transformation transfo{};
