@@ -6,6 +6,7 @@
 
 #include "DynamicObject.hpp"
 #include "AABB.hpp"
+#include "Profiling.hpp"
 #include <iostream>
 
 bool rayTriangleIntersection(const glm::dvec3& origin, const glm::dvec3& direction,
@@ -26,6 +27,8 @@ bool rayTriangleIntersection(const glm::dvec3& origin, const glm::dvec3& directi
 }
 
 void DynamicObject::detectPointTriangleCollision(const std::vector<glm::dvec3>& full_frame_positions, const std::vector<StaticBody>& static_bodies, std::map<uint, glm::dvec3>& _collisions_responses, uint start, uint end) {
+    ScopedTimer timer(g_profile_frame.point_triangle_collision_ms);
+
     for (uint pj = start; pj < end; pj++) {
         glm::dvec3 origin = m_positions[pj];
         glm::dvec3 direction = full_frame_positions[pj] - m_positions[pj];
@@ -110,6 +113,8 @@ void DynamicObject::detectPointTriangleCollision(const std::vector<glm::dvec3>& 
     }
 }
 void DynamicObject::detectEdgeTriangleCollision(const std::vector<glm::dvec3>& full_frame_positions, const std::vector<StaticBody>& static_bodies, std::map<uint, glm::dvec3>& _collisions_responses, uint start, uint end) {
+    ScopedTimer timer(g_profile_frame.edge_triangle_collision_ms);
+
     for (uint edge_i = start; edge_i < end; edge_i++) {
         uint e0 = m_lines[edge_i][0];
         uint e1 = m_lines[edge_i][1];
@@ -164,6 +169,8 @@ void DynamicObject::detectEdgeTriangleCollision(const std::vector<glm::dvec3>& f
     }
 }
 void DynamicObject::detectTrianglePointCollision(const std::vector<glm::dvec3>& full_frame_positions, const std::vector<StaticBody>& static_bodies, std::map<uint, glm::dvec3>& _collisions_responses, uint start, uint end) {
+    ScopedTimer timer(g_profile_frame.triangle_point_collision_ms);
+
     for (const StaticBody& static_body : static_bodies) {
         const std::vector<glm::vec3>& static_positions = static_body.m_mesh->vertexPositions();
         glm::mat4 transformation = static_body.m_transformation->computeTransformationMatrix();
@@ -241,6 +248,8 @@ void DynamicObject::detectTrianglePointCollision(const std::vector<glm::dvec3>& 
 }
 
 void DynamicObject::detectSelfPointTriangleCollision(const PositionHasher<double>& hasher, const std::vector<glm::dvec3>& full_frame_positions, std::map<uint, glm::dvec3>& _collisions_responses, uint start, uint end) {
+    ScopedTimer timer(g_profile_frame.self_point_triangle_collision_ms);
+
     for (uint ti = start; ti < end; ti++) {
         uint p1 = m_triangles[ti][0];
         uint p2 = m_triangles[ti][1];

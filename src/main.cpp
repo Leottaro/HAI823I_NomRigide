@@ -29,6 +29,7 @@
 #include "Camera.hpp"
 #include "DynamicObject.hpp"
 #include "Mesh.hpp"
+#include "Profiling.hpp"
 #include "Scene.hpp"
 #include "ShaderProgram.hpp"
 
@@ -47,6 +48,7 @@ Camera camera;
 bool run_simulation = false;
 
 void globalInit();
+void renderProfilingInterface(float deltaTime, const ProfileFrame& profile_average);
 
 int main(void) {
     globalInit();
@@ -88,8 +90,11 @@ int main(void) {
 
     // timings
     float deltaTime = 0.0f;
-    float lastFrame = 0.0f;
-    size_t frame_count = 0;
+    float lastFrame = glfwGetTime();
+    ProfileFrame profile_accumulator;
+    ProfileFrame profile_average;
+    size_t profile_sample_count = 0;
+    double last_profile_update = lastFrame;
     glfwSwapInterval(1); // VSync - avoid having 3000 fps
     do {
         glfwSwapBuffers(window);
@@ -111,7 +116,8 @@ int main(void) {
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
-        frame_count++;
+        resetProfileFrame();
+        g_profile_frame.frame_ms = deltaTime * 1000.;
 
         // Imgui
         ImGui_ImplOpenGL3_NewFrame();
@@ -146,11 +152,28 @@ int main(void) {
         camera.update(window, deltaTime, cursor_vel, scroll, disable_mouse_actions);
 
         // RENDERING
-        scene.render(dynamic_shader, mesh_shader, camera);
+        {
+            ScopedTimer timer(g_profile_frame.rendering_ms);
+            scene.render(dynamic_shader, mesh_shader, camera);
+        }
+
+        renderProfilingInterface(deltaTime, profile_average);
 
         // ImGui Render
-        ImGui::Render();
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        {
+            ScopedTimer timer(g_profile_frame.rendering_ms);
+            ImGui::Render();
+            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        }
+
+        profile_accumulator += g_profile_frame;
+        profile_sample_count++;
+        if (currentFrame - last_profile_update >= 0.5 && profile_sample_count > 0) {
+            profile_average = profile_accumulator / static_cast<double>(profile_sample_count);
+            profile_accumulator = {};
+            profile_sample_count = 0;
+            last_profile_update = currentFrame;
+        }
 
         // Reset some controls
         scroll = glm::vec2(0.);
@@ -164,6 +187,32 @@ int main(void) {
     glfwTerminate();
 
     return 0;
+}
+
+void renderProfilingInterface(float deltaTime, const ProfileFrame& profile_average) {
+    if (ImGui::Begin("Performance")) {
+        double instant_frame_ms = deltaTime * 1000.;
+        double instant_fps = deltaTime > 0.f ? 1. / deltaTime : 0.;
+        double average_fps = profile_average.frame_ms > 0. ? 1000. / profile_average.frame_ms : instant_fps;
+
+        ImGui::Text("FPS: %.1f", average_fps);
+        ImGui::Text("Frame: %.3f ms", profile_average.frame_ms > 0. ? profile_average.frame_ms : instant_frame_ms);
+        ImGui::Separator();
+
+        ImGui::Text("Simulation");
+        ImGui::Text("Collision detection: %.3f ms", profile_average.collision_ms);
+        ImGui::Indent();
+        ImGui::Text("Point -> Triangle: %.3f ms", profile_average.point_triangle_collision_ms);
+        ImGui::Text("Edge -> Triangle: %.3f ms", profile_average.edge_triangle_collision_ms);
+        ImGui::Text("Triangle -> Point: %.3f ms", profile_average.triangle_point_collision_ms);
+        ImGui::Text("Self Point -> Triangle: %.3f ms", profile_average.self_point_triangle_collision_ms);
+        ImGui::Unindent();
+        ImGui::Text("Constraint projection: %.3f ms", profile_average.constraints_ms);
+        ImGui::Separator();
+
+        ImGui::Text("Rendering: %.3f ms", profile_average.rendering_ms);
+    }
+    ImGui::End();
 }
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {

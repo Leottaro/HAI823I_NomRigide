@@ -3,6 +3,7 @@
 #include <glm/matrix.hpp>
 
 #include "DynamicObject.hpp"
+#include "Profiling.hpp"
 #include <iostream>
 #include <map>
 
@@ -243,6 +244,8 @@ bool DynamicObject::update(const std::vector<StaticBody>& static_bodies, double 
 
     // (8)
     if (_is_first_step) {
+        ScopedTimer timer(g_profile_frame.collision_ms);
+
         removeCollisionsConstraints();
 
         // full frame velocity and position
@@ -269,9 +272,12 @@ bool DynamicObject::update(const std::vector<StaticBody>& static_bodies, double 
     }
 
     // (9)-(11)
-    for (uint _ = 0; _ < _solver_iterations; _++)
-        if (!projectConstraints(_solver_iterations, new_positions, collisions_responses))
-            return false;
+    {
+        ScopedTimer timer(g_profile_frame.constraints_ms);
+        for (uint _ = 0; _ < _solver_iterations; _++)
+            if (!projectConstraints(_solver_iterations, new_positions, collisions_responses))
+                return false;
+    }
 
     if (!applyNewPositions(_sub_delta_time, new_positions)) // (12)-(15)
         return false;
@@ -313,6 +319,8 @@ bool DynamicObject::update(std::vector<DynamicObject>& dynamic_objects, const st
 
     std::map<uint, glm::dvec3> collisions_responses;
     if (_is_first_step) {
+        ScopedTimer timer(g_profile_frame.collision_ms);
+
         all_objects.removeCollisionsConstraints();
 
         // full frame velocity and position
@@ -344,8 +352,11 @@ bool DynamicObject::update(std::vector<DynamicObject>& dynamic_objects, const st
         }
     }
 
-    for (uint _ = 0; _ < _solver_iterations; _++)
-        all_objects.projectConstraints(_solver_iterations, new_positions, collisions_responses);
+    {
+        ScopedTimer timer(g_profile_frame.constraints_ms);
+        for (uint _ = 0; _ < _solver_iterations; _++)
+            all_objects.projectConstraints(_solver_iterations, new_positions, collisions_responses);
+    }
 
     all_objects.applyNewPositions(_sub_delta_time, new_positions);
     for (uint i = 0; i < nb_objects; i++) {
