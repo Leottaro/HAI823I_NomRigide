@@ -7,7 +7,7 @@
 void Scene::resetMesh(uint _i) {
     m_meshes[_i].clear();
     m_meshes[_i].setType(m_meshes_type[_i]);
-    // m_meshes[_i].recomputeStructs();
+    m_meshes[_i].recomputeStructs();
     m_meshes[_i].init();
 }
 void Scene::resetStaticBody(uint _i) {

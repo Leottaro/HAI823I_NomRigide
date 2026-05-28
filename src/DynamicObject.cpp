@@ -110,23 +110,19 @@ bool DynamicObject::projectConstraints(uint _solver_iterations, std::vector<glm:
         double function_value = m_functions[ci](affected_points);
         if (m_types[ci] == INEQUALITY_CONSTRAINT) {
             // The constraint is already satisfied so we don't project it
-            if (function_value >= 0) {
+            if (function_value >= 0)
                 continue;
-            }
-            // accumulate collision normal
-            else {
-                bool is_collision_constraint = (m_debug_types[ci] == VERTEX_COLLISION_CONSTRAINT ||
-                                                m_debug_types[ci] == EDGE_COLLISION_CONSTRAINT ||
-                                                m_debug_types[ci] == TRAINGLE_COLLISION_CONSTRAINT);
-                if (is_collision_constraint) {
-                    std::vector<glm::dvec3> grads = m_gradients[ci](affected_points);
-                    for (uint idx = 0; idx < m_cardinalities[ci]; idx++) {
-                        uint global_pj = m_indices[ci][idx];
-                        if (glm::length2(grads[idx]) > 1e-12) {
-                            glm::dvec3 normal = glm::normalize(grads[idx]);
-                            accumulateCollisionsResponse(global_pj, normal, _collisions_responses);
-                        }
-                    }
+
+            if (ci < M)
+                continue;
+
+            // if its a collision constraint, accumulate collision normal before skipping the projections
+            std::vector<glm::dvec3> gradients = m_gradients[ci](affected_points);
+            for (uint i = 0; i < m_cardinalities[ci]; i++) {
+                uint global_pj = m_indices[ci][i];
+                if (glm::length2(gradients[i]) > 1e-12) {
+                    glm::dvec3 normal = glm::normalize(gradients[i]);
+                    accumulateCollisionsResponse(global_pj, normal, _collisions_responses);
                 }
             }
         }
