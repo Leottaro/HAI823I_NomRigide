@@ -223,7 +223,7 @@ void DynamicObject::removeCollisionsConstraints() {
     m_gradients.resize(M);
 }
 
-bool DynamicObject::update(const std::vector<StaticBody>& static_bodies, double _sub_delta_time, double _full_delta_time, uint _solver_iterations, bool _is_first_step) {
+bool DynamicObject::update(const std::vector<StaticBody>& static_bodies, double _sub_delta_time, double _full_delta_time, uint _solver_iterations, bool _is_first_step, bool _do_self_collision) {
     std::vector<glm::dvec3> new_positions(N); // p_i
     std::vector<glm::dvec3> full_frame_velocities(N);
     std::vector<glm::dvec3> full_frame_positions(N);
@@ -236,7 +236,8 @@ bool DynamicObject::update(const std::vector<StaticBody>& static_bodies, double 
     }
 
     // (6)
-    dampVelocities(0, N);
+    if (m_damping_coefficient > 0.f)
+        dampVelocities(0, N);
 
     // (7)
     for (uint pj = 0; pj < N; pj++)
@@ -268,7 +269,9 @@ bool DynamicObject::update(const std::vector<StaticBody>& static_bodies, double 
         detectPointTriangleCollision(full_frame_positions, static_bodies, collisions_responses, 0, N);
         detectEdgeTriangleCollision(full_frame_positions, static_bodies, collisions_responses, 0, m_lines.size());
         detectTrianglePointCollision(full_frame_positions, static_bodies, collisions_responses, 0, m_triangles.size());
-        detectSelfPointTriangleCollision(hasher, full_frame_positions, collisions_responses, 0, m_triangles.size());
+        if (_do_self_collision) {
+            detectSelfPointTriangleCollision(hasher, full_frame_positions, collisions_responses, 0, m_triangles.size());
+        }
     }
 
     // (9)-(11)
@@ -307,7 +310,8 @@ bool DynamicObject::update(std::vector<DynamicObject>& dynamic_objects, const st
         all_objects.m_velocities[pj] = all_objects.m_fixed[pj] ? all_objects.m_velocities[pj] : all_objects.m_velocities[pj] + _sub_delta_time * glm::dvec3(0., -9.807, 0.);
     for (uint i = 0; i < nb_objects; i++) {
         all_objects.m_damping_coefficient = dynamic_objects[i].m_damping_coefficient;
-        all_objects.dampVelocities(vertices_offsets[i], vertices_offsets[i + 1]);
+        if (all_objects.m_damping_coefficient > 0.f)
+            all_objects.dampVelocities(vertices_offsets[i], vertices_offsets[i + 1]);
     }
     std::vector<glm::dvec3> new_positions(all_objects.N);
     std::vector<glm::dvec3> full_frame_velocities(all_objects.N);
@@ -355,14 +359,17 @@ bool DynamicObject::update(std::vector<DynamicObject>& dynamic_objects, const st
     {
         ScopedTimer timer(g_profile_frame.constraints_ms);
         for (uint _ = 0; _ < _solver_iterations; _++)
-            all_objects.projectConstraints(_solver_iterations, new_positions, collisions_responses);
+            if (!all_objects.projectConstraints(_solver_iterations, new_positions, collisions_responses))
+                return false;
     }
 
-    all_objects.applyNewPositions(_sub_delta_time, new_positions);
+    if (!all_objects.applyNewPositions(_sub_delta_time, new_positions))
+        return false;
     for (uint i = 0; i < nb_objects; i++) {
         all_objects.m_friction_coefficient = dynamic_objects[i].m_friction_coefficient;
         all_objects.m_restitution_coefficient = dynamic_objects[i].m_restitution_coefficient;
-        all_objects.applyCollisions(collisions_responses, vertices_offsets[i], vertices_offsets[i + 1]);
+        if (!all_objects.applyCollisions(collisions_responses, vertices_offsets[i], vertices_offsets[i + 1]))
+            return false;
     }
 
     for (uint i = 0; i < nb_objects; i++) {
@@ -372,7 +379,7 @@ bool DynamicObject::update(std::vector<DynamicObject>& dynamic_objects, const st
         }
     }
 
-    return true; // TODO:
+    return true;
 }
 
 void DynamicObject::addVertex(const glm::dvec3& _position, const glm::dvec3& _velocity, double _mass, bool _fixed) {

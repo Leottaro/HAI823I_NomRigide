@@ -12,7 +12,7 @@ struct StaticBodyDesc {
     std::string name;
     uint mesh_i;
     Transformation transfo{};
-    bool real_time{false};
+    bool real_time{true};
 
     StaticBodyDesc(const std::string& _name, uint _mesh_i) : name(_name), mesh_i(_mesh_i) {}
 };
@@ -31,6 +31,9 @@ struct DynamicObjectDesc {
     uint mesh_i;
     DynamicObjectDescPreset preset;
 
+    DynamicRenderType render_type{DynamicRenderType::Auto};
+    glm::vec3 render_color{1.f};
+
     float distance_stiffness;
     float angle_stiffness;
     float volume_stiffness;
@@ -39,7 +42,6 @@ struct DynamicObjectDesc {
     float surface_thickness{1.e-1};
     float vertex_mass{1.f};
 
-    DynamicRenderType render_type{DynamicRenderType::Auto};
     Transformation transfo{};
     float friction_coefficient{0.5};
     float restitution_coefficient{0.5};
@@ -67,12 +69,14 @@ struct DynamicObjectDesc {
             angle_stiffness = 0.;
             volume_stiffness = 0.;
             volume_pressure = 1.;
+            damping_coefficient = 0.;
             break;
         case DynamicObjectDescPreset::SoftBody:
             distance_stiffness = .9;
             angle_stiffness = .9;
             volume_stiffness = .9;
             volume_pressure = 1.;
+            damping_coefficient = 0.05;
             break;
         default:
             throw new std::runtime_error("unimplemented DynamicObjectDescPreset in DynamicObjectDesc constructor.");
@@ -83,30 +87,32 @@ struct DynamicObjectDesc {
 class Scene {
 private:
     // meshes
-    // uint m_meshes_count = 0;
-    std::vector<MeshType> m_meshes_type = {};
-    std::vector<Mesh> m_meshes = {};
+    // uint m_meshes_count0;
+    std::vector<MeshType> m_meshes_type{};
+    std::vector<Mesh> m_meshes{};
     MeshType m_new_mesh_type;
 
     // static bodies
-    // uint m_static_bodies_count = 0;
-    std::vector<StaticBodyDesc> m_static_bodies_desc = {};
+    // uint m_static_bodies_count0;
+    std::vector<StaticBodyDesc> m_static_bodies_desc{};
     std::string m_new_static_name;
-    std::vector<uint> m_static_bodies_mesh_i = {};
-    std::vector<Transformation> m_static_bodies_transfo = {};
+    std::vector<uint> m_static_bodies_mesh_i{};
+    std::vector<Transformation> m_static_bodies_transfo{};
 
     // dynamic objects
-    // uint m_dynamic_objects_count = 0;
-    std::vector<DynamicObjectDesc> m_dynamic_objects_desc = {};
+    // uint m_dynamic_objects_count0;
+    std::vector<DynamicObjectDesc> m_dynamic_objects_desc{};
     std::string m_new_dynamic_name;
     std::vector<int> m_dynamic_fixed_input_buffers;
     std::vector<DynamicObject> m_dynamic_objects;
 
 public:
-    uint solver_iterations = 100;
-    uint num_subSteps = 4;
-    bool do_fixed_delta_time = false;
-    double fixed_delta_time = 1.e-6;
+    uint solver_iterations{100};
+    uint num_subSteps{4};
+    bool do_fixed_delta_time{false};
+    double fixed_delta_time{1.e-6};
+    bool do_self_collision{false};
+    bool do_inter_dynamic_collision{false};
 
     inline void addMesh(const MeshType& _type) { m_meshes_type.push_back(_type); }
     inline std::vector<MeshType>& getMeshesType() { return m_meshes_type; }

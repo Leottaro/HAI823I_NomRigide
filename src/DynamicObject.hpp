@@ -160,7 +160,7 @@ private:
     void removeCollisionsConstraints();
 
 public:
-    bool update(const std::vector<StaticBody>& static_bodies, double _delta_time, double _full_delta_time, uint _solver_iterations, bool is_first_step);
+    bool update(const std::vector<StaticBody>& static_bodies, double _delta_time, double _full_delta_time, uint _solver_iterations, bool is_first_step, bool _do_self_collision);
     static bool update(std::vector<DynamicObject>& dynamic_objects, const std::vector<StaticBody>& static_bodies, double _delta_time, double _full_delta_time, uint _solver_iterations, bool is_first_step);
 
     void addVertex(const glm::dvec3& _position, const glm::dvec3& _velocity, double _mass, bool _fixed);

@@ -28,30 +28,30 @@ constexpr glm::vec3 VEC_UP(0.f, 1.f, 0.f);
 constexpr glm::vec3 VEC_FRONT(0.f, 0.f, 1.f);
 
 template <typename T>
-inline glm::vec<3, T, glm::packed_highp> applyTransformation(const glm::vec<3, T, glm::packed_highp>& vec, T w, const glm::mat<4, 4, T, glm::packed_highp>& transfo) {
-    glm::vec<4, T, glm::packed_highp> temp = transfo * glm::vec4(vec.x, vec.y, vec.z, w);
-    return temp.w == 0. ? glm::vec<3, T, glm::packed_highp>(temp.x, temp.y, temp.z) : glm::vec<3, T, glm::packed_highp>(temp.x, temp.y, temp.z) / temp.w;
+inline glm::vec<3, T, glm::defaultp> applyTransformation(const glm::vec<3, T, glm::defaultp>& vec, T w, const glm::mat<4, 4, T, glm::defaultp>& transfo) {
+    glm::vec<4, T, glm::defaultp> temp = transfo * glm::vec4(vec.x, vec.y, vec.z, w);
+    return temp.w == 0. ? glm::vec<3, T, glm::defaultp>(temp.x, temp.y, temp.z) : glm::vec<3, T, glm::defaultp>(temp.x, temp.y, temp.z) / temp.w;
 }
 
 template <typename T>
-inline glm::vec<3, T, glm::packed_highp> projectVectorOnPlane(const glm::vec<3, T, glm::packed_highp>& _vec, const glm::vec<3, T, glm::packed_highp>& _normal) {
+inline glm::vec<3, T, glm::defaultp> projectVectorOnPlane(const glm::vec<3, T, glm::defaultp>& _vec, const glm::vec<3, T, glm::defaultp>& _normal) {
     return glm::cross(glm::normalize(_normal), glm::cross(_vec, glm::normalize(_normal)));
 }
 template <typename T>
-inline glm::vec<3, T, glm::packed_highp> projectPointOnPlane(const glm::vec<3, T, glm::packed_highp>& _point, const glm::vec<3, T, glm::packed_highp>& _origin, const glm::vec<3, T, glm::packed_highp>& _normal) {
+inline glm::vec<3, T, glm::defaultp> projectPointOnPlane(const glm::vec<3, T, glm::defaultp>& _point, const glm::vec<3, T, glm::defaultp>& _origin, const glm::vec<3, T, glm::defaultp>& _normal) {
     return _origin + projectVectorOnPlane(_point - _origin, _normal);
 }
 template <typename T>
-inline glm::vec<3, T, glm::packed_highp> projectVectorOnLine(const glm::vec<3, T, glm::packed_highp>& _vec, const glm::vec<3, T, glm::packed_highp>& _direction) {
+inline glm::vec<3, T, glm::defaultp> projectVectorOnLine(const glm::vec<3, T, glm::defaultp>& _vec, const glm::vec<3, T, glm::defaultp>& _direction) {
     return glm::dot(_vec, _direction) * _direction;
 }
 template <typename T>
-inline glm::vec<3, T, glm::packed_highp> projectPointOnLine(const glm::vec<3, T, glm::packed_highp>& _point, const glm::vec<3, T, glm::packed_highp>& _origin, const glm::vec<3, T, glm::packed_highp>& _direction) {
+inline glm::vec<3, T, glm::defaultp> projectPointOnLine(const glm::vec<3, T, glm::defaultp>& _point, const glm::vec<3, T, glm::defaultp>& _origin, const glm::vec<3, T, glm::defaultp>& _direction) {
     return _origin + projectVectorOnLine(_point - _origin, _direction);
 }
 
 template <typename T>
-bool computeBarycentrics(const glm::vec<3, T, glm::packed_highp>& v0, const glm::vec<3, T, glm::packed_highp>& v1, const glm::vec<3, T, glm::packed_highp>& v2, const glm::vec<3, T, glm::packed_highp>& normal, const glm::vec<3, T, glm::packed_highp>& p, glm::vec<3, T, glm::packed_highp>& barycentrics) {
+bool computeBarycentrics(const glm::vec<3, T, glm::defaultp>& v0, const glm::vec<3, T, glm::defaultp>& v1, const glm::vec<3, T, glm::defaultp>& v2, const glm::vec<3, T, glm::defaultp>& normal, const glm::vec<3, T, glm::defaultp>& p, glm::vec<3, T, glm::defaultp>& barycentrics) {
     T total_area_sq = glm::length2(normal);
     if (total_area_sq < T(1.e-8))
         return false;
@@ -70,10 +70,28 @@ bool computeBarycentrics(const glm::vec<3, T, glm::packed_highp>& v0, const glm:
     return true;
 }
 
+template <typename T>
+bool rayTriangleIntersection(const glm::vec<3, T, glm::defaultp>& origin, const glm::vec<3, T, glm::defaultp>& direction,
+                             const glm::vec<3, T, glm::defaultp>& v0, const glm::vec<3, T, glm::defaultp>& v1, const glm::vec<3, T, glm::defaultp>& v2, const glm::vec<3, T, glm::defaultp>& normal,
+                             T& t, glm::vec<3, T, glm::defaultp>& intersection, glm::vec<3, T, glm::defaultp>& barycentrics) {
+    // Check if ray is parallel
+    T dot = glm::dot(direction, normal);
+    if (std::abs(dot) <= T(1.e-8)) {
+        return false;
+    }
+
+    // determine intersection
+    t = -(glm::dot(normal, origin - v0)) / dot;
+    intersection = origin + t * direction;
+
+    // barycentric coordinates
+    return computeBarycentrics(v0, v1, v2, normal, intersection, barycentrics);
+}
+
 // https://www.desmos.com/calculator/eeqkstj2ck
 template <typename T>
-glm::vec<3, T, glm::packed_highp> fallbackInTriangle(const glm::vec<3, T, glm::packed_highp>& p1, const glm::vec<3, T, glm::packed_highp>& p2, glm::vec<3, T, glm::packed_highp>& project_on_plane) {
-    glm::vec<3, T, glm::packed_highp> direction = p2 - p1;
+glm::vec<3, T, glm::defaultp> fallbackInTriangle(const glm::vec<3, T, glm::defaultp>& p1, const glm::vec<3, T, glm::defaultp>& p2, glm::vec<3, T, glm::defaultp>& project_on_plane) {
+    glm::vec<3, T, glm::defaultp> direction = p2 - p1;
     T n_squared = std::pow(glm::distance(p2, p1), 2);
     T dot = glm::dot(direction, project_on_plane - p1);
     T dot_over_one = dot / n_squared;
@@ -81,10 +99,10 @@ glm::vec<3, T, glm::packed_highp> fallbackInTriangle(const glm::vec<3, T, glm::p
     return p1 + direction * r;
 };
 template <typename T>
-inline T closestPointInTriangle(const glm::vec<3, T, glm::packed_highp>& point,
-                                const glm::vec<3, T, glm::packed_highp>& v0, const glm::vec<3, T, glm::packed_highp>& v1, const glm::vec<3, T, glm::packed_highp>& v2, const glm::vec<3, T, glm::packed_highp>& normal,
-                                glm::vec<3, T, glm::packed_highp>& surface, glm::vec<3, T, glm::packed_highp>& barycentrics) {
-    glm::vec<3, T, glm::packed_highp> project_on_plane = v0 + glm::cross(normal, glm::cross(point - v0, normal));
+inline T closestPointInTriangle(const glm::vec<3, T, glm::defaultp>& point,
+                                const glm::vec<3, T, glm::defaultp>& v0, const glm::vec<3, T, glm::defaultp>& v1, const glm::vec<3, T, glm::defaultp>& v2, const glm::vec<3, T, glm::defaultp>& normal,
+                                glm::vec<3, T, glm::defaultp>& surface, glm::vec<3, T, glm::defaultp>& barycentrics) {
+    glm::vec<3, T, glm::defaultp> project_on_plane = v0 + glm::cross(normal, glm::cross(point - v0, normal));
     computeBarycentrics(v0, v1, v2, normal, project_on_plane, barycentrics);
     surface = barycentrics[0] < T(0)   ? fallbackInTriangle(v1, v2, project_on_plane)
               : barycentrics[1] < T(0) ? fallbackInTriangle(v2, v0, project_on_plane)

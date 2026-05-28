@@ -38,11 +38,13 @@
 #include <omp.h>
 #endif
 
-
 using namespace std;
 
 // TODO: SINGLETON
 GLuint window_width = 1280, window_height = 720;
+int window_pox, window_poy;
+bool fullscreen_window = false;
+
 glm::vec2 cursor_pos = glm::vec2(0, 0);
 glm::vec3 cursor_worldpos = glm::vec3(0, 0, 0);
 glm::vec2 cursor_vel = glm::vec2(0, 0);
@@ -56,6 +58,81 @@ bool run_simulation = false;
 void globalInit();
 void renderProfilingInterface(float deltaTime, const ProfileFrame& profile_average);
 
+void BunnyClothScene(Scene& scene) {
+    scene.do_self_collision = false;
+    scene.do_inter_dynamic_collision = false;
+    scene.do_fixed_delta_time = true;
+    scene.fixed_delta_time = 0.01;
+
+    scene.addMesh(LoadedMesh{"ressources/models/bunny2.off"});
+    scene.addMesh(SimpleGridMesh{40, 40});
+
+    Transformation* lapin_transfo = scene.addStaticBody(StaticBodyDesc{"Lapin", 0});
+    lapin_transfo->setTranslation(glm::vec3(0.f, 0.f, 0.f));
+    lapin_transfo->setEulerAngles(glm::vec3(-M_PIf / 2.f, 0.f, M_PIf));
+    lapin_transfo->setScale(glm::vec3(5.f, 5.f, 5.f));
+
+    DynamicObjectDesc filet_desc("filet", 1, DynamicObjectDescPreset::ClothObject);
+    filet_desc.render_type = DynamicRenderType::LineRender;
+    Transformation* filet_transfo = scene.addDynamicObject(filet_desc);
+    filet_transfo->setTranslation(glm::vec3(0.f, 5.f, 0.f));
+    filet_transfo->setScale(glm::vec3(10.f, 10.f, 10.f));
+}
+
+void netRockScene1(Scene& scene) {
+    scene.do_self_collision = true;
+    scene.do_inter_dynamic_collision = true;
+    scene.do_fixed_delta_time = true;
+    scene.fixed_delta_time = 0.01;
+
+    uint grid_size = 40;
+    scene.addMesh(SimpleGridMesh{grid_size, grid_size});
+    scene.addMesh(CubeSphereMesh{3});
+
+    DynamicObjectDesc filet_desc("filet", 0, DynamicObjectDescPreset::ClothObject);
+    filet_desc.render_type = DynamicRenderType::LineRender;
+    filet_desc.fixed_vertices = {0, grid_size - 1, grid_size * (grid_size - 1), grid_size * grid_size - 1};
+    filet_desc.distance_stiffness = 0.9f;
+    Transformation* filet_transfo = scene.addDynamicObject(filet_desc);
+    filet_transfo->setTranslation(glm::vec3(0.f, 0.f, 0.f));
+    filet_transfo->setScale(glm::vec3(10.f, 10.f, 10.f));
+
+    DynamicObjectDesc sphere_desc("sphere", 1, DynamicObjectDescPreset::RigidBody);
+    sphere_desc.render_type = DynamicRenderType::TriangleRender;
+    sphere_desc.render_color = glm::vec3(1.f, 0.f, 0.f);
+    sphere_desc.vertex_mass = 100.f;
+    Transformation* sphere_transformation = scene.addDynamicObject(sphere_desc);
+    sphere_transformation->setScale(glm::vec3(1.f, 1.f, 1.f));
+    sphere_transformation->setTranslation(glm::vec3(0.f, 2.f, 0.f));
+}
+
+void netRockScene2(Scene& scene) {
+    scene.do_self_collision = true;
+    scene.do_inter_dynamic_collision = true;
+    scene.do_fixed_delta_time = true;
+    scene.fixed_delta_time = 0.01;
+
+    uint grid_size = 40;
+    scene.addMesh(SimpleGridMesh{grid_size, grid_size});
+    scene.addMesh(CubeSphereMesh{3});
+
+    DynamicObjectDesc filet_desc("filet", 0, DynamicObjectDescPreset::ClothObject);
+    filet_desc.render_type = DynamicRenderType::LineRender;
+    filet_desc.fixed_vertices = {0, grid_size - 1, grid_size * (grid_size - 1), grid_size * grid_size - 1};
+    filet_desc.distance_stiffness = 0.5f;
+    Transformation* filet_transfo = scene.addDynamicObject(filet_desc);
+    filet_transfo->setTranslation(glm::vec3(0.f, 0.f, 0.f));
+    filet_transfo->setScale(glm::vec3(10.f, 10.f, 10.f));
+
+    DynamicObjectDesc sphere_desc("sphere", 1, DynamicObjectDescPreset::RigidBody);
+    sphere_desc.render_type = DynamicRenderType::TriangleRender;
+    sphere_desc.render_color = glm::vec3(1.f, 0.f, 0.f);
+    sphere_desc.vertex_mass = 10.f;
+    Transformation* sphere_transformation = scene.addDynamicObject(sphere_desc);
+    sphere_transformation->setScale(glm::vec3(1.f, 1.f, 1.f));
+    sphere_transformation->setTranslation(glm::vec3(0.f, 2.f, 0.f));
+}
+
 int main(void) {
     globalInit();
 
@@ -65,34 +142,11 @@ int main(void) {
     dynamic_shader.link();
 
     Scene scene = Scene();
-    scene.do_fixed_delta_time = true;
-    scene.fixed_delta_time = 0.01;
-
-    uint size = 25;
-    scene.addMesh(SimpleGridMesh{size, size});
-    scene.addMesh(CubeSphereMesh{3});
-
-    DynamicObjectDesc filet_desc("filet", 0, DynamicObjectDescPreset::ClothObject);
-    filet_desc.fixed_vertices = {0, size - 1, size * (size - 1), size * size - 1};
-    Transformation* filet_transfo = scene.addDynamicObject(filet_desc);
-    filet_transfo->setScale(glm::vec3(10.f));
-
-    DynamicObjectDesc boule1_desc("boule1", 1, DynamicObjectDescPreset::RigidBody);
-    Transformation* boule1_transformation = scene.addDynamicObject(boule1_desc);
-    boule1_transformation->setTranslation(glm::vec3(3.f, 3.f, 3.f));
-
-    DynamicObjectDesc boule2_desc("boule2", 1, DynamicObjectDescPreset::RigidBody);
-    Transformation* boule2_transformation = scene.addDynamicObject(boule2_desc);
-    boule2_transformation->setTranslation(glm::vec3(0.f, 3.f, 0.f));
-
-    DynamicObjectDesc boule3_desc("boule3", 1, DynamicObjectDescPreset::RigidBody);
-    Transformation* boule3_transformation = scene.addDynamicObject(boule3_desc);
-    boule3_transformation->setTranslation(glm::vec3(-1.f, 1.25f, -1.f));
+    BunnyClothScene(scene);
+    // netRockScene1(scene);
+    // netRockScene2(scene);
 
     scene.resetObjects();
-
-    // TODO: init textures
-    // TODO: setup lights
 
     // timings
     float deltaTime = 0.0f;
@@ -246,6 +300,20 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         glPolygonMode(GL_FRONT_AND_BACK, polygon_mode);
     }
 
+    if (key == GLFW_KEY_F && action == GLFW_PRESS) {
+        fullscreen_window = !fullscreen_window;
+        if (fullscreen_window) {
+            GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+            const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+            glfwGetWindowPos(window, &window_pox, &window_poy);
+            glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height, GLFW_DONT_CARE);
+            window_width = mode->width;
+            window_height = mode->height;
+        } else {
+            glfwSetWindowMonitor(window, nullptr, window_pox, window_poy, window_width, window_height, GLFW_DONT_CARE);
+        }
+    }
+
     if (key == GLFW_KEY_SPACE) {
         if (action == GLFW_PRESS) {
             if (!space_key_pressed) {
@@ -349,5 +417,4 @@ void globalInit() {
 #else
     std::cout << "OpenMP disabled" << std::endl;
 #endif
-
 }
