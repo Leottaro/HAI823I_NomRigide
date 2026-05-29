@@ -17,12 +17,13 @@ struct StaticBodyDesc {
     StaticBodyDesc(const std::string& _name, uint _mesh_i) : name(_name), mesh_i(_mesh_i) {}
 };
 
-#define DYNAMIC_OBJECT_PRESEST_N 4
-#define IMGUI_DYNAMIC_OBJECT_PRESEST "CustomBody\0RigidBody\0ClothObject\0SoftBody\0"
+#define DYNAMIC_OBJECT_PRESEST_N 5
+#define IMGUI_DYNAMIC_OBJECT_PRESEST "CustomBody\0RigidBody\0ClothObject\0ClothBalloon\0SoftBody\0"
 enum DynamicObjectDescPreset {
     CustomBody,
     RigidBody,
-    ClothObject,
+    Cloth,
+    ClothBalloon,
     SoftBody
 };
 
@@ -65,11 +66,18 @@ struct DynamicObjectDesc {
             volume_pressure = 1.;
             damping_coefficient = 1.;
             break;
-        case DynamicObjectDescPreset::ClothObject:
+        case DynamicObjectDescPreset::Cloth:
             distance_stiffness = .9;
             angle_stiffness = 0.;
             volume_stiffness = 0.;
             volume_pressure = 1.;
+            damping_coefficient = 0.;
+            break;
+        case DynamicObjectDescPreset::ClothBalloon:
+            distance_stiffness = .75;
+            angle_stiffness = 0.;
+            volume_stiffness = 1.;
+            volume_pressure = 1.25;
             damping_coefficient = 0.;
             break;
         case DynamicObjectDescPreset::SoftBody:
@@ -113,6 +121,7 @@ public:
     ConstraintSolverType constraint_solver{GaussSeidelSolver};
     bool do_fixed_delta_time{false};
     double fixed_delta_time{1.e-6};
+    bool do_gravity{true};
     bool do_point_triangle_collision{true};
     bool do_edge_triangle_collision{true};
     bool do_triangle_point_collision{true};

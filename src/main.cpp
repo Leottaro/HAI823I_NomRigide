@@ -73,11 +73,28 @@ void BunnyClothScene(Scene& scene) {
     lapin_transfo->setEulerAngles(glm::vec3(-glm::pi<float>() / 2.f, 0.f, glm::pi<float>()));
     lapin_transfo->setScale(glm::vec3(5.f, 5.f, 5.f));
 
-    DynamicObjectDesc filet_desc("filet", 1, DynamicObjectDescPreset::ClothObject);
+    DynamicObjectDesc filet_desc("filet", 1, DynamicObjectDescPreset::Cloth);
     filet_desc.render_type = DynamicRenderType::LineRender;
     Transformation* filet_transfo = scene.addDynamicObject(filet_desc);
     filet_transfo->setTranslation(glm::vec3(0.f, 5.f, 0.f));
     filet_transfo->setScale(glm::vec3(10.f, 10.f, 10.f));
+}
+
+void BunnyClothBalloonScene(Scene& scene) {
+    scene.do_gravity = false;
+    scene.do_self_collision = false;
+    scene.do_inter_dynamic_collision = false;
+    scene.do_fixed_delta_time = true;
+    scene.fixed_delta_time = 0.01;
+
+    scene.addMesh(LoadedMesh{"ressources/models/bunny1.off"});
+
+    DynamicObjectDesc filet_desc("Lapin", 0, DynamicObjectDescPreset::ClothBalloon);
+    filet_desc.render_type = DynamicRenderType::TriangleRender;
+    Transformation* filet_transfo = scene.addDynamicObject(filet_desc);
+    filet_transfo->setTranslation(glm::vec3(0.f, 0.f, 0.f));
+    filet_transfo->setScale(glm::vec3(5.f, 5.f, 5.f));
+    filet_transfo->setEulerAngles(glm::vec3(-M_PIf * 0.5f, 0.f, 0.f));
 }
 
 void netRockScene1(Scene& scene) {
@@ -90,7 +107,7 @@ void netRockScene1(Scene& scene) {
     scene.addMesh(SimpleGridMesh{grid_size, grid_size});
     scene.addMesh(CubeSphereMesh{3});
 
-    DynamicObjectDesc filet_desc("filet", 0, DynamicObjectDescPreset::ClothObject);
+    DynamicObjectDesc filet_desc("filet", 0, DynamicObjectDescPreset::Cloth);
     filet_desc.render_type = DynamicRenderType::LineRender;
     filet_desc.fixed_vertices = {0, grid_size - 1, grid_size * (grid_size - 1), grid_size * grid_size - 1};
     filet_desc.distance_stiffness = 0.9f;
@@ -117,7 +134,7 @@ void netRockScene2(Scene& scene) {
     scene.addMesh(SimpleGridMesh{grid_size, grid_size});
     scene.addMesh(CubeSphereMesh{3});
 
-    DynamicObjectDesc filet_desc("filet", 0, DynamicObjectDescPreset::ClothObject);
+    DynamicObjectDesc filet_desc("filet", 0, DynamicObjectDescPreset::Cloth);
     filet_desc.render_type = DynamicRenderType::LineRender;
     filet_desc.fixed_vertices = {0, grid_size - 1, grid_size * (grid_size - 1), grid_size * grid_size - 1};
     filet_desc.distance_stiffness = 0.5f;
@@ -143,7 +160,8 @@ int main(void) {
     dynamic_shader.link();
 
     Scene scene = Scene();
-    BunnyClothScene(scene);
+    // BunnyClothScene(scene);
+    BunnyClothBalloonScene(scene);
     // netRockScene1(scene);
     // netRockScene2(scene);
 

@@ -288,6 +288,7 @@ bool Scene::updateInterface() {
 
         ImGui::Spacing();
         ImGui::SeparatorText("Collision detection");
+        ImGui::Checkbox("Do Gravity", &do_gravity);
         ImGui::Checkbox("Point -> Triangle", &do_point_triangle_collision);
         ImGui::Checkbox("Edge -> Triangle", &do_edge_triangle_collision);
         ImGui::Checkbox("Triangle -> Point", &do_triangle_point_collision);
@@ -407,7 +408,7 @@ bool Scene::updateSimulation(float _subDeltaTime, float _fullDeltaTime, bool _is
             sub_iterations = 1;
         float sdt = do_fixed_delta_time ? (fixed_delta_time / (float)num_subSteps) : _subDeltaTime;
         float fdt = do_fixed_delta_time ? fixed_delta_time : _fullDeltaTime;
-        bool res = DynamicObject::update(m_dynamic_objects, static_bodies, sdt, fdt, sub_iterations * m_dynamic_objects.size(), constraint_solver, collision_settings, _is_first_step);
+        bool res = DynamicObject::update(m_dynamic_objects, static_bodies, sdt, fdt, sub_iterations * m_dynamic_objects.size(), constraint_solver, collision_settings, _is_first_step, do_gravity);
         return res;
     }
 
@@ -417,7 +418,7 @@ bool Scene::updateSimulation(float _subDeltaTime, float _fullDeltaTime, bool _is
     for (DynamicObject& obj : m_dynamic_objects) {
         float sdt = do_fixed_delta_time ? (fixed_delta_time / (float)num_subSteps) : _subDeltaTime;
         float fdt = do_fixed_delta_time ? fixed_delta_time : _fullDeltaTime;
-        if (!obj.update(static_bodies, sdt, fdt, sub_iterations, constraint_solver, collision_settings, _is_first_step)) {
+        if (!obj.update(static_bodies, sdt, fdt, sub_iterations, constraint_solver, collision_settings, _is_first_step, do_gravity)) {
             obj.updateRenderedPositions();
             return false;
         }
@@ -435,11 +436,12 @@ void Scene::updateAllRendredPositions() {
 
 void Scene::render(const ShaderProgram& _dynamic_shader, const ShaderProgram& _mesh_shader, const Camera& _camera) const {
     // DYNAMIC OBJECTS RENDERING
+    glDisable(GL_CULL_FACE);
     _dynamic_shader.use();
     _dynamic_shader.set("model", glm::mat4(1.f));
     _dynamic_shader.set("projection", _camera.getProjectionMatrix());
     _dynamic_shader.set("view", _camera.getViewMatrix());
-    _dynamic_shader.set("lightPos", glm::vec3(5.f, 10.f, 0.f));
+    _dynamic_shader.set("lightPos", glm::vec3(5.f, 10.f, -3.f));
     _dynamic_shader.set("viewPos", _camera.m_position);
     _dynamic_shader.set("lightColor", glm::vec3(1.f));
     for (uint i = 0; i < m_dynamic_objects_desc.size(); i++) {
@@ -448,6 +450,7 @@ void Scene::render(const ShaderProgram& _dynamic_shader, const ShaderProgram& _m
     }
 
     // STATIC OBJECTS RENDERING
+    glEnable(GL_CULL_FACE);
     _mesh_shader.use();
     _mesh_shader.set("projection", _camera.getProjectionMatrix());
     for (uint i = 0; i < m_static_bodies_desc.size(); i++) {

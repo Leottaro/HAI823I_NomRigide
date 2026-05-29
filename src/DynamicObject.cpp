@@ -355,16 +355,19 @@ void DynamicObject::removeCollisionsConstraints() {
     m_gradients.resize(M);
 }
 
-bool DynamicObject::update(const std::vector<StaticBody>& static_bodies, double _sub_delta_time, double _full_delta_time, uint _solver_iterations, ConstraintSolverType _solver_type, const CollisionDetectionSettings& _collision_settings, bool _is_first_step) {
+bool DynamicObject::update(const std::vector<StaticBody>& static_bodies, double _sub_delta_time, double _full_delta_time, uint _solver_iterations, ConstraintSolverType _solver_type, const CollisionDetectionSettings& _collision_settings, bool _is_first_step, bool _do_gravity) {
     std::vector<glm::dvec3> new_positions(N); // p_i
     std::vector<glm::dvec3> full_frame_velocities(N);
     std::vector<glm::dvec3> full_frame_positions(N);
     std::map<uint, glm::dvec3> collisions_responses;
 
     // (5) external forces (gravity, etc...) (for now, just gravity)
+    glm::dvec3 forces{0.};
+    if (_do_gravity)
+        forces += glm::dvec3(0., -9.807, 0.);
     for (uint pj = 0; pj < N; pj++) {
         full_frame_velocities[pj] = m_velocities[pj];
-        m_velocities[pj] = m_fixed[pj] ? m_velocities[pj] : m_velocities[pj] + _sub_delta_time * glm::dvec3(0., -9.807, 0.);
+        m_velocities[pj] = m_fixed[pj] ? m_velocities[pj] : m_velocities[pj] + _sub_delta_time * forces;
     }
 
     // (6)
@@ -432,7 +435,7 @@ bool DynamicObject::update(const std::vector<StaticBody>& static_bodies, double 
     return true;
 }
 
-bool DynamicObject::update(std::vector<DynamicObject>& dynamic_objects, const std::vector<StaticBody>& static_bodies, double _sub_delta_time, double _full_delta_time, uint _solver_iterations, ConstraintSolverType _solver_type, const CollisionDetectionSettings& _collision_settings, bool _is_first_step) {
+bool DynamicObject::update(std::vector<DynamicObject>& dynamic_objects, const std::vector<StaticBody>& static_bodies, double _sub_delta_time, double _full_delta_time, uint _solver_iterations, ConstraintSolverType _solver_type, const CollisionDetectionSettings& _collision_settings, bool _is_first_step, bool _do_gravity) {
     uint nb_objects = dynamic_objects.size();
     DynamicObject all_objects;
     std::vector<uint> vertices_offsets(nb_objects + 1, 0);
@@ -448,8 +451,12 @@ bool DynamicObject::update(std::vector<DynamicObject>& dynamic_objects, const st
         constraints_offsets[i * 2 + 1] = all_objects.M + all_objects.Mcoll;
     }
 
+    glm::dvec3 forces{0.};
+    if (_do_gravity)
+        forces += glm::dvec3(0., -9.807, 0.);
     for (uint pj = 0; pj < all_objects.N; pj++)
-        all_objects.m_velocities[pj] = all_objects.m_fixed[pj] ? all_objects.m_velocities[pj] : all_objects.m_velocities[pj] + _sub_delta_time * glm::dvec3(0., -9.807, 0.);
+        all_objects.m_velocities[pj] = all_objects.m_fixed[pj] ? all_objects.m_velocities[pj] : all_objects.m_velocities[pj] + _sub_delta_time * forces;
+
     for (uint i = 0; i < nb_objects; i++) {
         all_objects.m_damping_coefficient = dynamic_objects[i].m_damping_coefficient;
         if (all_objects.m_damping_coefficient > 0.f)

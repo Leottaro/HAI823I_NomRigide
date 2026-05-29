@@ -159,6 +159,7 @@ public:
     inline void setDampingCoefficient(double _coeff) { m_damping_coefficient = _coeff; }
     inline void setSurfaceThickness(double _coeff) { m_surface_thickness = _coeff; }
     inline void setCollisionDetectionMargin(double _coeff) { m_collision_detection_margin = _coeff; }
+    inline void getDoGravity(double _coeff) { m_restitution_coefficient = _coeff; }
     inline double getFrictionCoefficient() const { return m_friction_coefficient; }
     inline double getDampingCoefficient() const { return m_damping_coefficient; }
     inline double getRestitutionCoefficient() const { return m_restitution_coefficient; }
@@ -178,8 +179,8 @@ private:
     void removeCollisionsConstraints();
 
 public:
-    bool update(const std::vector<StaticBody>& static_bodies, double _delta_time, double _full_delta_time, uint _solver_iterations, ConstraintSolverType _solver_type, const CollisionDetectionSettings& _collision_settings, bool is_first_step);
-    static bool update(std::vector<DynamicObject>& dynamic_objects, const std::vector<StaticBody>& static_bodies, double _delta_time, double _full_delta_time, uint _solver_iterations, ConstraintSolverType _solver_type, const CollisionDetectionSettings& _collision_settings, bool is_first_step);
+    bool update(const std::vector<StaticBody>& static_bodies, double _delta_time, double _full_delta_time, uint _solver_iterations, ConstraintSolverType _solver_type, const CollisionDetectionSettings& _collision_settings, bool is_first_step, bool _do_gravity);
+    static bool update(std::vector<DynamicObject>& dynamic_objects, const std::vector<StaticBody>& static_bodies, double _delta_time, double _full_delta_time, uint _solver_iterations, ConstraintSolverType _solver_type, const CollisionDetectionSettings& _collision_settings, bool is_first_step, bool _do_gravity);
 
     void addVertex(const glm::dvec3& _position, const glm::dvec3& _velocity, double _mass, bool _fixed);
     inline void setVertexPosition(uint _pj, glm::dvec3 _position) { m_positions[_pj] = _position; }
