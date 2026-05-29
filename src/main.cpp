@@ -144,11 +144,53 @@ void netRockScene2(Scene& scene) {
 
     DynamicObjectDesc sphere_desc("sphere", 1, DynamicObjectDescPreset::RigidBody);
     sphere_desc.render_type = DynamicRenderType::TriangleRender;
-    sphere_desc.render_color = glm::vec3(1.f, 0.f, 0.f);
+    sphere_desc.render_color = glm::vec3(0.f);
+    sphere_desc.render_color = glm::vec3(0.3f, 0.3f, 0.3f);
     sphere_desc.vertex_mass = 10.f;
     Transformation* sphere_transformation = scene.addDynamicObject(sphere_desc);
     sphere_transformation->setScale(glm::vec3(1.f, 1.f, 1.f));
-    sphere_transformation->setTranslation(glm::vec3(0.f, 2.f, 0.f));
+    sphere_transformation->setTranslation(glm::vec3(0.f, 2.f, 0.5f));
+
+    DynamicObjectDesc sphere1_desc("sphere1", 1, DynamicObjectDescPreset::RigidBody);
+    sphere1_desc.render_type = DynamicRenderType::TriangleRender;
+    sphere_desc.render_color = glm::vec3(1.f, 0.f, 0.);
+    sphere1_desc.render_color = glm::vec3(1.f, 0.f, 0.f);
+    sphere1_desc.vertex_mass = 10.f;
+    Transformation* sphere1_transformation = scene.addDynamicObject(sphere1_desc);
+    sphere1_transformation->setScale(glm::vec3(2.f, 2.f, 2.f));
+    sphere1_transformation->setTranslation(glm::vec3(2.f, 5.f, 0.f));
+
+    DynamicObjectDesc sphere2_desc("sphere2", 1, DynamicObjectDescPreset::RigidBody);
+    sphere2_desc.render_type = DynamicRenderType::TriangleRender;
+    sphere_desc.render_color = glm::vec3(0.f);
+    sphere2_desc.render_color = glm::vec3(0.f, 1.f, 0.f);
+    sphere2_desc.vertex_mass = 10.f;
+    Transformation* sphere2_transformation = scene.addDynamicObject(sphere2_desc);
+    sphere2_transformation->setScale(glm::vec3(1.5f, 1.5f, 1.5f));
+    sphere2_transformation->setTranslation(glm::vec3(-1.f, 7.f, 1.f));
+}
+
+void LapinWorld(Scene& scene) {
+    // scene.do_self_collision = true;
+    // scene.do_inter_dynamic_collision = true;
+    scene.do_fixed_delta_time = true;
+    scene.fixed_delta_time = 0.01;
+
+    scene.addMesh(CubeMesh{2});
+    scene.addMesh(LoadedMesh{"ressources/models/bunny2.off"});
+
+    Transformation* floor_transfo = scene.addStaticBody(StaticBodyDesc{"Floor", 0});
+    floor_transfo->setTranslation(glm::vec3(0.f, -5.f, 0.f));
+    floor_transfo->setEulerAngles(glm::vec3(0.f, 0.f, 0.f));
+    floor_transfo->setScale(glm::vec3(100.f, 1.f, 100.f));
+
+    DynamicObjectDesc lapin_desc("lapin", 1, DynamicObjectDescPreset::SoftBody);
+    lapin_desc.render_type = DynamicRenderType::TriangleRender;
+    lapin_desc.render_color = glm::vec3(float(rand()) / RAND_MAX, float(rand()) / RAND_MAX, float(rand()) / RAND_MAX);
+    Transformation* lapin_transformation = scene.addDynamicObject(lapin_desc);
+    lapin_transformation->setScale(glm::vec3(5.f));
+    lapin_transformation->setTranslation(glm::vec3(0.f, 5.f, 0.f));
+    lapin_transformation->setEulerAngles(glm::vec3(-glm::pi<float>() / 2.f, 0.f, glm::pi<float>()));
 }
 
 int main(void) {
@@ -161,9 +203,10 @@ int main(void) {
 
     Scene scene = Scene();
     // BunnyClothScene(scene);
-    BunnyClothBalloonScene(scene);
+    // BunnyClothBalloonScene(scene);
     // netRockScene1(scene);
     // netRockScene2(scene);
+    // LapinWorld(scene);
 
     scene.resetObjects();
 

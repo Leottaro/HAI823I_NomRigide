@@ -116,7 +116,7 @@ private:
     std::vector<DynamicObject> m_dynamic_objects;
 
 public:
-    uint solver_iterations{100};
+    uint solver_iterations{10};
     uint num_subSteps{4};
     ConstraintSolverType constraint_solver{GaussSeidelSolver};
     bool do_fixed_delta_time{false};
