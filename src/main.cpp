@@ -89,12 +89,12 @@ void BunnyClothBalloonScene(Scene& scene) {
 
     scene.addMesh(LoadedMesh{"ressources/models/bunny1.off"});
 
-    DynamicObjectDesc filet_desc("Lapin", 0, DynamicObjectDescPreset::ClothBalloon);
-    filet_desc.render_type = DynamicRenderType::TriangleRender;
-    Transformation* filet_transfo = scene.addDynamicObject(filet_desc);
-    filet_transfo->setTranslation(glm::vec3(0.f, 0.f, 0.f));
-    filet_transfo->setScale(glm::vec3(5.f, 5.f, 5.f));
-    filet_transfo->setEulerAngles(glm::vec3(-M_PIf * 0.5f, 0.f, 0.f));
+    DynamicObjectDesc lapin_desc("Lapin", 0, DynamicObjectDescPreset::ClothBalloon);
+    lapin_desc.render_type = DynamicRenderType::TriangleRender;
+    Transformation* lapin_transfo = scene.addDynamicObject(lapin_desc);
+    lapin_transfo->setTranslation(glm::vec3(0.f, 0.f, 0.f));
+    lapin_transfo->setScale(glm::vec3(5.f, 5.f, 5.f));
+    lapin_transfo->setEulerAngles(glm::vec3(-glm::pi<float>() / 2.f, 0.f, glm::pi<float>()));
 }
 
 void netRockScene1(Scene& scene) {
