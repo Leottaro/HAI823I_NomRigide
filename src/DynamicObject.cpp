@@ -405,7 +405,7 @@ bool DynamicObject::update(double _delta_time, const std::vector<StaticBody> &st
     m_functions.resize(M);
     m_gradients.resize(M);
 
-    applyTearing(3.f);
+    applyTearing(4.f);
 
     return true;
 }
