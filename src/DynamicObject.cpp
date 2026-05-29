@@ -301,6 +301,8 @@ bool DynamicObject::projectConstraintsJacobi(uint _solver_iterations, std::vecto
 bool DynamicObject::applyNewPositions(double _delta_time, const std::vector<glm::dvec3>& new_positions) {
     // (12)-(15)
     for (uint pj = 0; pj < N; pj++) {
+        if (m_fixed[pj])
+            continue;
         if (new_positions[pj] != new_positions[pj]) {
             std::cerr << m_positions[pj] << " m_positions[pj]." << std::endl;
             return false;
@@ -387,7 +389,7 @@ bool DynamicObject::update(const std::vector<StaticBody>& static_bodies, double 
         // full frame velocity and position
         for (uint pj = 0; pj < N; pj++) {
             full_frame_velocities[pj] = m_fixed[pj] ? full_frame_velocities[pj] : full_frame_velocities[pj] + _full_delta_time * glm::dvec3(0., -9.807, 0.);
-            full_frame_positions[pj] = m_positions[pj] + _full_delta_time * full_frame_velocities[pj];
+            full_frame_positions[pj] = m_fixed[pj] ? m_positions[pj] : m_positions[pj] + _full_delta_time * full_frame_velocities[pj];
         }
 
         double hash_grid_size = 0.;

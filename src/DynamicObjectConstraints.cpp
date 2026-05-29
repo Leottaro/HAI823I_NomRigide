@@ -105,30 +105,46 @@ void DynamicObject::addVolumeConstraint(std::vector<glm::uvec3> _indices, double
     m_debug_types.push_back(VOLUME_CONSTRAINT);
 
     m_functions.push_back([_targeted_volume, _pressure, _indices](const std::vector<glm::dvec3>& _p) {
+        glm::dvec3 centroid(0.0);
+        for (const auto& p : _p)
+            centroid += p;
+        centroid /= double(_p.size());
+
         double V = 0;
         for (size_t i = 0; i < _indices.size(); i++) {
-            const glm::dvec3 p1 = _p[_indices[i][0]];
-            const glm::dvec3 p2 = _p[_indices[i][1]];
-            const glm::dvec3 p3 = _p[_indices[i][2]];
+            const glm::dvec3 p1 = _p[_indices[i][0]] - centroid;
+            const glm::dvec3 p2 = _p[_indices[i][1]] - centroid;
+            const glm::dvec3 p3 = _p[_indices[i][2]] - centroid;
             V += glm::dot(glm::cross(p1, p2), p3) / 6.;
         }
         return V - _pressure * _targeted_volume;
     });
     m_gradients.push_back([_indices](const std::vector<glm::dvec3>& _p) {
-        std::vector<glm::dvec3> grads(_p.size(), glm::dvec3(0.0));
+        glm::dvec3 centroid(0.0);
+        for (const auto& p : _p)
+            centroid += p;
+        centroid /= double(_p.size());
+
+        std::vector<glm::dvec3> grads_q(_p.size(), glm::dvec3(0.0));
         for (size_t i = 0; i < _indices.size(); i++) {
-            uint i1 = _indices[i][0];
-            uint i2 = _indices[i][1];
-            uint i3 = _indices[i][2];
-
-            glm::dvec3 p1 = _p[i1];
-            glm::dvec3 p2 = _p[i2];
-            glm::dvec3 p3 = _p[i3];
-
-            grads[i1] += glm::cross(p2, p3) / 6.;
-            grads[i2] += glm::cross(p3, p1) / 6.;
-            grads[i3] += glm::cross(p1, p2) / 6.;
+            uint i1 = _indices[i][0], i2 = _indices[i][1], i3 = _indices[i][2];
+            glm::dvec3 q1 = _p[i1] - centroid;
+            glm::dvec3 q2 = _p[i2] - centroid;
+            glm::dvec3 q3 = _p[i3] - centroid;
+            grads_q[i1] += glm::cross(q2, q3) / 6.;
+            grads_q[i2] += glm::cross(q3, q1) / 6.;
+            grads_q[i3] += glm::cross(q1, q2) / 6.;
         }
+
+        glm::dvec3 sum_grads(0.0);
+        for (const auto& g : grads_q)
+            sum_grads += g;
+        sum_grads /= double(_p.size());
+
+        std::vector<glm::dvec3> grads(_p.size());
+        for (size_t j = 0; j < _p.size(); j++)
+            grads[j] = grads_q[j] - sum_grads;
+
         return grads;
     });
 }

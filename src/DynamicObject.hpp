@@ -159,7 +159,6 @@ public:
     inline void setDampingCoefficient(double _coeff) { m_damping_coefficient = _coeff; }
     inline void setSurfaceThickness(double _coeff) { m_surface_thickness = _coeff; }
     inline void setCollisionDetectionMargin(double _coeff) { m_collision_detection_margin = _coeff; }
-    inline void getDoGravity(double _coeff) { m_restitution_coefficient = _coeff; }
     inline double getFrictionCoefficient() const { return m_friction_coefficient; }
     inline double getDampingCoefficient() const { return m_damping_coefficient; }
     inline double getRestitutionCoefficient() const { return m_restitution_coefficient; }

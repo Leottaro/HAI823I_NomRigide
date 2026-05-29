@@ -74,10 +74,10 @@ struct DynamicObjectDesc {
             damping_coefficient = 0.;
             break;
         case DynamicObjectDescPreset::ClothBalloon:
-            distance_stiffness = .75;
-            angle_stiffness = 0.;
-            volume_stiffness = 1.;
-            volume_pressure = 1.25;
+            distance_stiffness = 0.5;
+            angle_stiffness = 0.5;
+            volume_stiffness = 0.9;
+            volume_pressure = 1.5;
             damping_coefficient = 0.;
             break;
         case DynamicObjectDescPreset::SoftBody:
