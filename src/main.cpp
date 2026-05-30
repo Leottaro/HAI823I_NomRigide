@@ -193,6 +193,52 @@ void LapinWorld(Scene& scene) {
     lapin_transformation->setEulerAngles(glm::vec3(-glm::pi<float>() / 2.f, 0.f, glm::pi<float>()));
 }
 
+void SoftOnRamp(Scene& scene) {
+    scene.do_self_collision = false;
+    scene.do_fixed_delta_time = true;
+    scene.fixed_delta_time = 0.01;
+
+    uint size = 5;
+    scene.addMesh(CubeMesh{2});
+    scene.addMesh(CubeSphereMesh{size});
+
+    Transformation* floor_transfo = scene.addStaticBody(StaticBodyDesc("sol", 0));
+    floor_transfo->setTranslation(glm::vec3(0.f, -3.f, 0.f));
+    floor_transfo->setScale(glm::vec3(10.f, 4.f, 50.f));
+    floor_transfo->setEulerAngles(glm::vec3(M_PIf / 8.f, 0.f, 0.f));
+
+    DynamicObjectDesc dynamic_object_desc("sphere", 1, DynamicObjectDescPreset::SoftBody);
+    dynamic_object_desc.render_type = DynamicRenderType::LineRender;
+    Transformation* dynamic_body_transformation = scene.addDynamicObject(dynamic_object_desc);
+    dynamic_body_transformation->setTranslation(glm::vec3(0.f, 3.f, 0.f));
+    dynamic_body_transformation->setScale(glm::vec3(1.f));
+    dynamic_body_transformation->setEulerAngles(glm::vec3(0.f));
+}
+
+void LapinSquish(Scene& scene) {
+    scene.do_self_collision = false;
+    scene.do_edge_triangle_collision = false;
+    scene.do_triangle_point_collision = false;
+    scene.do_fixed_delta_time = true;
+    scene.fixed_delta_time = 0.01;
+
+    uint size = 5;
+    scene.addMesh(CubeMesh{2});
+    scene.addMesh(LoadedMesh{"ressources/models/bunny1.off"});
+
+    Transformation* floor_transfo = scene.addStaticBody(StaticBodyDesc("sol", 0));
+    floor_transfo->setTranslation(glm::vec3(0.f, -3.f, 0.f));
+    floor_transfo->setScale(glm::vec3(10.f, 4.f, 50.f));
+    floor_transfo->setEulerAngles(glm::vec3(0.f, 0.f, 0.f));
+
+    DynamicObjectDesc dynamic_object_desc("sphere", 1, DynamicObjectDescPreset::SoftBody);
+    dynamic_object_desc.render_type = DynamicRenderType::LineRender;
+    Transformation* dynamic_body_transformation = scene.addDynamicObject(dynamic_object_desc);
+    dynamic_body_transformation->setTranslation(glm::vec3(0.f, 3.f, 0.f));
+    dynamic_body_transformation->setScale(glm::vec3(1.f));
+    dynamic_body_transformation->setEulerAngles(glm::vec3(-glm::pi<float>() / 2.f, 0.f, glm::pi<float>()));
+}
+
 int main(void) {
     globalInit();
 
@@ -202,6 +248,8 @@ int main(void) {
     dynamic_shader.link();
 
     Scene scene = Scene();
+    // SoftOnRamp(scene);
+    LapinSquish(scene);
     // BunnyClothScene(scene);
     // BunnyClothBalloonScene(scene);
     // netRockScene1(scene);
