@@ -114,6 +114,10 @@ void Camera::updateKeyboardInput(GLFWwindow *_window, float _deltaTime) {
             movement -= m_right;
         if (glfwGetKey(_window, GLFW_KEY_D) == GLFW_PRESS)
             movement += m_right;
+        if (glfwGetKey(_window, GLFW_KEY_Q) == GLFW_PRESS)
+            movement += m_real_up;
+        if (glfwGetKey(_window, GLFW_KEY_E) == GLFW_PRESS)
+            movement -= m_real_up;
 
         if (movement != VEC_ZERO) {
             m_position += translation_speed * glm::normalize(movement);
