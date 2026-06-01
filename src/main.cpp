@@ -222,7 +222,6 @@ void LapinSquish(Scene& scene) {
     scene.do_fixed_delta_time = true;
     scene.fixed_delta_time = 0.01;
 
-    uint size = 5;
     scene.addMesh(CubeMesh{2});
     scene.addMesh(LoadedMesh{"ressources/models/bunny1.off"});
 
